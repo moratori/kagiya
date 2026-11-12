@@ -1,0 +1,16 @@
+# 検証ラボで作った見本（lab/phase1d/postfixsyntax.sh）。-o の書き方を確かめるためのもの
+smtp      inet  n       -       n       -       -       smtpd
+pickup    unix  n       -       n       60      1       pickup
+relay     unix  -       -       n       -       -       smtp
+        -o syslog_name=postfix/$service_name
+127.0.0.1:8587 inet n - n - - smtpd
+  -o smtpd_tls_security_level=encrypt
+# comment between continuation lines
+  -o smtpd_tls_mandatory_ciphers=high -o smtpd_tls_wrappermode=no
+  -o smtpd_tls_security_level=may
+8465 inet n - n - - smtpd -o smtpd_tls_wrappermode=yes -o smtpd_tls_exclude_ciphers=$tls_null_cipherlist
+lab-unix unix n - n - - smtpd -o smtpd_tls_security_level=none
+[::1]:8525 inet n - n - 1 postscreen
+127.0.0.1:8588 inet n - n - - smtpd
+  -o { smtpd_tls_exclude_ciphers = aNULL, MD5 }
+  -o {smtpd_tls_ciphers=high}
