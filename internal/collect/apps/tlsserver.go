@@ -22,6 +22,10 @@ type tlsScope struct {
 	cipherFile string // その記載の場所（接頭辞なし）
 	cipherLine int
 
+	tls13     string // アプリの設定が指定した TLS 1.3 のスイート（「:」区切り）。なければ空
+	tls13File string
+	tls13Line int
+
 	certs   []string // 証明書のパス（接頭辞なしの絶対パス）
 	certsOK bool     // 証明書の記載をすべて解釈できた（変数などを含まない）
 	dhParam bool     // DH パラメータの指定がある
@@ -34,6 +38,10 @@ const (
 	paramCiphers = "tls.ciphers"
 	paramTLS13   = "tls.ciphersuites-tls13"
 	paramDHE     = "tls.dhe-without-params"
+	paramCertSel = "tls.certificate-selection"
+
+	// 既定の表での特別な値: アプリが暗号文字列を設定せず、OpenSSL のシステム既定のままになる
+	cipherSystemDefault = "@system"
 )
 
 // appDefaults は、導入されているパッケージ版に対応するアプリの既定値と、その出典を返す。
@@ -276,6 +284,18 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			usedAppDefault = true
 		}
 		e.Steps = []model.ResolutionStep{first}
+		levelFrom := first // 暗号文字列にセキュリティレベルの指定が含まれるとき、それがどの層のものか
+		if in.CipherString == cipherSystemDefault {
+			// アプリは何も設定しない。システムの openssl.cnf の暗号文字列があればそれ、なければライブラリの既定（DEFAULT）
+			if sysCipher != "" {
+				in.CipherString = sysCipher
+				levelFrom = model.ResolutionStep{Layer: "os-policy", Op: "override"}
+			} else {
+				in.CipherString = "DEFAULT"
+				levelFrom = model.ResolutionStep{Layer: "library", Op: "default", Source: libProv}
+			}
+			e.Steps = append(e.Steps, levelFrom)
+		}
 		if table.ProfileSystem != "" && strings.HasPrefix(in.CipherString, "PROFILE=SYSTEM") {
 			e.Steps = append(e.Steps, model.ResolutionStep{Layer: "os-policy", Op: "profile"})
 		}
@@ -283,7 +303,15 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 		// 2. サーバーの持ち物: 証明書の種類と、DH パラメータ
 		var notes []string
 		if sc.certsOK {
-			in.Certs, in.CertsKnown = c.certKinds(sc.certs)
+			certs := sc.certs
+			if strings.Join(defs[paramCertSel], ",") == "first" && len(certs) > 1 {
+				certs = certs[:1] // この版は、同じ名前の証明書を複数指定しても最初の1つしか使わない
+				usedAppDefault = true
+			}
+			in.Certs, in.CertsKnown = c.certKinds(certs)
+		}
+		if sc.tls13 != "" {
+			in.AppTLS13 = strings.Split(sc.tls13, ":")
 		}
 		dheLayer := "app-config"
 		var dheSource *model.Provenance
@@ -307,7 +335,7 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 		levelStep := model.ResolutionStep{Op: "security-level"}
 		switch out.LevelSource {
 		case "cipher-string":
-			levelStep.Layer, levelStep.Setting, levelStep.Source = first.Layer, first.Setting, first.Source
+			levelStep.Layer, levelStep.Setting, levelStep.Source = levelFrom.Layer, levelFrom.Setting, levelFrom.Source
 		case "system":
 			levelStep.Layer = "os-policy"
 		case "library-default":
@@ -354,9 +382,12 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			c.Builder.AddEffective(e13)
 			continue
 		}
-		if in.SystemTLS13 != nil {
+		switch out.TLS13Source {
+		case "app":
+			e13.Steps = []model.ResolutionStep{{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, paramTLS13, sc.tls13File, sc.tls13Line)}}
+		case "system":
 			e13.Steps = []model.ResolutionStep{{Layer: "os-policy", Op: "override"}}
-		} else {
+		default:
 			e13.Steps = []model.ResolutionStep{{Layer: "library", Op: "default", Source: libProv}}
 		}
 		if levelStep.Layer != "" {

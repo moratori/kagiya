@@ -6,7 +6,6 @@ import (
 
 	"kagiya/internal/model"
 	"kagiya/internal/parse/sshdconf"
-	"kagiya/internal/parse/unitfile"
 	"kagiya/internal/ruleset"
 	"kagiya/internal/safefs"
 )
@@ -92,50 +91,7 @@ func (c *Collector) sshd(app ruleset.AppRule, svc model.Service, config string, 
 
 // sshdCommandLine は、ユニットファイルの ExecStart と環境ファイルから、sshd に渡される -o オプションを読む。
 func (c *Collector) sshdCommandLine(u unitInfo) []directive {
-	type envVal struct {
-		value string
-		file  string
-		line  int
-	}
-	env := map[string]envVal{}
-	for _, ef := range u.unit.Values("Service", "EnvironmentFile") {
-		ef = strings.TrimPrefix(ef, "-") // 先頭の - は「なくてもよい」の意味
-		if !strings.HasPrefix(ef, "/") {
-			continue
-		}
-		data, err := c.read(ef)
-		if err != nil {
-			continue
-		}
-		for _, e := range unitfile.ParseEnv(data) {
-			env[e.Key] = envVal{e.Value, ef, e.Line} // 後から読んだファイルの値が有効
-		}
-	}
-	execs := u.unit.Values("Service", "ExecStart")
-	if len(execs) == 0 {
-		return nil
-	}
-	type arg struct {
-		text string
-		file string
-		line int
-	}
-	var args []arg
-	for _, w := range unitfile.Words(strings.TrimLeft(execs[0], "-@:+!")) {
-		switch {
-		case w.Variable == "":
-			args = append(args, arg{w.Text, u.path, 0})
-		case w.Braced:
-			if v, ok := env[w.Variable]; ok && v.value != "" {
-				args = append(args, arg{v.value, v.file, v.line})
-			}
-		default:
-			v := env[w.Variable]
-			for _, f := range strings.Fields(v.value) {
-				args = append(args, arg{f, v.file, v.line})
-			}
-		}
-	}
+	args := c.unitArgs(u)
 	var out []directive
 	for i := 1; i < len(args); i++ {
 		opt := ""

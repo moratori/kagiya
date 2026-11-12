@@ -1,0 +1,42 @@
+# HAProxy。
+app:
+  id: haproxy
+  binaries: ["/usr/sbin/haproxy"]
+  # バイナリには版を見分ける目印になる文字列がないので、版はパッケージから取る
+  packages: ["haproxy"]
+  grammar: haproxy
+  config_files: ["/etc/haproxy/haproxy.cfg"]
+  units: ["haproxy.service"]
+  direction: inbound
+  # 記録する設定項目。全体（global）の項目はそのままの名前、bind の行の指定は「bind.<指定の名前>」。
+  directives:
+    - { name: bind, parameter: tls.listen, type: listen, multi: true }
+    - { name: ssl-default-bind-ciphers, parameter: tls.ciphers, type: cipher-string }
+    - { name: ssl-default-bind-ciphersuites, parameter: tls.ciphersuites-tls13, type: colon-list }
+    - { name: ssl-default-bind-options, parameter: tls.options, type: words }
+    - { name: ssl-default-bind-curves, parameter: tls.groups, type: colon-list }
+    - { name: ssl-dh-param-file, parameter: tls.dh-params, type: path }
+    - { name: tune.ssl.default-dh-param, parameter: tls.dh-param-size, type: int }
+    - { name: bind.ciphers, parameter: tls.ciphers, type: cipher-string }
+    - { name: bind.ciphersuites, parameter: tls.ciphersuites-tls13, type: colon-list }
+    - { name: bind.curves, parameter: tls.groups, type: colon-list }
+    - { name: bind.ssl-min-ver, parameter: tls.min-protocol, type: words }
+    - { name: bind.ssl-max-ver, parameter: tls.max-protocol, type: words }
+    - { name: bind.crt, parameter: tls.certificate, type: path, multi: true }
+    - { name: bind.ca-file, parameter: tls.client-ca, type: path }
+    - { name: ssl-default-server-ciphers, parameter: tls.ciphers, type: cipher-string, direction: outbound }
+    - { name: ssl-default-server-ciphersuites, parameter: tls.ciphersuites-tls13, type: colon-list, direction: outbound }
+    - { name: ssl-default-server-options, parameter: tls.options, type: words, direction: outbound }
+  sources:
+    - image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
+      os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
+      note: "haproxy 1.8.27-5.el8_10.2。/usr/sbin/haproxy が libssl.so.1.1 にリンク。ユニットは haproxy.service で、-f $CONFIG -f $CFGDIR（/etc/haproxy/haproxy.cfg と /etc/haproxy/conf.d）を読ませる。パッケージの設定は全体に ssl-default-bind-ciphers PROFILE=SYSTEM"
+    - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
+      os: "Red Hat Enterprise Linux 9.9 (Plow)"
+      note: "haproxy 2.8.14-3.el9_8.2。/usr/sbin/haproxy が libssl.so.3 にリンク。ユニットの指定は RHEL 8 と同じ"
+    - image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
+      os: "Ubuntu 16.04.7 LTS"
+      note: "haproxy 1.6.3-1ubuntu0.3。ユニットは -f ${CONFIG}（/etc/haproxy/haproxy.cfg）だけを読ませる"
+    - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "haproxy 2.8.30-0ubuntu0.24.04.2。ユニットは -f $CONFIG だけを読ませる。パッケージの設定は全体に ssl-default-bind-ciphers（スイートの列挙）、ssl-default-bind-ciphersuites、ssl-default-bind-options ssl-min-ver TLSv1.2"

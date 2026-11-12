@@ -768,3 +768,39 @@ func TestBuiltinHAProxy(t *testing.T) {
 		t.Errorf("haproxy on Ubuntu 16.04 = %v %v", v, ok)
 	}
 }
+
+// アプリやライブラリのルールが版の特定に使うパッケージは、記録対象のパッケージの一覧（os/packages.yaml）にも入っていること。
+// 入っていないと、実際のスキャンではパッケージの版が結果に残らず、版ごとの既定値や対応表を引けない
+// （単体テストはパッケージを直接与えるので、この漏れに気づけない。検証ラボの差分テストで見つかった）。
+func TestRulePackagesAreRecorded(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func(owner string, names []string) {
+		for _, n := range names {
+			probe := strings.TrimSuffix(n, "*")
+			if strings.HasSuffix(n, "*") {
+				probe += "x" // 「libssl*」のような前方一致の指定は、当てはまる名前の例で確かめる
+			}
+			if rs.PackageRole(probe) == "" {
+				t.Errorf("%s: package %q is not in the list of recorded packages (os/packages.yaml)", owner, n)
+			}
+		}
+	}
+	for _, a := range rs.Apps {
+		check("app "+a.ID, a.Packages)
+	}
+	for _, l := range rs.Libraries {
+		check("library "+l.ID, l.Packages)
+	}
+	// 既定値の表と対応表が指すパッケージも同じ
+	for _, d := range rs.Defaults {
+		check("defaults for "+d.App, []string{d.Package})
+	}
+	for _, tb := range rs.CipherTables {
+		for _, b := range tb.Builds {
+			check("cipher table for "+tb.Library, []string{b.Package})
+		}
+	}
+}

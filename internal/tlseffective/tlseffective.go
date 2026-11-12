@@ -31,6 +31,7 @@ type Input struct {
 	Profile      *string  // 「PROFILE=SYSTEM」が指す暗号文字列。読めていなければ nil
 	SystemLevel  int      // システムの openssl.cnf が決めるセキュリティレベル。なければ負
 	SystemTLS13  []string // システムの openssl.cnf が決める TLS 1.3 のスイート。なければ nil
+	AppTLS13     []string // アプリの設定が決める TLS 1.3 のスイート（システムの設定より優先される）。なければ nil
 	Certs        []Cert
 	CertsKnown   bool // 証明書の種類が分かっている
 	DHE          bool // DH パラメータがあり、DHE を使える
@@ -40,6 +41,7 @@ type Input struct {
 type Output struct {
 	Suites      []string // TLS 1.2 以下のスイート（優先順）
 	TLS13       []string // TLS 1.3 のスイート（優先順）。TLS 1.3 が有効な場合に使われる
+	TLS13Source string   // app | system | library-default
 	Level       int      // 適用したセキュリティレベル。レベルのない版は -1
 	LevelSource string   // cipher-string | system | library-default。レベルのない版は空
 	Ignored     []string // この版が知らないために無視された語
@@ -94,15 +96,19 @@ func Resolve(in Input) (Output, error) {
 		out.Unfiltered = append(out.Unfiltered, "dh-parameters")
 	}
 
-	// TLS 1.3 のスイートは暗号文字列では決まらない。システムの設定があればそれ、なければライブラリの既定。
+	// TLS 1.3 のスイートは暗号文字列では決まらない。アプリの設定 > システムの設定 > ライブラリの既定の順で決まる。
 	known := make(map[string]ruleset.CipherSuite, len(in.Table.TLS13))
 	for _, c := range in.Table.TLS13 {
 		known[c.Name] = c
 	}
-	base := in.SystemTLS13
+	base, source := in.AppTLS13, "app"
 	if base == nil {
-		base = tlsciphers.DefaultTLS13(in.Table)
+		base, source = in.SystemTLS13, "system"
 	}
+	if base == nil {
+		base, source = tlsciphers.DefaultTLS13(in.Table), "library-default"
+	}
+	out.TLS13Source = source
 	for _, n := range base {
 		c, ok := known[n]
 		if !ok {

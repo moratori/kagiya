@@ -106,6 +106,8 @@ func (c *Collector) application(app ruleset.AppRule) {
 		c.nginx(app, svc, config)
 	case "apache":
 		c.apache(app, svc, config)
+	case "haproxy":
+		c.haproxy(app, svc, config, units)
 	}
 }
 
@@ -290,4 +292,64 @@ func dirOf(path string) string {
 		return path[:i]
 	}
 	return "/"
+}
+
+// cmdArg は、ユニットの起動コマンドの語1つと、その出どころ。
+type cmdArg struct {
+	text string
+	file string // 接頭辞なし
+	line int
+}
+
+// unitArgs は、ユニットファイルの ExecStart を語に分け、環境変数を展開して返す（先頭はプログラム）。
+// 環境変数は、ユニットの Environment= と、EnvironmentFile= が指すファイルから読む（後者が優先される）。
+// 「$NAME」は空白で複数の語に分かれ、「${NAME}」は1語のまま展開される（systemd と同じ）。
+func (c *Collector) unitArgs(u unitInfo) []cmdArg {
+	type envVal struct {
+		value string
+		file  string
+		line  int
+	}
+	env := map[string]envVal{}
+	for _, e := range u.unit.Values("Service", "Environment") {
+		for _, w := range unitfile.Words(e) {
+			if k, v, ok := strings.Cut(w.Text, "="); ok {
+				env[k] = envVal{v, u.path, 0}
+			}
+		}
+	}
+	for _, ef := range u.unit.Values("Service", "EnvironmentFile") {
+		ef = strings.TrimPrefix(ef, "-") // 先頭の - は「なくてもよい」の意味
+		if !strings.HasPrefix(ef, "/") {
+			continue
+		}
+		data, err := c.read(ef)
+		if err != nil {
+			continue
+		}
+		for _, e := range unitfile.ParseEnv(data) {
+			env[e.Key] = envVal{e.Value, ef, e.Line} // 後から読んだファイルの値が有効
+		}
+	}
+	execs := u.unit.Values("Service", "ExecStart")
+	if len(execs) == 0 {
+		return nil
+	}
+	var args []cmdArg
+	for _, w := range unitfile.Words(strings.TrimLeft(execs[0], "-@:+!")) {
+		switch {
+		case w.Variable == "":
+			args = append(args, cmdArg{w.Text, u.path, 0})
+		case w.Braced:
+			if v, ok := env[w.Variable]; ok && v.value != "" {
+				args = append(args, cmdArg{v.value, v.file, v.line})
+			}
+		default:
+			v := env[w.Variable]
+			for _, f := range strings.Fields(v.value) {
+				args = append(args, cmdArg{f, v.file, v.line})
+			}
+		}
+	}
+	return args
 }
