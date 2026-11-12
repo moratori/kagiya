@@ -429,3 +429,113 @@ func TestLoadAppDefaults(t *testing.T) {
 		}
 	}
 }
+
+// 内包している OpenSSL の暗号スイートの対応表が読め、パッケージ版から引ける。
+func TestBuiltinCipherTables(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 実測した版そのもの
+	tb, b, exact, ok := rs.CipherTableFor("openssl", "openssl-libs", "3.5.9-1.el9_9")
+	if !ok || !exact {
+		t.Fatalf("exact lookup: ok=%v exact=%v", ok, exact)
+	}
+	if b.Package != "openssl-libs" || b.Version != "3.5.9-1.el9_9" || !strings.Contains(b.Source.Image, "@sha256:") {
+		t.Errorf("build = %+v", b)
+	}
+	if tb.Upstream != "3.5.9" || !tb.StandardNames || !tb.SecurityLevels || tb.DefaultLevel == nil ||
+		tb.ProfileSystem != "/etc/crypto-policies/back-ends/opensslcnf.config" {
+		t.Errorf("table header = %+v", tb)
+	}
+	if len(tb.Suites) < 100 || len(tb.TLS13) != 3 {
+		t.Fatalf("suites=%d tls13=%d", len(tb.Suites), len(tb.TLS13))
+	}
+	s := tb.Suites[0]
+	if s.Name != "ECDHE-ECDSA-AES256-GCM-SHA384" || s.Standard != "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384" || s.Protocol != "TLSv1.2" ||
+		s.Kx != "ECDH" || s.Au != "ECDSA" || s.Enc != "AESGCM(256)" || s.Mac != "AEAD" || s.Strength != 256 ||
+		s.Level == nil || *s.Level != 5 || !s.Default || !strings.Contains(" "+s.Keywords+" ", " HIGH ") {
+		t.Errorf("first suite = %+v", s)
+	}
+	// RHEL 8 は PROFILE=SYSTEM で別のファイルを読む
+	if tb8, _, exact, ok := rs.CipherTableFor("openssl", "openssl-libs", "1.1.1k-18.el8_6"); !ok || !exact ||
+		tb8.ProfileSystem != "/etc/crypto-policies/back-ends/openssl.config" || tb8.StandardNames {
+		t.Errorf("RHEL 8 table: ok=%v exact=%v", ok, exact)
+	}
+	// セキュリティレベルのない古い版
+	if old, _, _, ok := rs.CipherTableFor("openssl", "libssl1.0.0", "1.0.2g-1ubuntu4.20"); !ok || old.SecurityLevels || old.DefaultLevel != nil || len(old.TLS13) != 0 {
+		t.Errorf("1.0.2 table: ok=%v", ok)
+	}
+
+	// 補間: 同じパッケージ名・同じ上流版・同じディストリ系列で、リリースだけが違う版は、実測した表で代用する（完全一致ではないと分かる形で返す）。
+	tb2, b2, exact, ok := rs.CipherTableFor("openssl", "openssl-libs", "3.5.9-2.el9_9")
+	if !ok || exact || tb2 != tb || b2.Version != "3.5.9-1.el9_9" {
+		t.Errorf("interpolated lookup: ok=%v exact=%v build=%+v", ok, exact, b2)
+	}
+	if _, b3, exact, ok := rs.CipherTableFor("openssl", "openssl-libs", "1:3.5.9-7.el10_4"); !ok || exact || b3.Version != "3.5.9-1.el10_3" {
+		t.Errorf("interpolated lookup (el10): ok=%v exact=%v build=%+v", ok, exact, b3)
+	}
+	if _, b4, exact, ok := rs.CipherTableFor("openssl", "libssl3t64", "3.0.13-0ubuntu3.99"); !ok || exact || b4.Version != "3.0.13-0ubuntu3.16" {
+		t.Errorf("interpolated lookup (ubuntu): ok=%v exact=%v build=%+v", ok, exact, b4)
+	}
+	// 代用しない: 上流版が違う、ディストリ系列が違う、パッケージ名が違う、ライブラリが違う
+	for _, c := range [][3]string{
+		{"openssl", "openssl-libs", "3.5.10-1.el9_9"},
+		{"openssl", "openssl-libs", "3.5.9-1.el11"},
+		{"openssl", "openssl-libs", "3.5.9-1.fc43"},
+		{"openssl", "libssl3t64", "3.5.9-1.el9_9"},
+		{"openssl", "libssl3t64", "3.0.13-1~deb13u1"},
+		{"gnutls", "openssl-libs", "3.5.9-1.el9_9"},
+		{"openssl", "openssl-libs", ""},
+	} {
+		if _, _, _, ok := rs.CipherTableFor(c[0], c[1], c[2]); ok {
+			t.Errorf("%v must not match any table", c)
+		}
+	}
+}
+
+// 対応表にも出典が必須。壊れた表は読み込み時に拒否する。
+func TestLoadCipherTables(t *testing.T) {
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	with := func(y string) map[string]string {
+		m := map[string]string{"ciphers/x.yaml": y}
+		for k, v := range base {
+			m[k] = v
+		}
+		return m
+	}
+	head := "cipher_tables:\n  - library: mylib\n    upstream: \"1.2\"\n"
+	build := "    builds:\n      - package: mylib\n        version: \"1.2-3.el9\"\n        source:\n          image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n          os: \"X\"\n"
+	flags := "    standard_names: false\n    security_levels: true\n    default_level: 1\n"
+	suites := "    suites:\n" +
+		"      - {name: A-B, id: \"0x00,0x01\", protocol: TLSv1.2, kx: RSA, au: RSA, enc: \"AES(128)\", mac: SHA1, strength: 128, level: 3, default: true, keywords: \"ALL HIGH kRSA\"}\n" +
+		"      - {name: C-D, id: \"0x00,0x02\", protocol: SSLv3, kx: RSA, au: RSA, enc: \"None\", mac: SHA1, strength: 0, keywords: \"eNULL\"}\n"
+	ok := head + build + flags + suites
+	rs, err := Load(mapFS(with(ok)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tb, _, exact, found := rs.CipherTableFor("mylib", "mylib", "1.2-3.el9"); !found || !exact || len(tb.Suites) != 2 || tb.Suites[1].Level != nil {
+		t.Errorf("table = %+v found=%v exact=%v", tb, found, exact)
+	}
+	noSource := "    builds:\n      - package: mylib\n        version: \"1.2-3.el9\"\n"
+	for name, y := range map[string]string{
+		"no builds":             head + flags + suites,
+		"no source":             head + noSource + flags + suites,
+		"no suites":             head + build + flags,
+		"no upstream":           "cipher_tables:\n  - library: mylib\n" + build + flags + suites,
+		"duplicate build":       ok + "  - library: mylib\n    upstream: \"1.2\"\n" + build + flags + suites,
+		"duplicate suite":       ok + "      - {name: A-B, id: \"0x00,0x03\", protocol: TLSv1.2, kx: RSA, au: RSA, enc: \"AES(128)\", mac: SHA1, strength: 128, keywords: \"ALL\"}\n",
+		"bad suite name":        head + build + flags + "    suites:\n      - {name: \"A B\", id: \"0x00,0x01\", protocol: TLSv1.2, kx: RSA, au: RSA, enc: \"AES(128)\", mac: SHA1, strength: 128, keywords: \"ALL\"}\n",
+		"bad keyword":           head + build + flags + "    suites:\n      - {name: A-B, id: \"0x00,0x01\", protocol: TLSv1.2, kx: RSA, au: RSA, enc: \"AES(128)\", mac: SHA1, strength: 128, keywords: \"ALL !x\"}\n",
+		"bad level":             head + build + flags + "    suites:\n      - {name: A-B, id: \"0x00,0x01\", protocol: TLSv1.2, kx: RSA, au: RSA, enc: \"AES(128)\", mac: SHA1, strength: 128, level: 9, keywords: \"ALL\"}\n",
+		"level without flag":    head + build + "    standard_names: false\n    security_levels: false\n    default_level: 1\n" + suites,
+		"relative profile":      head + build + flags + "    profile_system: \"etc/x\"\n" + suites,
+		"unknown key":           head + build + flags + "    surprise: 1\n" + suites,
+		"keyword same as suite": head + build + flags + "    suites:\n      - {name: A-B, id: \"0x00,0x01\", protocol: TLSv1.2, kx: RSA, au: RSA, enc: \"AES(128)\", mac: SHA1, strength: 128, keywords: \"ALL A-B\"}\n",
+	} {
+		if _, err := Load(mapFS(with(y))); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+}
