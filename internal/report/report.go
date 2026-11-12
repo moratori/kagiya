@@ -2,17 +2,15 @@
 //
 // 出力は単一の HTML ファイルで、外部の資源（スクリプト、スタイルシート、画像、フォント）を一切読まない。
 // スクリプトは使わず、畳み込みは HTML の標準の要素（details）で行う。
-// 結果に含まれる文字列（証明書の Subject、ファイルのパスなど）は攻撃者が決められるので、html/template の
-// 文脈に応じたエスケープを通してだけ書き出す。
+// 結果に含まれる文字列（証明書の Subject、ファイルのパスなど）は攻撃者が決められるので、必ずエスケープして書き出す
+// （書き出しの規則は render.go）。テンプレートエンジンは使わない。
 //
 // 評価（量子計算機に弱いか、危殆化しているか）は、結果ファイルの中の判定を使わず、レポートを作る時点の
 // 評価ポリシーでやり直す。
 package report
 
 import (
-	_ "embed"
 	"errors"
-	"html/template"
 	"io"
 	"sort"
 	"strconv"
@@ -23,11 +21,6 @@ import (
 	"kagiya/internal/model"
 	"kagiya/internal/ruleset"
 )
-
-//go:embed report.tmpl
-var templateText string
-
-var tmpl = template.Must(template.New("report").Parse(templateText))
 
 // 値の一覧がこの数を超えたら、畳んで件数だけを見せる。
 const foldRows = 12
@@ -122,7 +115,7 @@ func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy
 			pg.Rules = append(pg.Rules, rv)
 		}
 	}
-	return tmpl.Execute(w, pg)
+	return renderPage(w, pg)
 }
 
 func (b *builder) build(n int) *view {
