@@ -973,3 +973,42 @@ sshd と暗号ポリシーの結び付き方（設計書 5.4 の「順序が逆�
 - システム全体の暗号ポリシーがあるのは RHEL 系だけで、採取したすべてで `DEFAULT`。Debian / Ubuntu にはない。
 - 同じ RHEL 8 系でも、互換ディストリではパッケージのリリース文字列が異なる（例: nginx のモジュールストリームの識別子）。既定値表のキーはディストリを含める必要がある。
 - Ubuntu は 16.04（OpenSSL 1.0.2g）、18.04 / 20.04（1.1.1 系）、22.04 / 24.04（3.0 系）で OpenSSL の系統が変わる。
+
+### Windows Server 2022 / 2025 からの採取（2026-11-12、GitHub Actions）
+
+`.github/workflows/windows-facts.yml`（`ci/windows-facts.ps1`）で採取した。
+環境: Windows Server 2022 Datacenter 21H2（ビルド 20348.5773、ランナーイメージ `win22` 20261101.353.1）と Windows Server 2025。
+
+**そのまま使える事実（形式に関するもの）**
+
+- **証明書ストアの実体**: 証明書1件はレジストリの `...\SystemCertificates\<ストア>\Certificates\<SHA-1 指紋>` キーにあり、値は `Blob`（バイナリ）1つ。
+  Blob は「プロパティ ID（4バイト）、予約（4バイト）、長さ（4バイト）、データ」の繰り返しで、採取した9件すべてを余りなく分解できた。
+  プロパティ 32 が証明書本体（DER）で、その SHA-1 / SHA-256 は Windows 自身が報告した指紋と一致した。
+- **秘密鍵の有無**: 秘密鍵を伴う証明書（テスト用に作成した3件）にはプロパティ 2（鍵の所在情報、188 バイト）があり、OS 配布のルート証明書にはない。Blob に秘密鍵そのものは含まれない。
+- **ストアの置き場所**: `HKLM\SOFTWARE\Microsoft\SystemCertificates`（ROOT、CA、MY、AuthRoot、Disallowed、TrustedPublisher など）、`HKLM\SOFTWARE\Policies\Microsoft\SystemCertificates`、
+  `HKLM\SOFTWARE\Microsoft\EnterpriseCertificates`（NTAuth を含む）、`HKCU\SOFTWARE\Microsoft\SystemCertificates`。
+  WOW6432Node 側には同じ内容が見える（件数が一致）。
+- **ユーザーの個人ストアはファイル**: 実行ユーザーの `My` ストアに作った証明書は、レジストリではなく
+  `%APPDATA%\Microsoft\SystemCertificates\My\Certificates\<指紋>` にファイルとして置かれた（形式はレジストリの Blob と同じ構造）。
+- **HTTP.sys の SSL バインド**: `HKLM\SYSTEM\CurrentControlSet\Services\HTTP\Parameters\SslBindingInfo\<IP:ポート>` キーに、
+  `SslCertHash`（証明書の SHA-1 指紋、バイナリ）、`SslCertStoreName`（文字列）、`AppId`（バイナリ）がある。`netsh http show sslcert` の表示と一致した。専用の解析は不要で、レジストリを読むだけでよい。
+- **暗号スイートの順序**: ポリシーは `HKLM\SOFTWARE\Policies\Microsoft\Cryptography\Configuration\SSL\00010002` の `Functions`（カンマ区切りの文字列）、
+  ローカル設定は `HKLM\SYSTEM\CurrentControlSet\Control\Cryptography\Configuration\Local\SSL\00010002` の `Functions`（複数行文字列）。曲線の順序は `EccCurves`（複数行文字列）。
+- **その他**: FIPS は `...\Lsa\FipsAlgorithmPolicy` の `Enabled`。`.reg` の書き出しは UTF-16。最終アクセス時刻の更新は無効（`DisableLastAccess = 3`）。
+  ユーザープロファイル直下には互換用のリパースポイント（`Application Data`、`My Documents` など）が多数ある。
+
+**既定値としては使えないもの（ランナーイメージが調整済み）**
+
+採取した環境は GitHub によって堅牢化されており、OS 本来の既定とは異なる。次の値をルールの既定値に使ってはならない。
+
+- Schannel: `SSL 3.0` と `TLS 1.0` が Client / Server とも `Enabled=0`、RC4 が無効に設定されている。
+- 暗号スイート: ポリシーで 10 個に絞られている（`TLS_AES_256_GCM_SHA384` から `TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256` まで）。曲線もポリシーで `NistP384`、`NistP256` に絞られている。
+- .NET Framework: `SchUseStrongCrypto` と `SystemDefaultTlsVersions` が 64bit / 32bit とも 1 に設定されている。
+
+OS ビルド別の既定値は、Microsoft の公式文書を出典とし、調整されていない環境で確認できたものだけをルールに入れる。
+
+**採取スクリプトの不具合（修正済み、再採取は未実施）**
+
+- 暗号スイート一覧の JSON が空になっていた（表形式のテキストは取れている）。
+- 証明書ストアごとの件数がすべて 0 になっていた（レジストリ配置の一覧では件数が取れている）。
+- .NET 2.0 のレジストリ書き出しが数十 MB になっていた（必要な値だけを読む形に変更）。

@@ -57,7 +57,8 @@ Export-Key 'HKLM\SOFTWARE\Policies\Microsoft\Cryptography\Configuration\SSL' 'ss
 Export-Key 'HKLM\SYSTEM\CurrentControlSet\Control\Cryptography\Configuration\Local\SSL' 'ssl-local.reg'
 Export-Key 'HKLM\SOFTWARE\Policies\Microsoft\Cryptography' 'cryptography-policy.reg'
 Save 'tls-cipher-suites.json' {
-    Get-TlsCipherSuite | Select-Object Name, CipherSuite, BaseCipherSuite, Cipher, CipherLength, CipherBlockLength, Hash, HashLength, Exchange, MinimumExchangeLength, MaximumExchangeLength, Certificate, KeyType, Protocols |
+    # Get-TlsCipherSuite emits its list as a single object; unroll it before selecting properties.
+    Get-TlsCipherSuite | ForEach-Object { $_ } | Select-Object Name, CipherSuite, BaseCipherSuite, Cipher, CipherLength, CipherBlockLength, Hash, HashLength, Exchange, MinimumExchangeLength, MaximumExchangeLength, Certificate, KeyType, Protocols |
         ConvertTo-Json -Depth 4
 }
 Save 'tls-cipher-suites.txt' { Get-TlsCipherSuite | Format-Table Name, Protocols, Exchange, Cipher, CipherLength, Hash, Certificate -AutoSize }
@@ -66,8 +67,13 @@ Save 'tls-ecc-curves.txt' { Get-TlsEccCurve }
 # ---------------------------------------------------------------- 3. .NET, FIPS, authentication
 Export-Key 'HKLM\SOFTWARE\Microsoft\.NETFramework\v4.0.30319' 'dotnet-v4-64.reg'
 Export-Key 'HKLM\SOFTWARE\WOW6432Node\Microsoft\.NETFramework\v4.0.30319' 'dotnet-v4-32.reg'
-Export-Key 'HKLM\SOFTWARE\Microsoft\.NETFramework\v2.0.50727' 'dotnet-v2-64.reg'
-Export-Key 'HKLM\SOFTWARE\WOW6432Node\Microsoft\.NETFramework\v2.0.50727' 'dotnet-v2-32.reg'
+# The v2.0.50727 keys are tens of megabytes when exported, so read only the values of interest.
+Save 'dotnet-v2-values.txt' {
+    foreach ($k in 'HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\.NETFramework\v2.0.50727') {
+        "== $k exists=$(Test-Path $k)"
+        if (Test-Path $k) { Get-ItemProperty $k | Select-Object SchUseStrongCrypto, SystemDefaultTlsVersions | Format-List }
+    }
+}
 Export-Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\FipsAlgorithmPolicy' 'fips.reg'
 Export-Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Parameters' 'kerberos-lsa.reg'
 Export-Key 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Kerberos\Parameters' 'kerberos-policy.reg'
@@ -85,7 +91,7 @@ Save 'certstore/stores.txt' {
     foreach ($loc in 'LocalMachine', 'CurrentUser') {
         "== Cert:\$loc"
         Get-ChildItem "Cert:\$loc" | ForEach-Object {
-            "{0,-28} {1}" -f $_.Name, @(Get-ChildItem $_.PSPath -ErrorAction SilentlyContinue).Count
+            "{0,-28} {1}" -f $_.Name, @(Get-ChildItem "Cert:\$loc\$($_.Name)" -ErrorAction SilentlyContinue).Count
         }
     }
 }
@@ -200,7 +206,7 @@ Save 'openssh.txt' {
         $cmd = Get-Command $n -ErrorAction SilentlyContinue
         if ($cmd) { "$n => $($cmd.Source)  FileVersion=$($cmd.FileVersionInfo.FileVersion) ProductVersion=$($cmd.FileVersionInfo.ProductVersion)" } else { "$n => (not found)" }
     }
-    & ssh.exe -V 2>&1
+    & cmd.exe /c 'ssh.exe -V 2>&1'
     Get-WindowsCapability -Online -Name 'OpenSSH*' -ErrorAction SilentlyContinue | Select-Object Name, State | Format-Table -AutoSize
     foreach ($p in @("$env:WINDIR\System32\OpenSSH", "$env:ProgramData\ssh")) { "== $p"; Get-ChildItem $p -ErrorAction SilentlyContinue | Select-Object Name, Length | Format-Table -AutoSize }
 }
