@@ -1,0 +1,172 @@
+# Postfix（smtpd）の既定値と、版によって違う挙動。設定に記載のない項目の実効値を求めるのに使う。
+#
+#   tls.security-level         : Postfix が OpenSSL に設定するセキュリティレベル。どの版も 0 にする（システムの openssl.cnf の指定は効かない）。
+#                                セキュリティレベルの仕組みがない OpenSSL（1.0.2）の版には、この項目はない。
+#   tls.ciphers                : 暗号の等級の指定がないときの暗号文字列（等級 medium の tls_medium_cipherlist）。
+#   tls.cipherlist.<等級>      : 等級（high / medium / low / export / null）に対応する暗号文字列（tls_<等級>_cipherlist）。
+#                                新しい版では low と export は空で、この表にはない。
+#   tls.groups                 : グループの指定がないときの鍵交換のグループ（tls_eecdh_auto_curves と tls_ffdhe_auto_groups）。
+#                                システムの openssl.cnf やライブラリの既定より優先される（耐量子のハイブリッドを含まない）。
+#   tls.eecdh-curves           : tls_eecdh_auto_curves の既定。
+#   tls.ffdhe-groups           : tls_ffdhe_auto_groups の既定（この項目を持つ版だけ）。
+#   tls.eecdh-grade            : smtpd_tls_eecdh_grade（古い書き方）の strong / ultra の指定が効くか（honored / ignored）。
+#   tls.eecdh-strong-curve / tls.eecdh-ultra-curve : その指定が効く版での、等級に対応する曲線。
+#   tls.dhe-without-params     : DH パラメータの指定がないときに DHE のスイートを使えるか（builtin = 組み込みのパラメータで使える）。
+#
+# 採取方法: 各イメージにディストリのリポジトリから postfix を導入し、既定値は Postfix 自身の出力（postconf -d）から採った。
+#           挙動は、実際に起動して、同じコンテナ内からのハンドシェイク（openssl s_client、STARTTLS）で受け入れるスイートと
+#           グループを数え上げ、「等級の暗号文字列に除外の指定を足したものを、その版の OpenSSL でレベル 0 で展開したもの」と
+#           完全に一致することを確かめている（8 イメージ × 12 場面）。
+# このファイルは検証ラボの生成スクリプトで作った。手で編集しない。
+defaults:
+  - app: postfix
+    package: postfix
+    version: "3.5.8-8.el8_10"
+    source:
+      image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
+      os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
+      note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
+    values:
+      tls.security-level: "0"
+      tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipherlist.high: "aNULL:-aNULL:HIGH:@STRENGTH"
+      tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipherlist.low: "aNULL:-aNULL:HIGH:MEDIUM:LOW:+RC4:@STRENGTH"
+      tls.cipherlist.export: "aNULL:-aNULL:HIGH:MEDIUM:LOW:EXPORT:+RC4:@STRENGTH"
+      tls.cipherlist.null: "eNULL:!aNULL"
+      tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-grade: "honored"
+      tls.eecdh-strong-curve: "prime256v1"
+      tls.eecdh-ultra-curve: "secp384r1"
+      tls.dhe-without-params: "builtin"
+  - app: postfix
+    package: postfix
+    version: "3.5.25-3.el9_8"
+    source:
+      image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
+      os: "Red Hat Enterprise Linux 9.9 (Plow)"
+      note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
+    values:
+      tls.security-level: "0"
+      tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipherlist.high: "aNULL:-aNULL:HIGH:@STRENGTH"
+      tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipherlist.low: "aNULL:-aNULL:HIGH:MEDIUM:LOW:+RC4:@STRENGTH"
+      tls.cipherlist.export: "aNULL:-aNULL:HIGH:MEDIUM:LOW:EXPORT:+RC4:@STRENGTH"
+      tls.cipherlist.null: "eNULL:!aNULL"
+      tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-grade: "honored"
+      tls.eecdh-strong-curve: "prime256v1"
+      tls.eecdh-ultra-curve: "secp384r1"
+      tls.dhe-without-params: "builtin"
+  - app: postfix
+    package: postfix
+    version: "3.8.5-11.el10"
+    source:
+      image: "redhat/ubi10@sha256:1e9193f051ac70582821c8a941325c5053488c54c75cd0c31b577d871ac29dba"
+      os: "Red Hat Enterprise Linux 10.3 (Coughlan)"
+      note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
+    values:
+      tls.security-level: "0"
+      tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
+      tls.cipherlist.high: "aNULL:-aNULL:HIGH:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:@STRENGTH"
+      tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
+      tls.cipherlist.null: "eNULL:!kDH:!kECDH:!aDSS:!MD5:!aNULL"
+      tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1:ffdhe2048:ffdhe3072"
+      tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.ffdhe-groups: "ffdhe2048:ffdhe3072"
+      tls.eecdh-grade: "ignored"
+      tls.dhe-without-params: "builtin"
+  - app: postfix
+    package: postfix
+    version: "3.1.0-3ubuntu0.4"
+    source:
+      image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
+      os: "Ubuntu 16.04.7 LTS"
+      note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
+    values:
+      tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipherlist.high: "aNULL:-aNULL:HIGH:@STRENGTH"
+      tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipherlist.low: "aNULL:-aNULL:HIGH:MEDIUM:LOW:+RC4:@STRENGTH"
+      tls.cipherlist.export: "aNULL:-aNULL:HIGH:MEDIUM:LOW:EXPORT:+RC4:@STRENGTH"
+      tls.cipherlist.null: "eNULL:!aNULL"
+      tls.dhe-without-params: "builtin"
+  - app: postfix
+    package: postfix
+    version: "3.4.13-0ubuntu1.4"
+    source:
+      image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
+      os: "Ubuntu 20.04.6 LTS"
+      note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
+    values:
+      tls.security-level: "0"
+      tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipherlist.high: "aNULL:-aNULL:HIGH:@STRENGTH"
+      tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipherlist.low: "aNULL:-aNULL:HIGH:MEDIUM:LOW:+RC4:@STRENGTH"
+      tls.cipherlist.export: "aNULL:-aNULL:HIGH:MEDIUM:LOW:EXPORT:+RC4:@STRENGTH"
+      tls.cipherlist.null: "eNULL:!aNULL"
+      tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-grade: "honored"
+      tls.eecdh-strong-curve: "prime256v1"
+      tls.eecdh-ultra-curve: "secp384r1"
+      tls.dhe-without-params: "builtin"
+  - app: postfix
+    package: postfix
+    version: "3.6.4-1ubuntu1.4"
+    source:
+      image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+      os: "Ubuntu 22.04.5 LTS"
+      note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
+    values:
+      tls.security-level: "0"
+      tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipherlist.high: "aNULL:-aNULL:HIGH:@STRENGTH"
+      tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipherlist.low: "aNULL:-aNULL:HIGH:MEDIUM:LOW:+RC4:@STRENGTH"
+      tls.cipherlist.export: "aNULL:-aNULL:HIGH:MEDIUM:LOW:EXPORT:+RC4:@STRENGTH"
+      tls.cipherlist.null: "eNULL:!aNULL"
+      tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-grade: "ignored"
+      tls.dhe-without-params: "builtin"
+  - app: postfix
+    package: postfix
+    version: "3.8.6-1ubuntu0.1"
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
+    values:
+      tls.security-level: "0"
+      tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
+      tls.cipherlist.high: "aNULL:-aNULL:HIGH:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:@STRENGTH"
+      tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
+      tls.cipherlist.null: "eNULL:!kDH:!kECDH:!aDSS:!MD5:!aNULL"
+      tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1:ffdhe2048:ffdhe3072"
+      tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.ffdhe-groups: "ffdhe2048:ffdhe3072"
+      tls.eecdh-grade: "ignored"
+      tls.dhe-without-params: "builtin"
+  - app: postfix
+    package: postfix
+    version: "3.10.13-0+deb13u1"
+    source:
+      image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+      os: "Debian GNU/Linux 13 (trixie)"
+      note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
+    values:
+      tls.security-level: "0"
+      tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
+      tls.cipherlist.high: "aNULL:-aNULL:HIGH:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:@STRENGTH"
+      tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
+      tls.cipherlist.null: "eNULL:!kDH:!kECDH:!aDSS:!MD5:!aNULL"
+      tls.groups: "X25519:X448:prime256v1:secp384r1:secp521r1:ffdhe2048:ffdhe3072"
+      tls.eecdh-curves: "X25519:X448:prime256v1:secp384r1:secp521r1"
+      tls.ffdhe-groups: "ffdhe2048:ffdhe3072"
+      tls.eecdh-grade: "ignored"
+      tls.dhe-without-params: "builtin"
