@@ -411,3 +411,224 @@ func TestScanTrustedCertificateWithAuxData(t *testing.T) {
 		t.Errorf("trusted certificate reported as parse error")
 	}
 }
+
+// 実物のツールで生成した鍵素材一式（internal/parse/testdata/material）をスキャンする。
+func TestScanKeyMaterial(t *testing.T) {
+	src, err := filepath.Abs("../parse/testdata/material")
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := tmp(t)
+	root, out, logs := base+"/material", base+"/out", base+"/logs"
+	os.Mkdir(root, 0o755)
+	ents, _ := os.ReadDir(src)
+	var keyLines [][]byte // 秘密鍵ファイルの中身の一部（出力に現れてはならない）
+	for _, e := range ents {
+		data, _ := os.ReadFile(filepath.Join(src, e.Name()))
+		os.WriteFile(filepath.Join(root, e.Name()), data, 0o600)
+		if bytes.Contains(data, []byte("PRIVATE KEY-----")) {
+			lines := bytes.Split(data, []byte("\n"))
+			if len(lines) > 4 {
+				keyLines = append(keyLines, lines[len(lines)/2])
+			}
+		}
+	}
+	// SSH の秘密鍵は拡張子がないので、よくある名前でも置く
+	for from, to := range map[string]string{"ssh-ed25519": "id_ed25519", "ssh-rsa3072": "ssh_host_rsa_key"} {
+		data, _ := os.ReadFile(filepath.Join(src, from))
+		os.WriteFile(filepath.Join(root, to), data, 0o600)
+	}
+
+	code, _, stderr := run("scan", "--roots", root, "--output-dir", out, "--log-dir", logs, "--cpu-limit", "100", "--io-limit", "0", "--strict")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	raw, _ := os.ReadFile(singleFile(t, out, ".json"))
+	logRaw, _ := os.ReadFile(singleFile(t, logs, ".log"))
+
+	type protection struct {
+		Scheme, KDF, PRF, Cipher string
+		Iterations               int
+	}
+	var inv struct {
+		Assets []struct {
+			ID, Type string
+			Key      *struct {
+				Algorithm               string
+				PublicFingerprintSHA256 string `json:"public_fingerprint_sha256"`
+				SSHFingerprint          string `json:"ssh_fingerprint"`
+			}
+			CSR *struct {
+				Subject            string
+				SignatureAlgorithm string `json:"signature_algorithm"`
+				PublicKey          struct{ Algorithm string } `json:"public_key"`
+			}
+			Keystore *struct {
+				Format    string
+				Integrity *struct {
+					Algorithm  string
+					Iterations int
+				}
+				Entries map[string]int
+				Opaque  bool `json:"contents_unreadable"`
+			}
+			Certificate *struct {
+				PublicKey struct {
+					FingerprintSHA256 string `json:"fingerprint_sha256"`
+				} `json:"public_key"`
+			}
+		}
+		Occurrences []struct {
+			Asset    string
+			State    string
+			Location struct {
+				Path      string
+				Container string
+			}
+			Detail *struct {
+				Format     string
+				Encrypted  *bool
+				Protection *protection
+			}
+		}
+		Skipped []struct{ Path, Reason string }
+	}
+	if err := json.Unmarshal(raw, &inv); err != nil {
+		t.Fatal(err)
+	}
+	if len(inv.Skipped) != 0 {
+		t.Errorf("skipped: %+v", inv.Skipped)
+	}
+	types := map[string]int{}
+	asset := map[string]int{}
+	for i, a := range inv.Assets {
+		types[a.Type]++
+		asset[a.ID] = i
+	}
+	for _, typ := range []string{"certificate", "private-key", "public-key", "csr", "keystore", "algorithm"} {
+		if types[typ] == 0 {
+			t.Errorf("no asset of type %s; types: %v", typ, types)
+		}
+	}
+	occ := map[string][]int{} // ファイル名 → 出現の添字
+	for i, o := range inv.Occurrences {
+		occ[filepath.Base(o.Location.Path)] = append(occ[filepath.Base(o.Location.Path)], i)
+	}
+	only := func(file string) (assetIdx, occIdx int) {
+		t.Helper()
+		if len(occ[file]) != 1 {
+			t.Fatalf("%s: %d occurrences, want 1", file, len(occ[file]))
+		}
+		o := inv.Occurrences[occ[file][0]]
+		return asset[o.Asset], occ[file][0]
+	}
+
+	// 同じ RSA 鍵は、形式が違っても（PKCS#1 / PKCS#8 / DER）1つの資産にまとまり、証明書の公開鍵と指紋で対応づく。
+	a1, o1 := only("rsa2048-pkcs1.pem")
+	a2, o2 := only("rsa2048-pkcs8.pem")
+	a3, _ := only("rsa2048-pkcs8.der")
+	if a1 != a2 || a1 != a3 {
+		t.Errorf("the same key in different formats must be one asset: %d %d %d", a1, a2, a3)
+	}
+	key := inv.Assets[a1]
+	if key.Type != "private-key" || key.Key == nil || key.Key.Algorithm != "alg:rsa-2048" {
+		t.Fatalf("rsa private key asset = %+v", key)
+	}
+	if d := inv.Occurrences[o1].Detail; d == nil || d.Format != "pkcs1" || d.Encrypted == nil || *d.Encrypted {
+		t.Errorf("pkcs1 occurrence detail = %+v", d)
+	}
+	if d := inv.Occurrences[o2].Detail; d == nil || d.Format != "pkcs8" {
+		t.Errorf("pkcs8 occurrence detail = %+v", d)
+	}
+	ca, _ := only("cert-rsa.der")
+	if inv.Assets[ca].Certificate.PublicKey.FingerprintSHA256 != key.Key.PublicFingerprintSHA256 {
+		t.Error("certificate and private key are not linked by the public key fingerprint")
+	}
+
+	// 暗号化された秘密鍵: 保護方式が記録される
+	_, oe := only("rsa2048-pkcs8-enc.pem")
+	d := inv.Occurrences[oe].Detail
+	if d == nil || d.Encrypted == nil || !*d.Encrypted || d.Protection == nil || d.Protection.Scheme != "alg:pbes2" ||
+		d.Protection.KDF != "alg:pbkdf2" || d.Protection.Cipher != "alg:aes-256-cbc" || d.Protection.PRF != "alg:hmac-sha256" || d.Protection.Iterations != 4096 {
+		t.Errorf("encrypted PKCS#8 detail = %+v protection=%+v", d, d.Protection)
+	}
+	_, ol := only("rsa2048-pkcs1-enc.pem")
+	if d := inv.Occurrences[ol].Detail; d.Protection == nil || d.Protection.Cipher != "alg:aes-128-cbc" {
+		t.Errorf("legacy PEM encryption = %+v", d.Protection)
+	}
+	_, os1 := only("ssh-ed25519-enc")
+	if d := inv.Occurrences[os1].Detail; d.Format != "openssh" || d.Protection == nil || d.Protection.Cipher != "alg:aes-256-ctr" || d.Protection.KDF != "alg:bcrypt-pbkdf" {
+		t.Errorf("OpenSSH encryption = %+v", d.Protection)
+	}
+
+	// SSH: 秘密鍵と公開鍵が同じ指紋を持ち、よくある名前のファイルも見つかる
+	ap, _ := only("id_ed25519")
+	apub, _ := only("ssh-ed25519.pub")
+	if inv.Assets[ap].Type != "private-key" || inv.Assets[apub].Type != "public-key" ||
+		inv.Assets[ap].Key.SSHFingerprint == "" || inv.Assets[ap].Key.SSHFingerprint != inv.Assets[apub].Key.SSHFingerprint ||
+		inv.Assets[ap].Key.Algorithm != "alg:ed25519" {
+		t.Errorf("ssh keys: private=%+v public=%+v", inv.Assets[ap].Key, inv.Assets[apub].Key)
+	}
+	if len(occ["ssh_host_rsa_key"]) != 1 || len(occ["authorized_keys"]) != 3 || len(occ["known_hosts"]) != 3 {
+		t.Errorf("ssh files: host key %d, authorized_keys %d, known_hosts %d", len(occ["ssh_host_rsa_key"]), len(occ["authorized_keys"]), len(occ["known_hosts"]))
+	}
+
+	// 耐量子計算機暗号（ML-DSA-65）の鍵と証明書
+	am, _ := only("mldsa65-pkcs8.pem")
+	if inv.Assets[am].Key.Algorithm != "alg:ml-dsa-65" {
+		t.Errorf("ML-DSA key algorithm = %s", inv.Assets[am].Key.Algorithm)
+	}
+
+	// CSR
+	ar, _ := only("csr-rsa.pem")
+	if c := inv.Assets[ar].CSR; c == nil || c.Subject != "C=JP, O=Kagiya Test, CN=csr.test.example" ||
+		c.SignatureAlgorithm != "alg:sha256-with-rsa" || c.PublicKey.Algorithm != "alg:rsa-2048" {
+		t.Errorf("csr = %+v", inv.Assets[ar].CSR)
+	}
+
+	// キーストア: 資産として記録され、中の証明書は「キーストアの中」として出現する
+	findStore := func(file string) int {
+		t.Helper()
+		for _, i := range occ[file] {
+			if a := inv.Assets[asset[inv.Occurrences[i].Asset]]; a.Type == "keystore" {
+				return asset[inv.Occurrences[i].Asset]
+			}
+		}
+		t.Fatalf("%s: no keystore asset", file)
+		return 0
+	}
+	ks := inv.Assets[findStore("modern.p12")].Keystore
+	if ks.Format != "pkcs12" || !ks.Opaque || ks.Integrity == nil || ks.Integrity.Algorithm != "alg:sha256" || ks.Integrity.Iterations != 2048 || ks.Entries["private_keys"] != 1 {
+		t.Errorf("modern.p12 = %+v integrity=%+v", ks, ks.Integrity)
+	}
+	jks := inv.Assets[findStore("store.jks")].Keystore
+	if jks.Format != "jks" || jks.Opaque || jks.Entries["private_keys"] != 1 || jks.Entries["trusted_certificates"] != 1 {
+		t.Errorf("store.jks = %+v", jks)
+	}
+	inStore := 0
+	for _, i := range occ["store.jks"] {
+		o := inv.Occurrences[i]
+		if inv.Assets[asset[o.Asset]].Type == "certificate" && o.Location.Container == "jks" {
+			inStore++
+		}
+	}
+	if inStore != 2 {
+		t.Errorf("certificates found inside store.jks = %d, want 2", inStore)
+	}
+	if len(occ["bundle.p7b"]) != 2 {
+		t.Errorf("bundle.p7b: %d occurrences, want 2 certificates", len(occ["bundle.p7b"]))
+	}
+
+	// 秘密鍵の中身は結果にもログにも現れない
+	if len(keyLines) < 10 {
+		t.Fatalf("only %d private key samples", len(keyLines))
+	}
+	for _, line := range keyLines {
+		if len(line) >= 32 && (bytes.Contains(raw, line) || bytes.Contains(logRaw, line)) {
+			t.Fatalf("private key material leaked: %s", line[:16])
+		}
+	}
+	if bytes.Contains(raw, []byte("kagiya-test-password")) || bytes.Contains(raw, []byte("mykey")) {
+		t.Error("password or keystore alias leaked")
+	}
+}
