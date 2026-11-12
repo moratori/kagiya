@@ -1,0 +1,53 @@
+name: Linux facts
+
+# 各ディストリビューションの実物（amd64）から、検出ルールとテストの根拠になる事実を採取し、アーティファクトとして残す。
+# 手動実行のみ。採取する内容は ci/linux-facts.sh を参照。
+# 使うイメージは Docker 公式イメージと各ベンダーの公式イメージに限る。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    name: collect (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: ubuntu-16.04, image: "ubuntu:16.04" }
+          - { name: ubuntu-18.04, image: "ubuntu:18.04" }
+          - { name: ubuntu-20.04, image: "ubuntu:20.04" }
+          - { name: ubuntu-22.04, image: "ubuntu:22.04" }
+          - { name: ubuntu-24.04, image: "ubuntu:24.04" }
+          - { name: debian-11, image: "debian:11" }
+          - { name: debian-12, image: "debian:12" }
+          - { name: debian-13, image: "debian:13" }
+          - { name: ubi-8, image: "redhat/ubi8" }
+          - { name: ubi-9, image: "redhat/ubi9" }
+          - { name: ubi-10, image: "redhat/ubi10" }
+          - { name: rockylinux-8, image: "rockylinux:8" }
+          - { name: rockylinux-9, image: "rockylinux:9" }
+          - { name: almalinux-8, image: "almalinux:8" }
+          - { name: almalinux-9, image: "almalinux:9" }
+    steps:
+      - uses: actions/checkout@v4
+      - name: イメージを取得
+        run: |
+          docker pull -q "${{ matrix.image }}"
+          mkdir -p "$RUNNER_TEMP/facts"
+          docker image inspect --format '{{index .RepoDigests 0}}' "${{ matrix.image }}" | tee "$RUNNER_TEMP/facts/IMAGE.txt"
+      - name: コンテナ内で事実を採取
+        run: |
+          docker run --rm -v "$PWD/ci:/ci:ro" -v "$RUNNER_TEMP/facts:/out" "${{ matrix.image }}" sh /ci/linux-facts.sh /out/facts || true
+          sudo chown -R "$(id -u)" "$RUNNER_TEMP/facts"
+          tail -5 "$RUNNER_TEMP/facts/facts/run.log" || true
+          ls "$RUNNER_TEMP/facts/facts"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-facts-${{ matrix.name }}
+          path: ${{ runner.temp }}/facts
+          retention-days: 14
+          if-no-files-found: error
