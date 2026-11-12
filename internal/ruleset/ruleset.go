@@ -51,6 +51,7 @@ type RuleSet struct {
 	Defaults  []DefaultSet
 
 	CipherTables []*CipherTable
+	Policies     []*Policy
 
 	byAlias     map[string]int
 	storePaths  map[string]string // パス → ストア ID
@@ -247,6 +248,14 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 				if err := rs.addCipherTable(t, ids); err != nil {
 					return nil, fmt.Errorf("%s: %w", f.Path, err)
 				}
+			}
+		case strings.HasPrefix(f.Path, "policies/") && strings.HasSuffix(f.Path, ".yaml") && strings.Count(f.Path, "/") == 1:
+			var pf policyFile
+			if err := decodeStrict(f.Data, &pf); err != nil {
+				return nil, fmt.Errorf("%s: %w", f.Path, err)
+			}
+			if err := rs.addPolicy(pf.Policy, ids); err != nil {
+				return nil, fmt.Errorf("%s: %w", f.Path, err)
 			}
 		case f.Path == "os/packages.yaml":
 			var pf packagesFile

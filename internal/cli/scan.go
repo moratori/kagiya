@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"kagiya/internal/assess"
 	"kagiya/internal/collect/apps"
 	"kagiya/internal/collect/bins"
 	"kagiya/internal/collect/fscrawl"
@@ -284,6 +285,13 @@ func runScan(args []string, stderr io.Writer) int {
 	inv.Coverage.SymlinksIgnored = walker.Stats.Symlinks
 	inv.Coverage.SpecialIgnored = walker.Stats.Special
 	inv.Coverage.BytesRead = walker.Stats.BytesRead + opener.BytesRead
+
+	// 評価（スキャン時点の評価ポリシーによる参考値）。指定されたルールに既定のポリシーがなければ付けない。
+	if ev, err := assess.New(rs, "default"); err == nil {
+		inv.Assessment = ev.Assess(inv)
+	} else {
+		log.Info("assessment-skipped", "detail", err.Error())
+	}
 
 	resultName := fmt.Sprintf("kagiya-%s-%s-%s.json", host, stamp, scanID[:8])
 	resultPath, werr := writeResult(opts.outputDir, resultName, inv)

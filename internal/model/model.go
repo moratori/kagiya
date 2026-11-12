@@ -23,6 +23,8 @@ type Inventory struct {
 	EffectiveValues []EffectiveValue `json:"effective_values"`
 	// 見つかったアプリケーションと暗号ライブラリ、およびそのリンク関係
 	Components []Component `json:"components"`
+	// 評価: スキャン時点の評価ポリシーによる判定（参考値。レポートの生成時には、その時点のポリシーで判定し直す）
+	Assessment *Assessment `json:"assessment,omitempty"`
 	Skipped    []Skipped   `json:"skipped"`
 	Coverage   Coverage    `json:"coverage"`
 }
@@ -339,4 +341,24 @@ type Provenance struct {
 	OS      string `json:"os"`
 	Package string `json:"package"`
 	Version string `json:"version"`
+}
+
+// Verdict は、評価ポリシーによる判定。
+//
+//	Quantum   : vulnerable | hybrid | resistant | reduced | not-targeted | unknown
+//	Classical : weak | legacy | ok | unknown
+type Verdict struct {
+	Quantum   string   `json:"quantum"`
+	Classical string   `json:"classical"`
+	Rules     []string `json:"rules,omitempty"` // 当たった規則の ID（根拠はポリシーの規則と出典を参照）
+}
+
+// Assessment は、結果全体の評価。
+type Assessment struct {
+	Policy        string `json:"policy"`
+	PolicyVersion string `json:"policy_version"`
+	// 資産（アルゴリズム、証明書、鍵）の ID → 判定
+	Assets map[string]Verdict `json:"assets"`
+	// 設定から求めた値（「種類:名前」。例 tls-suite:ECDHE-RSA-AES256-GCM-SHA384、ssh-kex:curve25519-sha256）→ 判定
+	Values map[string]Verdict `json:"values"`
 }
