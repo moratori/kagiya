@@ -29,6 +29,7 @@ const usage = `kagiya - cryptographic inventory tool (read-only, no network)
 Usage:
   kagiya scan [options]                 scan this host and write the inventory
   kagiya convert --to csv RESULT.json   convert a result file to CSV
+  kagiya report RESULT.json             write an HTML report for one host
   kagiya rules export --output-dir DIR  write the built-in rules to DIR
   kagiya rules validate --rules DIR     check a rule directory
   kagiya version                        show version information
@@ -49,6 +50,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return runRules(args[1:], stdout, stderr)
 	case "convert":
 		return runConvert(args[1:], stdout, stderr)
+	case "report":
+		return runReport(args[1:], stdout, stderr)
 	case "version":
 		rs, err := ruleset.Builtin()
 		if err != nil {
