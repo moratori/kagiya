@@ -833,12 +833,9 @@ func TestReportRejectsBadInput(t *testing.T) {
 	if code, _, stderr := run("report", "--output-dir", dir, "--policy", "nosuch", result); code != exitFatal || !strings.Contains(stderr, "nosuch") {
 		t.Errorf("unknown policy: exit %d: %s", code, stderr)
 	}
-	// 入力なし、入力が複数（複数ホストのまとめは、まだ対応していない）
+	// 入力なし
 	if code, _, _ := run("report", "--output-dir", dir); code != exitUsage {
 		t.Errorf("no input: exit %d", code)
-	}
-	if code, _, stderr := run("report", "--output-dir", dir, result, result); code != exitUsage || !strings.Contains(stderr, "one result file") {
-		t.Errorf("two inputs: exit %d: %s", code, stderr)
 	}
 	// このツールの結果ではないファイル
 	other := filepath.Dir(fx.root) + "/other.json"
@@ -848,5 +845,22 @@ func TestReportRejectsBadInput(t *testing.T) {
 	}
 	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
 		t.Errorf("no report must be written on errors, found %d files", len(entries))
+	}
+	// 入力が複数なら、全体の集計とホストごとの詳細をまとめた1つのレポートになる
+	code, stdout, stderr := run("report", "--output-dir", dir, result, result)
+	if code != 0 {
+		t.Fatalf("two inputs: exit %d: %s", code, stderr)
+	}
+	out := singleFile(t, dir, ".html")
+	if filepath.Base(out) != "kagiya-report-2hosts.html" || !strings.Contains(stdout, out) {
+		t.Errorf("combined report file = %s (stdout %q)", out, stdout)
+	}
+	data, _ := os.ReadFile(out)
+	if !bytes.Contains(data, []byte(`id="dashboard"`)) || !bytes.Contains(data, []byte(`id="host-2"`)) {
+		t.Error("the combined report must have a dashboard and a view for each host")
+	}
+	// 混ざった入力のうち1つでも読めなければ、何も書かない
+	if code, _, _ := run("report", "--output-dir", filepath.Dir(fx.root)+"/report2", result, other); code != exitFatal {
+		t.Errorf("mixed inputs: exit %d", code)
 	}
 }

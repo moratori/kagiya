@@ -39,8 +39,9 @@ func sample() *model.Inventory {
 	inv := &model.Inventory{Schema: model.Schema}
 	inv.Meta = model.Meta{ScanID: "0123456789abcdef", StartedAt: "2026-11-12T10:00:00Z", FinishedAt: "2026-11-12T10:00:05Z", Completed: true,
 		Tool: model.Tool{Version: "0.1.0"}, Rules: model.Rules{Source: "builtin", Version: "2026.11.0", SHA256: strings.Repeat("0", 64)},
-		Host: model.Host{Hostname: "web01.example.jp", OS: "linux", Arch: "amd64"}, Labels: map[string]string{"system": "portal"},
-		Privilege: model.Privilege{Elevated: true}}
+		Host: model.Host{Hostname: "web01.example.jp", OS: "linux", Arch: "amd64", Distribution: &model.Distribution{ID: "rhel", VersionID: "9.9", Name: "Red Hat Enterprise Linux 9.9 (Plow)"}}, Labels: map[string]string{"system": "portal"},
+		Privilege:  model.Privilege{Elevated: true},
+		Invocation: model.Invocation{Roots: []string{"/etc", "/opt", "/usr/local"}}}
 	inv.Assets = []model.Asset{
 		alg("alg:rsa-2048", "RSA", "public-key", 2048), alg("alg:rsa-1024", "RSA", "public-key", 1024), alg("alg:ec-p256", "EC", "curve", 256),
 		alg("alg:sha256-with-rsa", "RSA", "signature", 0), alg("alg:sha1-with-rsa", "RSA", "signature", 0), alg("alg:ecdsa-with-sha256", "ECDSA", "signature", 0),
@@ -167,7 +168,7 @@ func TestReportEscapesUntrustedText(t *testing.T) {
 
 func TestReportHeaderAndSummary(t *testing.T) {
 	html := render(t, sample())
-	mustContain(t, html, "web01.example.jp", "linux / amd64", "2026-11-12T10:00:05Z", "0.1.0", "2026.11.0", "system=portal",
+	mustContain(t, html, "web01.example.jp", "Red Hat Enterprise Linux 9.9 (Plow)", "linux / amd64", "2026-11-12T10:00:05Z", "0.1.0", "2026.11.0", "system=portal",
 		"既定の評価ポリシー", // 評価ポリシーの名前
 	)
 	// 未完了のスキャンは、冒頭で目立たせる
@@ -179,7 +180,7 @@ func TestReportHeaderAndSummary(t *testing.T) {
 	}
 }
 
-// サービスごとに、実際に効く値と、その求め方・判定を示す。
+// サービスごとに、受け入れる方式の一覧と、その求め方・判定を示す。サービスは1つずつ畳んで（アコーディオンで）示す。
 func TestReportServices(t *testing.T) {
 	html := render(t, sample())
 	mustContain(t, html,
@@ -192,16 +193,63 @@ func TestReportServices(t *testing.T) {
 		"/etc/nginx/conf.d/tls.conf:6",
 		"mlkem768x25519-sha256", "ハイブリッド",
 		"diffie-hellman-group1-sha1", "危殆化",
-		"求められませんでした", "no default values are recorded for openssh-server 9.9p1-99.el9",
+		"特定できませんでした", "no default values are recorded for openssh-server 9.9p1-99.el9",
 		"TLSv1", // 設定に書かれたプロトコル
 		"ssl_module is not loaded",
+		"導入のみ", // httpd。起動するよう設定されていないことは、サービスの欄の中で示す
 	)
-	// 「導入のみ」のサービスは畳んで示す
-	if !regexp.MustCompile(`(?s)<details[^>]*>\s*<summary>[^<]*httpd`).MatchString(html) {
-		t.Error("a service that is only installed must be collapsed")
+	// どのサービスも畳んで示す（起動するよう設定されているかどうかによらない）
+	for _, name := range []string{"nginx", "openssh", "httpd"} {
+		if !regexp.MustCompile(`(?s)<details[^>]*class="svc"[^>]*>\s*<summary>[^<]*` + name).MatchString(html) {
+			t.Errorf("service %s must be shown as a collapsed section", name)
+		}
 	}
-	if regexp.MustCompile(`(?s)<details[^>]*>\s*<summary>[^<]*nginx`).MatchString(html) {
-		t.Error("an enabled service must not be collapsed")
+	// 初めて見る人に伝わらない言い回しは使わない
+	for _, bad := range []string{"実際に効く値", "求められませんでした"} {
+		if strings.Contains(html, bad) {
+			t.Errorf("the report contains %q", bad)
+		}
+	}
+	// 範囲の左の縦線は付けない
+	if m := regexp.MustCompile(`\.scope \{[^}]*\}`).FindString(html); m == "" || strings.Contains(m, "border-left") {
+		t.Errorf("the scope block must not have a left border: %q", m)
+	}
+}
+
+// 要点: 見つかったサービスはすべて数える。量子計算機に弱い方式は、まとめたうえで内訳（鍵交換、署名・認証）を示す。
+func TestReportSummary(t *testing.T) {
+	html := render(t, sample())
+	a, b := strings.Index(html, `id="summary"`), strings.Index(html, `id="services"`)
+	if a < 0 || b < a {
+		t.Fatal("no summary section")
+	}
+	sum := html[a:b]
+	mustContain(t, sum, "サービスの設定（3 サービス）", "量子計算機に弱い方式", "鍵交換", "署名・認証", "量子計算機で強度が下がる方式",
+		"危殆化している方式", "非推奨の方式", "設定からの参照を確認できなかった秘密鍵", "権限がなく読めなかった")
+	for _, bad := range []string{"起動するよう設定されたサービスの設定", "参照されていない", "調べられなかった箇所"} {
+		if strings.Contains(html, bad) {
+			t.Errorf("the report contains %q", bad)
+		}
+	}
+	// 内訳は、まとめの項目の下に入れ子で示す
+	if !regexp.MustCompile(`(?s)量子計算機に弱い方式.*?<ul class="sub">.*?鍵交換.*?署名・認証.*?</ul>`).MatchString(sum) {
+		t.Error("the breakdown must be nested under the total")
+	}
+	// 数: nginx の4スイートはすべて鍵交換が弱い。sshd は curve25519 と group1 が弱く、mlkem はハイブリッド
+	for label, want := range map[string]string{"鍵交換": "6", "ハイブリッドの方式": "1"} {
+		m := regexp.MustCompile(label + `[^<]*</span>\s*<span class="num[^"]*">(\d+)<`).FindStringSubmatch(sum)
+		if m == nil || m[1] != want {
+			t.Errorf("%s = %v, want %s", label, m, want)
+		}
+	}
+	// 用語には、マウスを載せると出る説明を付ける
+	for _, term := range []string{"非推奨", "危殆化", "量子計算機に弱い"} {
+		if !regexp.MustCompile(`data-tip="[^"]{10,}"[^>]*>[^<]*` + term).MatchString(html) {
+			t.Errorf("the term %q has no explanation", term)
+		}
+	}
+	if !strings.Contains(html, "content: attr(data-tip)") {
+		t.Error("the explanation is not shown by the style sheet")
 	}
 }
 
@@ -212,7 +260,7 @@ func TestReportCertificatesAndKeys(t *testing.T) {
 		"CN=www.example.jp,O=Example", "/etc/pki/tls/certs/www.crt",
 		"期限切れ",      // cert:expired（スキャン時点 2026-11-12 より前）
 		"30 日以内に期限", // cert:soon（2026-11-20）
-		"参照されていない秘密鍵", "/opt/app/",
+		"設定からの参照を確認できなかった秘密鍵", "削除しないでください", "/opt/app/",
 		"system-trust", "3 件",
 	)
 	// 信頼ストアは畳まれていて、件数が見える。中は署名の方式ごとにまとまっている
@@ -226,18 +274,92 @@ func TestReportCertificatesAndKeys(t *testing.T) {
 	if !strings.Contains(m[2], "sha256-with-rsa") || !strings.Contains(m[2], "sha1-with-rsa") || !strings.Contains(m[2], "Root CA Two") {
 		t.Errorf("the trust store must be grouped by signature algorithm: %q", m[2])
 	}
+	// 署名の方式ごとの件数と判定は、どの列が何の判定かが分かる表で示す
+	if !regexp.MustCompile(`(?s)<th>署名の方式</th><th>件数</th><th>量子計算機に対して</th><th>現在の計算機に対して</th>.*?sha256-with-rsa</td><td>2</td>`).MatchString(m[2]) {
+		t.Errorf("the trust store must have a summary table: %q", m[2])
+	}
 	// 畳んだ部分は、最初は閉じている
 	if regexp.MustCompile(`<details[^>]*\sopen`).MatchString(html) {
 		t.Error("collapsed sections must be closed initially")
 	}
 }
 
-// 調べられなかった範囲と、このレポートでは分からないことを必ず示す。
+// 探索した範囲と、読み飛ばしたもの（権限がなく読めなかったものなど）、このレポートでは分からないことを必ず示す。
+// 「調べていない場所」は挙げきれないので、探索の起点を示し、その外は調べていないと明記する。
 func TestReportCoverageAndLimits(t *testing.T) {
 	html := render(t, sample())
-	mustContain(t, html, "調べられなかった範囲", "/mnt/share", "network-fs", "nfs4", "permission-denied", "1234",
+	mustContain(t, html, "探索した範囲と、読み飛ばしたもの", "/etc、/opt、/usr/local", "この起点の外は調べていません",
+		"/mnt/share", "ネットワーク越しのファイルシステム", "nfs4", "権限がなく読めなかった", "/etc/ssl/private", "1234",
 		"このレポートでは分からないこと", "実際にネゴシエーションされている暗号",
 		"判定の基準と出典", "NIST IR 8547", "https://doi.org/10.6028/NIST.IR.8547", "CRYPTREC")
+}
+
+// 画面の左に、移動のための欄を置く。
+func TestReportSidePane(t *testing.T) {
+	html := render(t, sample())
+	m := regexp.MustCompile(`(?s)<nav class="side">(.*?)</nav>`).FindStringSubmatch(html)
+	if m == nil {
+		t.Fatal("no side pane")
+	}
+	for _, want := range []string{`href="#h1-summary"`, `href="#h1-services"`, `href="#h1-files"`, `href="#h1-coverage"`, `href="#criteria"`} {
+		if !strings.Contains(m[1], want) {
+			t.Errorf("the side pane has no link %s", want)
+		}
+	}
+	// 1 ホストだけのときは、全体の集計の画面は出さない
+	if strings.Contains(html, `id="dashboard"`) {
+		t.Error("a single-host report must not have a dashboard")
+	}
+}
+
+// 複数のホストの結果をまとめると、全体の集計の画面と、ホストごとの詳細（1 ホストのときと同じ内容）が1つのファイルに入る。
+// 左の欄で表示を切り替える（スクリプトは使わず、スタイルシートで切り替える）。
+func TestReportMultipleHosts(t *testing.T) {
+	a, b := sample(), sample()
+	b.Meta.Host.Hostname = "db01.example.jp"
+	b.Meta.ScanID = "fedcba9876543210"
+	b.Meta.Labels = map[string]string{"system": "ledger"}
+	b.Meta.Host.Distribution = &model.Distribution{ID: "ubuntu", VersionID: "24.04", Name: "Ubuntu 24.04.5 LTS"}
+	b.EffectiveValues = b.EffectiveValues[2:] // sshd だけ
+	var buf bytes.Buffer
+	if err := RenderAll(&buf, []*model.Inventory{a, b}, rules(t), "default"); err != nil {
+		t.Fatal(err)
+	}
+	html := buf.String()
+	// 集計の画面: ホストごとの行（名前の順）と、全体の合計。行から詳細へ移れる
+	m := regexp.MustCompile(`(?s)<section[^>]*id="dashboard"[^>]*>(.*?)</section>`).FindStringSubmatch(html)
+	if m == nil {
+		t.Fatal("no dashboard")
+	}
+	dash := m[1]
+	mustContain(t, dash, "2 ホスト", "db01.example.jp", "web01.example.jp", "Ubuntu 24.04.5 LTS", "Red Hat Enterprise Linux 9.9 (Plow)",
+		"system=ledger", "量子計算機に弱い方式", "鍵交換", `href="#host-1"`, `href="#host-2"`)
+	if strings.Index(dash, "db01.example.jp") > strings.Index(dash, "web01.example.jp") {
+		t.Error("hosts must be sorted by name")
+	}
+	// 合計: 鍵交換が弱い方式は web01 が 6、db01 が 2
+	if !regexp.MustCompile(`鍵交換[^<]*</span>\s*<span class="num[^"]*">8<`).MatchString(dash) {
+		t.Errorf("the total of weak key exchanges must be 8")
+	}
+	// ホストごとの詳細は、それぞれ別の表示のまとまりに入る（同じ ID が重ならない）
+	for _, id := range []string{`id="host-1"`, `id="host-2"`, `id="h1-summary"`, `id="h2-summary"`, `id="h2-services"`} {
+		if strings.Count(html, id) != 1 {
+			t.Errorf("%s appears %d times", id, strings.Count(html, id))
+		}
+	}
+	// 左の欄: 全体の集計と、各ホスト
+	side := regexp.MustCompile(`(?s)<nav class="side">(.*?)</nav>`).FindStringSubmatch(html)
+	if side == nil || !strings.Contains(side[1], `href="#dashboard"`) || !strings.Contains(side[1], `href="#host-1"`) || !strings.Contains(side[1], "db01.example.jp") {
+		t.Errorf("side pane = %v", side)
+	}
+	// 表示の切り替えはスタイルシートで行う
+	if !strings.Contains(html, ":target") || strings.Contains(strings.ToLower(html), "<script") {
+		t.Error("the views must be switched by the style sheet, without scripts")
+	}
+	// 入力がなければエラー
+	if err := RenderAll(&buf, nil, rules(t), "default"); err == nil {
+		t.Error("no input must be an error")
+	}
 }
 
 // 評価は、レポートを作る時点の評価ポリシーでやり直す（結果ファイルの中の判定は使わない）。
