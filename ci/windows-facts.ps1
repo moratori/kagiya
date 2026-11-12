@@ -1,9 +1,12 @@
-# Windows の検出ルールとテストの根拠になる「事実」を採取する（GitHub Actions の Windows ランナー上で実行する）。
-# kagiya 本体の一部ではなく、検証用の採取スクリプト。読み取りが中心で、変更するのは次の2点だけ（最後に元へ戻す）:
-#   - テスト用の自己署名証明書の作成（証明書ストアの実体の形式を調べるため）
-#   - HTTP.sys の SSL バインドの登録（127.0.0.1 のみ。レジストリ上の形式を調べるため）
+# Collects facts from a Windows machine (run on GitHub Actions Windows runners) to ground kagiya's detection rules and tests.
+# This is a verification script, not part of kagiya itself. It mostly reads; the only changes it makes are (both reverted at the end):
+#   - creating test self-signed certificates (to learn the on-disk/registry format of certificate store entries)
+#   - registering an HTTP.sys SSL binding on 127.0.0.1 only (to learn its registry format)
 #
-# 注意: 公開リポジトリのアーティファクトは第三者も取得できる。環境変数・トークン・秘密鍵は一切出力しない。
+# NOTE: artifacts of a public repository can be downloaded by others. Never output environment variables, tokens or private keys.
+#
+# This file must stay ASCII-only: Windows PowerShell 5.1 reads a script without a BOM in the ANSI code page,
+# so non-ASCII text in string literals breaks parsing.
 param([string]$Out = (Join-Path $env:RUNNER_TEMP 'windows-facts'))
 
 $ErrorActionPreference = 'Continue'
@@ -18,7 +21,7 @@ function Save([string]$Name, [scriptblock]$Block) {
     catch { "ERROR: $_" | Out-File -FilePath $path -Encoding utf8 }
 }
 
-# レジストリキーを .reg 形式でそのまま書き出す。キーが無いこと自体も事実なので、その旨を残す。
+# Export a registry key as a .reg file. The absence of a key is a fact too, so record it.
 function Export-Key([string]$Key, [string]$Name) {
     $path = Join-Path $Out (Join-Path 'reg' $Name)
     & reg.exe query $Key *> $null
@@ -35,7 +38,7 @@ function Sha256Hex([byte[]]$Bytes) {
     finally { $sha.Dispose() }
 }
 
-# ---------------------------------------------------------------- 1. OS とランナーイメージ
+# ---------------------------------------------------------------- 1. OS and runner image
 Save 'os.txt' {
     Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' |
         Select-Object ProductName, EditionID, InstallationType, DisplayVersion, ReleaseId, CurrentBuild, CurrentBuildNumber, UBR, CurrentMajorVersionNumber, CurrentMinorVersionNumber |
@@ -43,12 +46,12 @@ Save 'os.txt' {
     "OSVersion: $([Environment]::OSVersion.VersionString)"
     "Is64BitOS: $([Environment]::Is64BitOperatingSystem)"
     "PowerShell: $($PSVersionTable.PSVersion)"
-    # ランナーイメージの識別（どのイメージ定義で作られた環境か。カスタマイズ内容の確認に使う）
+    # Runner image identification (which image definition built this environment; used to check its customizations)
     "ImageOS: $env:ImageOS"
     "ImageVersion: $env:ImageVersion"
 }
 
-# ---------------------------------------------------------------- 2. Schannel（TLS）
+# ---------------------------------------------------------------- 2. Schannel (TLS)
 Export-Key 'HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL' 'schannel.reg'
 Export-Key 'HKLM\SOFTWARE\Policies\Microsoft\Cryptography\Configuration\SSL' 'ssl-policy.reg'
 Export-Key 'HKLM\SYSTEM\CurrentControlSet\Control\Cryptography\Configuration\Local\SSL' 'ssl-local.reg'
@@ -60,7 +63,7 @@ Save 'tls-cipher-suites.json' {
 Save 'tls-cipher-suites.txt' { Get-TlsCipherSuite | Format-Table Name, Protocols, Exchange, Cipher, CipherLength, Hash, Certificate -AutoSize }
 Save 'tls-ecc-curves.txt' { Get-TlsEccCurve }
 
-# ---------------------------------------------------------------- 3. .NET、FIPS、認証まわり
+# ---------------------------------------------------------------- 3. .NET, FIPS, authentication
 Export-Key 'HKLM\SOFTWARE\Microsoft\.NETFramework\v4.0.30319' 'dotnet-v4-64.reg'
 Export-Key 'HKLM\SOFTWARE\WOW6432Node\Microsoft\.NETFramework\v4.0.30319' 'dotnet-v4-32.reg'
 Export-Key 'HKLM\SOFTWARE\Microsoft\.NETFramework\v2.0.50727' 'dotnet-v2-64.reg'
@@ -72,12 +75,12 @@ Export-Key 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' 'ntlm-msv1_0.reg'
 Export-Key 'HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' 'rdp-tcp.reg'
 Export-Key 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\WinHttp' 'winhttp.reg'
 Save 'lsa-values.txt' {
-    # Lsa キー全体は書き出さず、暗号に関係する値だけを読む
+    # Do not export the whole Lsa key; read only the values related to cryptography
     Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' |
         Select-Object LmCompatibilityLevel, NoLMHash, DisableRestrictedAdmin | Format-List
 }
 
-# ---------------------------------------------------------------- 4. 証明書ストア
+# ---------------------------------------------------------------- 4. Certificate stores
 Save 'certstore/stores.txt' {
     foreach ($loc in 'LocalMachine', 'CurrentUser') {
         "== Cert:\$loc"
@@ -86,7 +89,7 @@ Save 'certstore/stores.txt' {
         }
     }
 }
-# ストアの物理的な置き場所（レジストリ上の構造と、実体の件数）
+# Physical location of the stores (registry structure and number of entries)
 Save 'certstore/registry-layout.txt' {
     $roots = @(
         'HKLM:\SOFTWARE\Microsoft\SystemCertificates',
@@ -109,19 +112,19 @@ Save 'certstore/registry-layout.txt' {
             $line
         }
     }
-    '== 証明書1件のレジストリ値の名前と種類（ROOT の先頭1件）'
+    '== value names and kinds of one certificate entry (first entry of ROOT)'
     $first = Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\SystemCertificates\ROOT\Certificates' | Select-Object -First 1
     if ($first) {
         foreach ($n in $first.GetValueNames()) { "   value '$n' kind=$($first.GetValueKind($n)) length=$(@($first.GetValue($n)).Length)" }
     }
-    '== ユーザーストアのファイル実体'
+    '== file-based user stores'
     foreach ($d in @("$env:APPDATA\Microsoft\SystemCertificates", "$env:ProgramData\Microsoft\Crypto")) {
         "   $d exists=$(Test-Path $d)"
         if (Test-Path $d) { Get-ChildItem $d -Recurse -Directory -ErrorAction SilentlyContinue | ForEach-Object { "      $($_.FullName)  entries=$(@(Get-ChildItem $_.FullName -File -ErrorAction SilentlyContinue).Count)" } }
     }
 }
 
-# 証明書の「正解」（Windows 自身が報告する値）と、同じ証明書のレジストリ上の実体（Blob）を対で残す。
+# Keep pairs of the ground truth (values reported by Windows itself) and the raw registry entry (Blob) of the same certificate.
 function Describe-Cert($c, [string]$Store) {
     [ordered]@{
         store              = $Store
@@ -145,19 +148,20 @@ function Save-Blob([string]$RegPath, [string]$FileName) {
 }
 
 $samples = @()
-# (a) OS が配布するルート証明書から数件（公開情報）
+# (a) a few root certificates shipped with the OS (public information)
 Get-ChildItem Cert:\LocalMachine\Root | Sort-Object Thumbprint | Select-Object -First 4 | ForEach-Object {
     $samples += Describe-Cert $_ 'LocalMachine\Root'
     Save-Blob "HKLM:\SOFTWARE\Microsoft\SystemCertificates\ROOT\Certificates\$($_.Thumbprint)" "root-$($_.Thumbprint.ToLower()).blob"
     [System.IO.File]::WriteAllBytes((Join-Path $Out "certstore\root-$($_.Thumbprint.ToLower()).cer"), $_.RawData)
 }
-# AuthRoot（自動更新で取り込まれるルート）にも実体があれば数件
+# a few entries from AuthRoot (roots delivered by automatic update), if present
 Get-ChildItem Cert:\LocalMachine\AuthRoot -ErrorAction SilentlyContinue | Sort-Object Thumbprint | Select-Object -First 2 | ForEach-Object {
     $samples += Describe-Cert $_ 'LocalMachine\AuthRoot'
     Save-Blob "HKLM:\SOFTWARE\Microsoft\SystemCertificates\AuthRoot\Certificates\$($_.Thumbprint)" "authroot-$($_.Thumbprint.ToLower()).blob"
 }
 
-# (b) 秘密鍵を伴う証明書（テスト用に作成し、最後に削除する）。Blob には証明書と「鍵の所在を示す情報」だけが入り、秘密鍵そのものは入らない。
+# (b) certificates with a private key (created for this test and removed at the end).
+# The Blob holds the certificate and information on where the key lives, not the private key itself.
 $made = @()
 try {
     $rsa = New-SelfSignedCertificate -Subject 'CN=kagiya-facts-rsa' -CertStoreLocation Cert:\LocalMachine\My -KeyAlgorithm RSA -KeyLength 2048 -NotAfter (Get-Date).AddDays(3)
@@ -169,13 +173,13 @@ try {
         Save-Blob "HKLM:\SOFTWARE\Microsoft\SystemCertificates\MY\Certificates\$($c.Thumbprint)" "my-$($c.Thumbprint.ToLower()).blob"
     }
     $samples += Describe-Cert $usr 'CurrentUser\My'
-    # ユーザーの個人ストアはレジストリではなくファイルに置かれる（そのことの確認も兼ねる）
+    # The per-user personal store is kept in files, not in the registry (this also confirms that)
     $userFile = Join-Path $env:APPDATA "Microsoft\SystemCertificates\My\Certificates\$($usr.Thumbprint)"
     "user store file: $userFile exists=$(Test-Path $userFile); registry key exists=$(Test-Path "HKCU:\SOFTWARE\Microsoft\SystemCertificates\My\Certificates\$($usr.Thumbprint)")" |
         Out-File (Join-Path $Out 'certstore\user-store-location.txt') -Encoding utf8
     if (Test-Path $userFile) { Copy-Item $userFile (Join-Path $Out "certstore\usermy-$($usr.Thumbprint.ToLower()).blob") }
 
-    # ---------------------------------------------------------- 5. HTTP.sys の SSL バインド
+    # ---------------------------------------------------------- 5. HTTP.sys SSL binding
     Save 'httpsys-before.txt' { & netsh.exe http show sslcert }
     $appid = '{6b616769-7961-4661-8374-73746f726500}'
     Save 'httpsys-add.txt' { & netsh.exe http add sslcert ipport=127.0.0.1:44399 "certhash=$($rsa.Thumbprint)" "appid=$appid" certstorename=MY }
@@ -212,19 +216,19 @@ Save 'iis.txt' {
     if (Test-Path $cfg) { Select-String -Path $cfg -Pattern '<binding ', 'sslFlags', '<access ' | ForEach-Object { $_.Line.Trim() } }
 }
 
-# ---------------------------------------------------------------- 8. ファイルシステム（ドライブ種別、リパースポイント）
+# ---------------------------------------------------------------- 8. File system (drive types, reparse points)
 Save 'filesystem.txt' {
-    '== ドライブ（DriveType: 2=リムーバブル 3=ローカル 4=ネットワーク 5=CD-ROM）'
+    '== drives (DriveType: 2=removable 3=local 4=network 5=CD-ROM)'
     Get-CimInstance Win32_LogicalDisk | Select-Object DeviceID, DriveType, FileSystem, ProviderName | Format-Table -AutoSize
-    '== ルート直下のリパースポイント'
+    '== reparse points directly under the system drive'
     Get-ChildItem "$env:SystemDrive\" -Force -Attributes ReparsePoint -ErrorAction SilentlyContinue | Select-Object Name, Attributes, LinkType, Target | Format-Table -AutoSize
-    '== ユーザープロファイル直下のリパースポイント'
+    '== reparse points directly under the user profile'
     Get-ChildItem "$env:USERPROFILE" -Force -Attributes ReparsePoint -ErrorAction SilentlyContinue | Select-Object Name, Attributes, LinkType | Format-Table -AutoSize
-    '== 最終アクセス時刻の更新設定'
+    '== last access time update setting'
     & fsutil.exe behavior query disablelastaccess
 }
 
-# ---------------------------------------------------------------- 9. 採取物の一覧
+# ---------------------------------------------------------------- 9. Manifest
 Save 'MANIFEST.txt' {
     "collected_at_utc: $((Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'))"
     Get-ChildItem $Out -Recurse -File | Where-Object { $_.Name -ne 'MANIFEST.txt' } | ForEach-Object {
