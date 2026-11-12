@@ -83,3 +83,60 @@ func TestOpenerPermissionDenied(t *testing.T) {
 		t.Errorf("skips = %+v", skips)
 	}
 }
+
+// 共有ライブラリは「libcrypto.so.3 → libcrypto.so.3.5.9」のようにシンボリックリンクで置かれ、
+// /lib64 自体が /usr/lib64 へのリンクであることも多い。リンクは自前で1段ずつ解決し、その都度マウント表で判定する。
+func TestOpenerResolve(t *testing.T) {
+	root := tmpDir(t)
+	write(t, root+"/usr/lib64/libcrypto.so.3.5.9", "lib")
+	os.Symlink("libcrypto.so.3.5.9", root+"/usr/lib64/libcrypto.so.3") // 相対リンク
+	os.Symlink("usr/lib64", root+"/lib64")                             // ディレクトリへの相対リンク
+	os.Symlink(root+"/lib64/libcrypto.so.3", root+"/abs.so")           // 絶対リンク（さらにリンクを経由）
+	os.Symlink("../usr/lib64/../lib64/libcrypto.so.3", root+"/lib64up.so")
+	os.Mkdir(root+"/d", 0o755)
+	os.Symlink("../lib64/libcrypto.so.3", root+"/d/rel.so")
+	os.Symlink("loop2", root+"/loop1")
+	os.Symlink("loop1", root+"/loop2")
+	os.Symlink("nowhere", root+"/dangling")
+
+	o := &Opener{}
+	want := root + "/usr/lib64/libcrypto.so.3.5.9"
+	for _, p := range []string{want, root + "/usr/lib64/libcrypto.so.3", root + "/lib64/libcrypto.so.3", root + "/abs.so", root + "/d/rel.so"} {
+		got, err := o.Resolve(p)
+		if err != nil || got != want {
+			t.Errorf("Resolve(%q) = %q, %v; want %q", p, got, err, want)
+		}
+	}
+	if _, err := o.Resolve(root + "/loop1"); err == nil {
+		t.Error("symlink loop must fail")
+	}
+	if _, err := o.Resolve(root + "/dangling"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("dangling link: err = %v, want fs.ErrNotExist", err)
+	}
+	if _, err := o.Resolve("relative"); err == nil {
+		t.Error("relative path must fail")
+	}
+	// 解決した結果は Open でそのまま開ける
+	real, _ := o.Resolve(root + "/abs.so")
+	f, err := o.Open(real)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+}
+
+// リンクの行き先が読んではならない場所なら、そこには触れずにスキップを記録する。
+func TestOpenerResolveStopsAtDeniedMount(t *testing.T) {
+	root := tmpDir(t)
+	write(t, root+"/nfs/lib/libx.so", "x")
+	os.Symlink(root+"/nfs/lib/libx.so", root+"/libx.so")
+	var skips []Skip
+	m := &fakeMounts{denied: map[string]string{root + "/nfs": "nfs4"}}
+	o := &Opener{Mounts: m, OnSkip: func(s Skip) { skips = append(skips, s) }}
+	if _, err := o.Resolve(root + "/libx.so"); !errors.Is(err, ErrSkipped) {
+		t.Errorf("err = %v, want ErrSkipped", err)
+	}
+	if len(skips) != 1 || skips[0].Reason != "network-fs" {
+		t.Errorf("skips = %+v", skips)
+	}
+}
