@@ -224,3 +224,55 @@ func TestLoadStores(t *testing.T) {
 		}
 	}
 }
+
+func TestBuiltinPackageRoles(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]string{
+		"openssl": "crypto-library", "openssl-libs": "crypto-library", "libssl3t64": "crypto-library", "libssl1.0.0": "crypto-library",
+		"libgnutls30": "crypto-library", "gnutls": "crypto-library", "libgcrypt20": "crypto-library",
+		"openssh-server": "ssh", "openssh-clients": "ssh", "openssh-client": "ssh",
+		"nginx": "web-server", "nginx-core": "web-server", "httpd": "web-server", "mod_ssl": "web-server", "apache2-bin": "web-server",
+		"crypto-policies": "crypto-policy", "ca-certificates": "trust-store",
+		"libc6": "", "bash": "", "opensslx": "", "nginx-filesystem": "",
+	} {
+		if got := rs.PackageRole(name); got != want {
+			t.Errorf("PackageRole(%q) = %q, want %q", name, got, want)
+		}
+	}
+}
+
+func TestLoadPackageRolesRequireSources(t *testing.T) {
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	with := func(y string) map[string]string {
+		m := map[string]string{"os/packages.yaml": y}
+		for k, v := range base {
+			m[k] = v
+		}
+		return m
+	}
+	src := "    sources:\n      - image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n        os: \"X\"\n"
+	ok := "packages:\n  - role: ssh\n    names: [\"openssh-server\", \"libssh*\"]\n" + src
+	rs, err := Load(mapFS(with(ok)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rs.PackageRole("openssh-server") != "ssh" || rs.PackageRole("libssh-4") != "ssh" || rs.PackageRole("openssh") != "" {
+		t.Error("package role lookup is wrong")
+	}
+	for name, y := range map[string]string{
+		"no sources":     "packages:\n  - role: ssh\n    names: [\"openssh-server\"]\n",
+		"no names":       "packages:\n  - role: ssh\n" + src,
+		"bad name":       "packages:\n  - role: ssh\n    names: [\"open ssh\"]\n" + src,
+		"star in middle": "packages:\n  - role: ssh\n    names: [\"open*ssh\"]\n" + src,
+		"bare star":      "packages:\n  - role: ssh\n    names: [\"*\"]\n" + src,
+		"duplicate name": ok + "  - role: other\n    names: [\"openssh-server\"]\n" + src,
+		"bad role":       "packages:\n  - role: \"SSH role\"\n    names: [\"a\"]\n" + src,
+	} {
+		if _, err := Load(mapFS(with(y))); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+}
