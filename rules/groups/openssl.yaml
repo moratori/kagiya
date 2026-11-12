@@ -1,0 +1,217 @@
+# OpenSSL の鍵交換のグループ（TLS の supported_groups。楕円曲線、有限体 DH、耐量子のハイブリッドなど）の対応表。
+# サーバーが受け入れるグループを、設定の記載（なければシステムの設定、それもなければライブラリの既定）から求めるのに使う。
+#
+# その版が知っている名前、既定で受け入れるグループ、指定の書き方の解釈は、版によって違う。パッケージ版ごとに実物で採取した値を持つ。
+#   syntax          : 指定の書き方。basic = 「:」区切りだけ。名前は大文字小文字を区別し、同じグループを2回書くと拒否される。
+#                     extended = 「/」での区切り、接頭辞（? * -）、DEFAULT が使える。名前は大文字小文字を区別しない。
+#   measured_levels : セキュリティレベルごとの測定ができた最大のレベル。
+#   groups          : グループ。既定で受け入れるもの（default）を、既定の並びの順で先に置く。
+#     aliases       : 同じグループを指す別の名前（その版が受け付けるもの）。
+#     tls13 / tls12 : そのプロトコルの鍵交換で使えるか。
+#     level         : そのグループを受け入れる最大のセキュリティレベル（測定できた範囲で）。
+#
+# 採取方法: 各イメージにディストリのリポジトリから openssl を導入し、同じコンテナ内で openssl s_server を起動して、
+#           グループを1つずつ指定した openssl s_client で接続できるかを確かめた（空の openssl.cnf を読ませている）。
+#           OpenSSL 1.0.2（Ubuntu 16.04）は、この方法で測れないため載せていない。
+# このファイルは検証ラボの生成スクリプトで作った。手で編集しない。
+group_tables:
+  - library: openssl
+    upstream: "1.1.1k"
+    builds:
+      - package: openssl-libs
+        version: "1.1.1k-18.el8_6"
+        source:
+          image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
+          os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+    syntax: basic
+    measured_levels: 2
+    groups:
+      - {name: X25519, tls13: true, tls12: true, level: 2, default: true}
+      - {name: X448, tls13: true, tls12: true, level: 2, default: true}
+      - {name: P-256, aliases: "prime256v1", tls13: true, tls12: true, level: 2, default: true}
+      - {name: P-384, aliases: "secp384r1", tls13: true, tls12: true, level: 2, default: true}
+      - {name: P-521, aliases: "secp521r1", tls13: true, tls12: true, level: 2, default: true}
+      - {name: P-224, aliases: "secp224r1", tls13: false, tls12: true}
+      - {name: secp256k1, tls13: false, tls12: true}
+      - {name: K-283, tls13: false, tls12: false}
+      - {name: sect283k1, tls13: false, tls12: false}
+      - {name: B-283, tls13: false, tls12: false}
+      - {name: sect283r1, tls13: false, tls12: false}
+      - {name: K-409, tls13: false, tls12: false}
+      - {name: sect409k1, tls13: false, tls12: false}
+      - {name: K-571, tls13: false, tls12: false}
+      - {name: sect571k1, tls13: false, tls12: false}
+      - {name: brainpoolP256r1, tls13: false, tls12: false}
+      - {name: brainpoolP384r1, tls13: false, tls12: false}
+      - {name: brainpoolP512r1, tls13: false, tls12: false}
+  - library: openssl
+    upstream: "3.5.9"
+    builds:
+      - package: openssl-libs
+        version: "3.5.9-1.el9_9"
+        source:
+          image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
+          os: "Red Hat Enterprise Linux 9.9 (Plow)"
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+      - package: openssl-libs
+        version: "3.5.9-1.el10_3"
+        source:
+          image: "redhat/ubi10@sha256:1e9193f051ac70582821c8a941325c5053488c54c75cd0c31b577d871ac29dba"
+          os: "Red Hat Enterprise Linux 10.3 (Coughlan)"
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+    syntax: extended
+    measured_levels: 5
+    groups:
+      - {name: X25519MLKEM768, tls13: true, tls12: false, level: 4, default: true}
+      - {name: X25519, aliases: "x25519", tls13: true, tls12: true, level: 3, default: true}
+      - {name: P-256, aliases: "prime256v1 secp256r1", tls13: true, tls12: true, level: 3, default: true}
+      - {name: X448, aliases: "x448", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-384, aliases: "secp384r1", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-521, aliases: "secp521r1", tls13: true, tls12: true, level: 5, default: true}
+      - {name: ffdhe2048, tls13: true, tls12: false, level: 2, default: true}
+      - {name: ffdhe3072, tls13: true, tls12: false, level: 3, default: true}
+      - {name: P-224, aliases: "secp224r1", tls13: false, tls12: true}
+      - {name: secp256k1, tls13: false, tls12: true}
+      - {name: brainpoolP256r1, tls13: false, tls12: true}
+      - {name: brainpoolP384r1, tls13: false, tls12: true}
+      - {name: brainpoolP512r1, tls13: false, tls12: true}
+      - {name: brainpoolP256r1tls13, tls13: true, tls12: false, level: 3}
+      - {name: brainpoolP384r1tls13, tls13: true, tls12: false, level: 4}
+      - {name: brainpoolP512r1tls13, tls13: true, tls12: false, level: 5}
+      - {name: ffdhe4096, tls13: true, tls12: false, level: 3}
+      - {name: ffdhe6144, tls13: true, tls12: false, level: 3}
+      - {name: ffdhe8192, tls13: true, tls12: false, level: 4}
+      - {name: SecP256r1MLKEM768, tls13: true, tls12: false, level: 4}
+      - {name: SecP384r1MLKEM1024, tls13: true, tls12: false, level: 5}
+      - {name: MLKEM512, tls13: true, tls12: false, level: 3}
+      - {name: MLKEM768, aliases: "mlkem768", tls13: true, tls12: false, level: 4}
+      - {name: MLKEM1024, tls13: true, tls12: false, level: 5}
+  - library: openssl
+    upstream: "1.1.1f"
+    builds:
+      - package: libssl1.1
+        version: "1.1.1f-1ubuntu2.24"
+        source:
+          image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
+          os: "Ubuntu 20.04.6 LTS"
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+    syntax: basic
+    measured_levels: 2
+    groups:
+      - {name: X25519, tls13: true, tls12: true, level: 2, default: true}
+      - {name: X448, tls13: true, tls12: true, level: 2, default: true}
+      - {name: P-256, aliases: "prime256v1", tls13: true, tls12: true, level: 2, default: true}
+      - {name: P-384, aliases: "secp384r1", tls13: true, tls12: true, level: 2, default: true}
+      - {name: P-521, aliases: "secp521r1", tls13: true, tls12: true, level: 2, default: true}
+      - {name: P-224, aliases: "secp224r1", tls13: true, tls12: true, level: 2}
+      - {name: secp256k1, tls13: true, tls12: true, level: 2}
+      - {name: K-283, aliases: "sect283k1", tls13: true, tls12: true, level: 2}
+      - {name: B-283, aliases: "sect283r1", tls13: true, tls12: true, level: 2}
+      - {name: K-409, aliases: "sect409k1", tls13: true, tls12: true, level: 2}
+      - {name: K-571, aliases: "sect571k1", tls13: true, tls12: true, level: 2}
+      - {name: brainpoolP256r1, tls13: true, tls12: true, level: 2}
+      - {name: brainpoolP384r1, tls13: true, tls12: true, level: 2}
+      - {name: brainpoolP512r1, tls13: true, tls12: true, level: 2}
+  - library: openssl
+    upstream: "3.0.2"
+    builds:
+      - package: libssl3
+        version: "3.0.2-0ubuntu1.30"
+        source:
+          image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+          os: "Ubuntu 22.04.5 LTS"
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+    syntax: basic
+    measured_levels: 5
+    groups:
+      - {name: X25519, aliases: "x25519", tls13: true, tls12: true, level: 3, default: true}
+      - {name: X448, aliases: "x448", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-256, aliases: "prime256v1 secp256r1", tls13: true, tls12: true, level: 3, default: true}
+      - {name: P-384, aliases: "secp384r1", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-521, aliases: "secp521r1", tls13: true, tls12: true, level: 5, default: true}
+      - {name: ffdhe2048, tls13: true, tls12: false, level: 2, default: true}
+      - {name: ffdhe3072, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe4096, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe6144, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe8192, tls13: true, tls12: false, level: 4, default: true}
+      - {name: P-224, aliases: "secp224r1", tls13: false, tls12: true}
+      - {name: secp256k1, tls13: false, tls12: true}
+      - {name: K-283, aliases: "sect283k1", tls13: false, tls12: true}
+      - {name: B-283, aliases: "sect283r1", tls13: false, tls12: true}
+      - {name: K-409, aliases: "sect409k1", tls13: false, tls12: true}
+      - {name: K-571, aliases: "sect571k1", tls13: false, tls12: true}
+      - {name: brainpoolP256r1, tls13: false, tls12: true}
+      - {name: brainpoolP384r1, tls13: false, tls12: true}
+      - {name: brainpoolP512r1, tls13: false, tls12: true}
+  - library: openssl
+    upstream: "3.0.13"
+    builds:
+      - package: libssl3t64
+        version: "3.0.13-0ubuntu3.16"
+        source:
+          image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+          os: "Ubuntu 24.04.5 LTS"
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+    syntax: basic
+    measured_levels: 5
+    groups:
+      - {name: X25519, aliases: "x25519", tls13: true, tls12: true, level: 3, default: true}
+      - {name: X448, aliases: "x448", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-256, aliases: "prime256v1 secp256r1", tls13: true, tls12: true, level: 3, default: true}
+      - {name: P-384, aliases: "secp384r1", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-521, aliases: "secp521r1", tls13: true, tls12: true, level: 5, default: true}
+      - {name: ffdhe2048, tls13: true, tls12: false, level: 2, default: true}
+      - {name: ffdhe3072, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe4096, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe6144, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe8192, tls13: true, tls12: false, level: 4, default: true}
+      - {name: P-224, aliases: "secp224r1", tls13: false, tls12: true}
+      - {name: secp256k1, tls13: false, tls12: true}
+      - {name: K-283, aliases: "sect283k1", tls13: false, tls12: true}
+      - {name: B-283, aliases: "sect283r1", tls13: false, tls12: true}
+      - {name: K-409, aliases: "sect409k1", tls13: false, tls12: true}
+      - {name: K-571, aliases: "sect571k1", tls13: false, tls12: true}
+      - {name: brainpoolP256r1, tls13: false, tls12: true}
+      - {name: brainpoolP384r1, tls13: false, tls12: true}
+      - {name: brainpoolP512r1, tls13: false, tls12: true}
+  - library: openssl
+    upstream: "3.5.7"
+    builds:
+      - package: libssl3t64
+        version: "3.5.7-1~deb13u3"
+        source:
+          image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+          os: "Debian GNU/Linux 13 (trixie)"
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+    syntax: extended
+    measured_levels: 5
+    groups:
+      - {name: X25519MLKEM768, tls13: true, tls12: false, level: 4, default: true}
+      - {name: X25519, aliases: "x25519", tls13: true, tls12: true, level: 3, default: true}
+      - {name: P-256, aliases: "prime256v1 secp256r1", tls13: true, tls12: true, level: 3, default: true}
+      - {name: X448, aliases: "x448", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-384, aliases: "secp384r1", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-521, aliases: "secp521r1", tls13: true, tls12: true, level: 5, default: true}
+      - {name: ffdhe2048, tls13: true, tls12: false, level: 2, default: true}
+      - {name: ffdhe3072, tls13: true, tls12: false, level: 3, default: true}
+      - {name: P-224, aliases: "secp224r1", tls13: false, tls12: true}
+      - {name: secp256k1, tls13: false, tls12: true}
+      - {name: K-283, aliases: "sect283k1", tls13: false, tls12: true}
+      - {name: B-283, aliases: "sect283r1", tls13: false, tls12: true}
+      - {name: K-409, aliases: "sect409k1", tls13: false, tls12: true}
+      - {name: K-571, aliases: "sect571k1", tls13: false, tls12: true}
+      - {name: brainpoolP256r1, tls13: false, tls12: true}
+      - {name: brainpoolP384r1, tls13: false, tls12: true}
+      - {name: brainpoolP512r1, tls13: false, tls12: true}
+      - {name: brainpoolP256r1tls13, tls13: true, tls12: false, level: 3}
+      - {name: brainpoolP384r1tls13, tls13: true, tls12: false, level: 4}
+      - {name: brainpoolP512r1tls13, tls13: true, tls12: false, level: 5}
+      - {name: ffdhe4096, tls13: true, tls12: false, level: 3}
+      - {name: ffdhe6144, tls13: true, tls12: false, level: 3}
+      - {name: ffdhe8192, tls13: true, tls12: false, level: 4}
+      - {name: SecP256r1MLKEM768, tls13: true, tls12: false, level: 4}
+      - {name: SecP384r1MLKEM1024, tls13: true, tls12: false, level: 5}
+      - {name: MLKEM512, tls13: true, tls12: false, level: 3}
+      - {name: MLKEM768, aliases: "mlkem768", tls13: true, tls12: false, level: 4}
+      - {name: MLKEM1024, tls13: true, tls12: false, level: 5}

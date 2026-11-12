@@ -835,3 +835,83 @@ func TestBuiltinStunnel(t *testing.T) {
 		t.Errorf("stunnel4 on Ubuntu 16.04 = %v %v", v, ok)
 	}
 }
+
+// 鍵交換のグループの対応表が読め、パッケージ版から引ける（引き方と補間の条件は、暗号スイートの対応表と同じ）。
+func TestBuiltinGroupTables(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tb, b, exact, ok := rs.GroupTableFor("openssl", "openssl-libs", "3.5.9-1.el9_9")
+	if !ok || !exact || b.Version != "3.5.9-1.el9_9" || !strings.Contains(b.Source.Image, "@sha256:") {
+		t.Fatalf("exact lookup: ok=%v exact=%v build=%+v", ok, exact, b)
+	}
+	if tb.Syntax != "extended" || tb.MeasuredLevels != 5 || len(tb.Groups) < 20 {
+		t.Errorf("table = %s %d %d groups", tb.Syntax, tb.MeasuredLevels, len(tb.Groups))
+	}
+	g := tb.Groups[0]
+	if g.Name != "X25519MLKEM768" || !g.Default || !g.TLS13 || g.TLS12 || g.Level == nil || *g.Level != 4 {
+		t.Errorf("first group = %+v", g)
+	}
+	var p256 *Group
+	for i := range tb.Groups {
+		if tb.Groups[i].Name == "P-256" {
+			p256 = &tb.Groups[i]
+		}
+	}
+	if p256 == nil || !strings.Contains(" "+p256.Aliases+" ", " prime256v1 ") || !p256.TLS12 {
+		t.Errorf("P-256 = %+v", p256)
+	}
+	if old, _, _, ok := rs.GroupTableFor("openssl", "libssl1.1", "1.1.1f-1ubuntu2.24"); !ok || old.Syntax != "basic" || old.MeasuredLevels != 2 {
+		t.Errorf("1.1.1 table: ok=%v", ok)
+	}
+	// 補間と、代用しない場合
+	if tb2, b2, exact, ok := rs.GroupTableFor("openssl", "openssl-libs", "3.5.9-2.el9_9"); !ok || exact || tb2 != tb || b2.Version != "3.5.9-1.el9_9" {
+		t.Errorf("interpolated lookup: ok=%v exact=%v build=%+v", ok, exact, b2)
+	}
+	for _, c := range [][3]string{{"openssl", "openssl-libs", "3.6.0-1.el9"}, {"openssl", "libssl1.0.0", "1.0.2g-1ubuntu4.20"}, {"gnutls", "openssl-libs", "3.5.9-1.el9_9"}} {
+		if _, _, _, ok := rs.GroupTableFor(c[0], c[1], c[2]); ok {
+			t.Errorf("%v must not match any table", c)
+		}
+	}
+}
+
+func TestLoadGroupTables(t *testing.T) {
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	with := func(y string) map[string]string {
+		m := map[string]string{"groups/x.yaml": y}
+		for k, v := range base {
+			m[k] = v
+		}
+		return m
+	}
+	head := "group_tables:\n  - library: mylib\n    upstream: \"1.2\"\n"
+	build := "    builds:\n      - package: mylib\n        version: \"1.2-3.el9\"\n        source:\n          image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n          os: \"X\"\n"
+	flags := "    syntax: basic\n    measured_levels: 2\n"
+	groups := "    groups:\n      - {name: G-A, aliases: \"ga g_a\", tls13: true, tls12: true, level: 2, default: true}\n      - {name: G-B, tls13: true, tls12: false}\n"
+	ok := head + build + flags + groups
+	rs, err := Load(mapFS(with(ok)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tb, _, exact, found := rs.GroupTableFor("mylib", "mylib", "1.2-3.el9"); !found || !exact || len(tb.Groups) != 2 || tb.Groups[1].Level != nil {
+		t.Errorf("table = %+v found=%v exact=%v", tb, found, exact)
+	}
+	for name, y := range map[string]string{
+		"no builds":       head + flags + groups,
+		"no source":       head + "    builds:\n      - package: mylib\n        version: \"1.2-3.el9\"\n" + flags + groups,
+		"no groups":       head + build + flags,
+		"bad syntax":      head + build + "    syntax: fancy\n    measured_levels: 2\n" + groups,
+		"duplicate build": ok + "  - library: mylib\n    upstream: \"1.2\"\n" + build + flags + groups,
+		"duplicate name":  ok + "      - {name: G-A, tls13: true, tls12: false}\n",
+		"alias clash":     ok + "      - {name: G-C, aliases: \"ga\", tls13: true, tls12: false}\n",
+		"bad name":        head + build + flags + "    groups:\n      - {name: \"G A\", tls13: true, tls12: false}\n",
+		"level too high":  head + build + flags + "    groups:\n      - {name: G-A, tls13: true, tls12: false, level: 3}\n",
+		"no default":      head + build + flags + "    groups:\n      - {name: G-A, tls13: true, tls12: false}\n",
+		"unknown key":     head + build + flags + "    surprise: 1\n" + groups,
+	} {
+		if _, err := Load(mapFS(with(y))); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+}
