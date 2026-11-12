@@ -915,3 +915,14 @@ func TestLoadGroupTables(t *testing.T) {
 		}
 	}
 }
+
+// stunnel の既定の表には、鍵交換のグループの既定も入っている。
+func TestBuiltinStunnelGroupsDefault(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, _, ok := rs.AppDefaults("stunnel", "stunnel", "5.71-2.el9"); !ok || strings.Join(v["tls.groups"], "|") != "X25519:P-256:X448:P-521:P-384" {
+		t.Errorf("stunnel groups default = %v %v", v["tls.groups"], ok)
+	}
+}
