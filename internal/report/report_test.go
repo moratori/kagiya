@@ -219,7 +219,7 @@ func TestReportServices(t *testing.T) {
 // 要点: 見つかったサービスはすべて数える。量子計算機に弱い方式は、まとめたうえで内訳（鍵交換、署名・認証）を示す。
 func TestReportSummary(t *testing.T) {
 	html := render(t, sample())
-	a, b := strings.Index(html, `id="summary"`), strings.Index(html, `id="services"`)
+	a, b := strings.Index(html, `id="h1-summary"`), strings.Index(html, `id="h1-services"`)
 	if a < 0 || b < a {
 		t.Fatal("no summary section")
 	}

@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>暗号の棚卸しレポート {{.Host}}</title>
+<title>暗号の棚卸しレポート{{if .Multi}}（{{len .Hosts}} ホスト）{{else}}{{range .Hosts}} {{.Host}}{{end}}{{end}}</title>
 <style>
 :root {
   --fg:#1b2430; --sub:#5a6575; --line:#dde2ea; --bg:#f3f5f8; --paper:#ffffff; --panel:#f7f9fc; --accent:#1f4e8c; --head:#16314f;
@@ -18,18 +18,25 @@
   }
 }
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 56px; }
+html { scroll-behavior: smooth; scroll-padding-top: 12px; }
 body { margin: 0; color: var(--fg); background: var(--bg); font: 15px/1.65 system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", "Meiryo", "Noto Sans JP", sans-serif; -webkit-text-size-adjust: 100%; }
 header.top { background: var(--head); color: #fff; padding: 22px 20px 18px; }
-header.top .in, main, nav.toc .in { max-width: 1200px; margin: 0 auto; }
+header.top .in { max-width: 1200px; }
 header.top h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: .02em; }
 header.top p { margin: 0; color: #c9d5e4; font-size: 13px; }
-nav.toc { position: sticky; top: 0; z-index: 5; background: var(--paper); border-bottom: 1px solid var(--line); padding: 0 20px; }
-nav.toc .in { display: flex; flex-wrap: wrap; gap: 2px 4px; }
-nav.toc a { display: inline-block; padding: 10px 10px; font-size: 13px; color: var(--fg); text-decoration: none; border-bottom: 3px solid transparent; }
-nav.toc a:hover, nav.toc a:focus { border-bottom-color: var(--accent); color: var(--accent); }
-main { padding: 8px 20px 64px; }
-section.block { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 6px 20px 16px; margin: 18px 0; }
+nav.side { position: fixed; top: 0; left: 0; bottom: 0; width: 250px; overflow-y: auto; background: var(--head); color: #dbe4ef; padding: 18px 0 24px; }
+nav.side .brand { font-size: 15px; font-weight: 700; color: #fff; padding: 0 18px 12px; border-bottom: 1px solid rgba(255,255,255,.15); margin-bottom: 8px; }
+nav.side .grp { font-size: 11.5px; color: #9fb2c8; padding: 14px 18px 4px; letter-spacing: .06em; }
+nav.side a { display: block; padding: 7px 18px; font-size: 13.5px; color: #dbe4ef; text-decoration: none; border-left: 4px solid transparent; overflow-wrap: anywhere; }
+nav.side a:hover, nav.side a:focus { background: rgba(255,255,255,.08); border-left-color: #8fb8ef; color: #fff; }
+.wrap { margin-left: 250px; }
+nav.local { display: flex; flex-wrap: wrap; gap: 2px 6px; margin: 10px 0 0; font-size: 13px; }
+nav.local a { padding: 4px 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); text-decoration: none; }
+body.multi .view { display: none; }
+body.multi .view:target, body.multi .view:has(:target) { display: block; }
+body.multi main:has(.view:target) .dashboard, body.multi main:has(.view :target) .dashboard { display: none; }
+main { padding: 8px 24px 40px; max-width: 1240px; }
+.block { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 6px 20px 16px; margin: 18px 0; }
 h2 { font-size: 18px; margin: 16px 0 10px; padding-left: 10px; border-left: 5px solid var(--accent); line-height: 1.4; }
 h3 { font-size: 16px; margin: 20px 0 6px; }
 h4 { font-size: 14px; margin: 16px 0 4px; color: var(--sub); font-weight: 600; }
@@ -43,8 +50,15 @@ p { margin: 6px 0; }
 .card { border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: 8px; padding: 12px 16px; background: var(--panel); }
 .card h3 { margin: 0 0 8px; font-size: 14px; }
 .card ul { margin: 0 0 6px; padding: 0; list-style: none; font-size: 14px; }
-.card li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 3px 0; border-bottom: 1px dotted var(--line); }
+.card li { padding: 3px 0; border-bottom: 1px dotted var(--line); }
 .card li:last-child { border-bottom: 0; }
+.card .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.card ul.sub { margin: 2px 0 2px 14px; padding-left: 10px; border-left: 2px solid var(--line); font-size: 13px; }
+.card ul.sub li { border-bottom: 0; padding: 1px 0; }
+.card ul.sub .num { font-size: 14px; }
+.tip { position: relative; cursor: help; text-decoration: underline dotted; text-underline-offset: 3px; }
+.badge.tip { text-decoration: none; }
+.tip:hover::after, .tip:focus::after { content: attr(data-tip); position: absolute; left: 0; top: calc(100% + 4px); z-index: 30; width: max-content; max-width: 340px; white-space: normal; background: #16314f; color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 12.5px; font-weight: 400; line-height: 1.6; box-shadow: 0 4px 14px rgba(0,0,0,.25); text-align: left; }
 .num { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 17px; min-width: 2.2em; text-align: right; }
 .num.zero { color: var(--sub); font-weight: 400; font-size: 15px; }
 .num.bad { color: var(--bad); }
@@ -57,6 +71,8 @@ th, td { border-bottom: 1px solid var(--line); padding: 6px 10px; text-align: le
 th { background: var(--panel); font-weight: 600; white-space: nowrap; border-top: 1px solid var(--line); color: var(--sub); font-size: 12.5px; }
 tr:nth-child(even) td { background: var(--panel); }
 tr:hover td { background: var(--unkbg); }
+.tablewrap { overflow: visible; }
+@media (max-width: 1100px) { .tablewrap { overflow-x: auto; } }
 td.mono, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace; font-size: 12.5px; }
 .badge { display: inline-block; padding: 0 8px; border-radius: 11px; font-size: 12px; line-height: 1.75; white-space: nowrap; border: 1px solid transparent; font-weight: 600; }
 .badge.bad { color: var(--bad); background: var(--badbg); border-color: var(--bad); }
@@ -64,10 +80,11 @@ td.mono, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Co
 .badge.good { color: var(--good); background: var(--goodbg); border-color: var(--good); }
 .badge.unk { color: var(--unk); background: var(--unkbg); border-color: var(--unk); }
 .badge.none { color: var(--sub); background: transparent; border-color: var(--line); font-weight: 400; }
-.svc { border: 1px solid var(--line); border-radius: 8px; padding: 2px 16px 10px; margin: 14px 0; background: var(--paper); }
-.svc > h3 { margin-top: 14px; font-size: 17px; }
-.scope { border-left: 4px solid var(--line); padding: 2px 0 2px 14px; margin: 16px 0; }
-.scope > h4 { color: var(--fg); font-size: 14.5px; }
+details.svc { margin: 12px 0; }
+details.svc > summary { font-size: 16px; color: var(--fg); padding: 12px 16px; }
+details.svc[open] > summary { border-bottom: 1px solid var(--line); }
+.scope { margin: 18px 0; padding: 0; }
+.scope > h4 { color: var(--fg); font-size: 14.5px; background: var(--panel); padding: 6px 10px; border-radius: 6px; }
 details { margin: 8px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
 details > summary { cursor: pointer; padding: 9px 14px; font-size: 14px; color: var(--accent); font-weight: 600; }
 details > summary:hover { background: var(--panel); }
@@ -78,11 +95,15 @@ details > *:not(summary) { margin-left: 14px; margin-right: 14px; }
 ul.plain { margin: 6px 0; padding-left: 22px; }
 ul.plain li { margin: 4px 0; }
 a { color: var(--accent); }
-footer { max-width: 1200px; margin: 0 auto; padding: 0 20px 40px; color: var(--sub); font-size: 12px; }
+footer { padding: 0 24px 40px; color: var(--sub); font-size: 12px; }
+@media (max-width: 900px) { nav.side { position: static; width: auto; } .wrap { margin-left: 0; } }
 @media print {
   :root { --bg:#ffffff; }
   body { font-size: 11.5px; }
-  nav.toc { display: none; }
+  nav.side, nav.local { display: none; }
+  .wrap { margin-left: 0; }
+  body.multi .view { display: block; }
+  .tip:hover::after { content: none; }
   header.top { background: none; color: #000; padding: 0 0 8px; border-bottom: 2px solid #000; }
   header.top p { color: #333; }
   section.block { border: 0; padding: 0; }
@@ -92,108 +113,201 @@ footer { max-width: 1200px; margin: 0 auto; padding: 0 20px 40px; color: var(--s
 }
 </style>
 </head>
-<body>
-<header class="top"><div class="in">
-<h1>暗号の棚卸しレポート: {{.Host}}</h1>
-<p>kagiya による 1 ホスト分のスキャン結果。設定から分かるのは「許可されている」暗号までで、実際の通信でどれが使われているかを示すものではありません。</p>
-</div></header>
-<nav class="toc"><div class="in">
-<a href="#summary">要点</a><a href="#services">サービスの設定</a><a href="#files">証明書と鍵</a><a href="#system">OS とライブラリ</a><a href="#coverage">調べられなかった範囲</a><a href="#limits">分からないこと</a><a href="#criteria">判定の基準と出典</a>
-</div></nav>
+<body class="{{if .Multi}}multi{{else}}single{{end}}">
+<nav class="side">
+<div class="brand">暗号の棚卸しレポート</div>
+{{if .Multi}}
+<a href="#dashboard">全体の集計（{{len .Hosts}} ホスト）</a>
+<div class="grp">ホストごとの詳細</div>
+{{range .Hosts}}<a href="#{{.ViewID}}">{{.Host}}</a>
+{{end}}
+{{else}}{{range .Hosts}}
+<div class="grp">{{.Host}}</div>
+<a href="#{{.H}}-overview">スキャンの概要</a>
+<a href="#{{.H}}-summary">要点</a>
+<a href="#{{.H}}-services">サービスの設定</a>
+<a href="#{{.H}}-files">証明書と鍵</a>
+<a href="#{{.H}}-system">OS とライブラリ</a>
+<a href="#{{.H}}-coverage">探索した範囲</a>
+<a href="#{{.H}}-limits">分からないこと</a>
+{{end}}{{end}}
+<div class="grp">共通</div>
+<a href="#criteria">判定の基準と出典</a>
+</nav>
+<div class="wrap">
 <main>
-<section class="block">
-<h2 id="overview">スキャンの概要</h2>
-{{if .Incomplete}}<div class="alert"><strong>このスキャンは完了していません。</strong>結果は途中までのものです{{if .IncompleteReason}}（理由: {{.IncompleteReason}}）{{end}}。</div>{{end}}
-
-<dl class="meta">
-<dt>ホスト</dt><dd>{{.Host}}（{{.OSArch}}）</dd>
-<dt>スキャンの開始 / 終了</dt><dd>{{.Started}} / {{.Finished}}</dd>
-<dt>ツールの版</dt><dd>{{.ToolVersion}}</dd>
-<dt>検出ルールの版</dt><dd>{{.RulesVersion}}（{{.RulesSource}}）</dd>
-<dt>評価の基準</dt><dd>{{.PolicyTitle}}（版 {{.PolicyVersion}}）。このレポートを作った時点の基準で判定しています</dd>
-<dt>実行した権限</dt><dd>{{if .Elevated}}管理者権限{{else}}一般ユーザー（権限がなく読めないファイルは結果に含まれません）{{end}}</dd>
-{{if .Labels}}<dt>ラベル</dt><dd>{{range $i, $l := .Labels}}{{if $i}}、{{end}}{{$l}}{{end}}</dd>{{end}}
-</dl>
-{{range .Warnings}}<p class="note">注意: {{.}}</p>{{end}}
-
+{{range .Hosts}}{{template "host" .}}{{end}}
+{{if .Multi}}
+<section class="dashboard" id="dashboard">
+<header class="top"><div class="in">
+<h1>全体の集計（{{len .Hosts}} ホスト）</h1>
+<p>ホストごとのスキャン結果を足し合わせたものです。ホストの名前を選ぶと、そのホストの詳細に移ります。</p>
+</div></header>
+<div class="block">
+<h2>要点</h2>
+{{template "cards" .TotalView}}
+</div>
+<div class="block">
+<h2>ホストごとの状況</h2>
+<div class="tablewrap"><table>
+<tr><th>ホスト</th><th>OS</th><th>ラベル</th><th>サービス</th><th>量子計算機に弱い方式<br>（うち鍵交換）</th><th>強度が下がる方式</th><th>危殆化</th><th>非推奨</th><th>期限切れの証明書</th><th>権限がなく読めなかった</th></tr>
+{{range .Hosts}}<tr><td><a href="#{{.ViewID}}">{{.Host}}</a>{{if .Incomplete}} <span class="badge bad">未完了</span>{{end}}</td><td>{{if .Distribution}}{{.Distribution}}{{else}}{{.OSArch}}{{end}}</td><td>{{range $i, $l := .Labels}}{{if $i}}、{{end}}{{$l}}{{end}}</td><td>{{.Summary.Services}}</td><td>{{.Summary.Quantum}}（{{.Summary.Kex}}）</td><td>{{.Summary.Reduced}}</td><td>{{.Summary.Weak}}</td><td>{{.Summary.Legacy}}</td><td>{{.Summary.Expired}}</td><td>{{.Summary.Permission}}</td></tr>
+{{end}}</table></div>
+<p class="sub">数は、サービス・範囲ごとに許可されている方式の延べ数です。</p>
+</div>
 </section>
-<section class="block">
-<h2 id="summary">要点</h2>
+{{end}}
+<div class="block" id="criteria">
+<h2>判定の基準と出典</h2>
+<p class="sub">評価の基準: {{.PolicyTitle}}（版 {{.PolicyVersion}}）。このレポートを作った時点の基準で判定しています。判定は、下の文書に照らした目安です。個々のシステムで移行が必要か、いつまでに行うかは、扱う情報と利用期間に応じて判断してください。</p>
+{{if .Rules}}
+<h3>このレポートで使った判定</h3>
+<div class="tablewrap"><table><tr><th>判定の理由</th><th>根拠にした文書</th></tr>
+{{range .Rules}}<tr><td>{{.Summary}}</td><td>{{range $i, $r := .Refs}}{{if $i}}<br>{{end}}{{$r}}{{end}}</td></tr>
+{{end}}</table></div>
+{{end}}
+<h3>文書</h3>
+<div class="tablewrap"><table><tr><th>文書</th><th>該当する内容</th></tr>
+{{range .Refs}}<tr><td>{{.Title}}<br><a href="{{.URL}}" rel="noopener noreferrer">{{.URL}}</a></td><td>{{.Note}}</td></tr>
+{{end}}</table></div>
+</div>
+</main>
+<footer>このファイルは外部の資源を読み込みません。スキャン結果は機密として扱ってください。</footer>
+</div>
+</body>
+</html>
+{{define "cards"}}
 <div class="cards">
 <div class="card">
-<h3>起動するよう設定されたサービスの設定（{{.Summary.ActiveServices}} サービス）</h3>
+<h3>サービスの設定（{{.Summary.Services}} サービス）</h3>
 <ul>
-<li><span>鍵共有が量子計算機に弱い方式</span><span class="num{{if .Summary.KeyEstablishment}} bad{{else}} zero{{end}}">{{.Summary.KeyEstablishment}}</span></li>
-<li><span>その他の量子計算機に弱い方式（署名など）</span><span class="num{{if .Summary.QuantumOther}} bad{{else}} zero{{end}}">{{.Summary.QuantumOther}}</span></li>
-<li><span>ハイブリッドの方式</span><span class="num{{if .Summary.Hybrid}} good{{else}} zero{{end}}">{{.Summary.Hybrid}}</span></li>
-<li><span>危殆化している方式・プロトコル</span><span class="num{{if .Summary.Weak}} bad{{else}} zero{{end}}">{{.Summary.Weak}}</span></li>
-<li><span>非推奨の方式</span><span class="num{{if .Summary.Legacy}} warn{{else}} zero{{end}}">{{.Summary.Legacy}}</span></li>
-<li><span>判定できない方式</span><span class="num{{if .Summary.Unknown}} unk{{else}} zero{{end}}">{{.Summary.Unknown}}</span></li>
-<li><span>実際に効く値を求められなかった項目</span><span class="num{{if .Summary.Unresolved}} unk{{else}} zero{{end}}">{{.Summary.Unresolved}}</span></li>
+<li><div class="row"><span class="tip" tabindex="0" data-tip="{{index .Tips "quantum"}}">量子計算機に弱い方式</span> <span class="num{{if .Summary.Quantum}} bad{{else}} zero{{end}}">{{.Summary.Quantum}}</span></div>
+<ul class="sub">
+<li><div class="row"><span class="tip" tabindex="0" data-tip="{{index .Tips "kex"}}">鍵交換</span> <span class="num{{if .Summary.Kex}} bad{{else}} zero{{end}}">{{.Summary.Kex}}</span></div></li>
+<li><div class="row"><span class="tip" tabindex="0" data-tip="{{index .Tips "sig"}}">署名・認証</span> <span class="num{{if .Summary.Sig}} bad{{else}} zero{{end}}">{{.Summary.Sig}}</span></div></li>
+</ul></li>
+<li><div class="row"><span class="tip" tabindex="0" data-tip="{{index .Tips "reduced"}}">量子計算機で強度が下がる方式</span> <span class="num{{if .Summary.Reduced}} warn{{else}} zero{{end}}">{{.Summary.Reduced}}</span></div></li>
+<li><div class="row"><span class="tip" tabindex="0" data-tip="{{index .Tips "hybrid"}}">ハイブリッドの方式</span> <span class="num{{if .Summary.Hybrid}} good{{else}} zero{{end}}">{{.Summary.Hybrid}}</span></div></li>
+<li><div class="row"><span class="tip" tabindex="0" data-tip="{{index .Tips "weak"}}">危殆化している方式・プロトコル</span> <span class="num{{if .Summary.Weak}} bad{{else}} zero{{end}}">{{.Summary.Weak}}</span></div></li>
+<li><div class="row"><span class="tip" tabindex="0" data-tip="{{index .Tips "legacy"}}">非推奨の方式</span> <span class="num{{if .Summary.Legacy}} warn{{else}} zero{{end}}">{{.Summary.Legacy}}</span></div></li>
+<li><div class="row"><span class="tip" tabindex="0" data-tip="{{index .Tips "unknown"}}">判定できない方式</span> <span class="num{{if .Summary.Unknown}} unk{{else}} zero{{end}}">{{.Summary.Unknown}}</span></div></li>
+<li><div class="row"><span class="tip" tabindex="0" data-tip="{{index .Tips "unresolved"}}">受け入れる方式を特定できなかった項目</span> <span class="num{{if .Summary.Unresolved}} unk{{else}} zero{{end}}">{{.Summary.Unresolved}}</span></div></li>
 </ul>
-<p class="sub">数は、サービス・範囲ごとに許可されている方式の延べ数です。鍵共有が量子計算機に弱いと、いま記録された通信が将来解読され得ます。</p>
+<p class="sub">見つかったサービスすべてについて、サービス・範囲ごとに受け入れる設定になっている方式を延べで数えています。起動するよう設定されているかどうかは、各サービスの欄に示します。</p>
 </div>
 <div class="card">
 <h3>ファイルとして見つかった証明書・鍵（証明書ストアを除く）</h3>
 <ul>
-<li><span>量子計算機に弱い</span><span class="num{{if .Summary.FileQuantum}} bad{{else}} zero{{end}}">{{.Summary.FileQuantum}}</span></li>
-<li><span>危殆化している</span><span class="num{{if .Summary.FileWeak}} bad{{else}} zero{{end}}">{{.Summary.FileWeak}}</span></li>
-<li><span>非推奨</span><span class="num{{if .Summary.FileLegacy}} warn{{else}} zero{{end}}">{{.Summary.FileLegacy}}</span></li>
-<li><span>期限切れの証明書</span><span class="num{{if .Summary.Expired}} bad{{else}} zero{{end}}">{{.Summary.Expired}}</span></li>
-<li><span>{{.ExpiringDays}} 日以内に期限が来る証明書</span><span class="num{{if .Summary.Expiring}} warn{{else}} zero{{end}}">{{.Summary.Expiring}}</span></li>
-<li><span>参照されていない秘密鍵</span><span class="num{{if .Summary.Unreferenced}} warn{{else}} zero{{end}}">{{.Summary.Unreferenced}}</span></li>
+<li><div class="row"><span class="tip" tabindex="0" data-tip="{{index .Tips "quantum"}}">量子計算機に弱い</span> <span class="num{{if .Summary.FileQuantum}} bad{{else}} zero{{end}}">{{.Summary.FileQuantum}}</span></div></li>
+<li><div class="row"><span class="tip" tabindex="0" data-tip="{{index .Tips "weak"}}">危殆化している</span> <span class="num{{if .Summary.FileWeak}} bad{{else}} zero{{end}}">{{.Summary.FileWeak}}</span></div></li>
+<li><div class="row"><span class="tip" tabindex="0" data-tip="{{index .Tips "legacy"}}">非推奨</span> <span class="num{{if .Summary.FileLegacy}} warn{{else}} zero{{end}}">{{.Summary.FileLegacy}}</span></div></li>
+<li><div class="row"><span>期限切れの証明書</span> <span class="num{{if .Summary.Expired}} bad{{else}} zero{{end}}">{{.Summary.Expired}}</span></div></li>
+<li><div class="row"><span>{{.ExpiringDays}} 日以内に期限が来る証明書</span> <span class="num{{if .Summary.Expiring}} warn{{else}} zero{{end}}">{{.Summary.Expiring}}</span></div></li>
+<li><div class="row"><span class="tip" tabindex="0" data-tip="{{index .Tips "unconfirmed"}}">設定からの参照を確認できなかった秘密鍵</span> <span class="num{{if .Summary.Unconfirmed}} warn{{else}} zero{{end}}">{{.Summary.Unconfirmed}}</span></div></li>
 </ul>
-<p class="sub">期限は、スキャンした時点（{{.Finished}}）を基準に判定しています。</p>
+<p class="sub">期限は、スキャンした時点を基準に判定しています。</p>
 </div>
 <div class="card">
-<h3>調べられた範囲</h3>
+<h3>探索した範囲</h3>
 <ul>
-<li><span>調べたファイル</span><span class="num">{{.Coverage.FilesExamined}}</span></li>
-<li><span>調べたディレクトリ</span><span class="num">{{.Coverage.DirsExamined}}</span></li>
-<li><span>調べられなかった箇所</span><span class="num{{if .Summary.Skipped}} warn{{else}} zero{{end}}">{{.Summary.Skipped}}</span></li>
+<li><div class="row"><span>調べたファイル</span> <span class="num">{{.Summary.Files}}</span></div></li>
+<li><div class="row"><span>調べたディレクトリ</span> <span class="num">{{.Summary.Dirs}}</span></div></li>
+<li><div class="row"><span>権限がなく読めなかったもの</span> <span class="num{{if .Summary.Permission}} warn{{else}} zero{{end}}">{{.Summary.Permission}}</span></div></li>
+<li><div class="row"><span>そのほかの理由で読み飛ばしたもの</span> <span class="num{{if .Summary.OtherSkips}} warn{{else}} zero{{end}}">{{.Summary.OtherSkips}}</span></div></li>
 </ul>
-<p class="sub">詳しくは「<a href="#coverage">調べられなかった範囲</a>」と「<a href="#limits">このレポートでは分からないこと</a>」を見てください。</p>
+<p class="sub">調べるのは、決まった起点の下だけです。起点の外にあるものは、このレポートには現れません。</p>
 </div>
+</div>
+{{end}}
+
+{{define "host"}}
+<section class="view" id="{{.ViewID}}">
+<header class="top"><div class="in">
+<h1>{{.Host}}</h1>
+<p>1 ホスト分のスキャン結果。設定から分かるのは「受け入れる設定になっている」暗号までで、実際の通信でどれが使われているかを示すものではありません。</p>
+</div></header>
+<nav class="local">
+<a href="#{{.H}}-summary">要点</a><a href="#{{.H}}-services">サービスの設定</a><a href="#{{.H}}-files">証明書と鍵</a><a href="#{{.H}}-system">OS とライブラリ</a><a href="#{{.H}}-coverage">探索した範囲</a><a href="#{{.H}}-limits">分からないこと</a>
+</nav>
+<div class="block">
+<h2 id="{{.H}}-overview">スキャンの概要</h2>
+{{if .Incomplete}}<div class="alert"><strong>このスキャンは完了していません。</strong>結果は途中までのものです{{if .IncompleteReason}}（理由: {{.IncompleteReason}}）{{end}}。</div>{{end}}
+<dl class="meta">
+<dt>ホスト</dt><dd>{{.Host}}</dd>
+<dt>OS</dt><dd>{{if .Distribution}}{{.Distribution}}（{{.OSArch}}）{{else}}{{.OSArch}}{{end}}</dd>
+<dt>スキャンの開始 / 終了</dt><dd>{{.Started}} / {{.Finished}}</dd>
+<dt>ツールの版</dt><dd>{{.ToolVersion}}</dd>
+<dt>検出ルールの版</dt><dd>{{.RulesVersion}}（{{.RulesSource}}）</dd>
+<dt>実行した権限</dt><dd>{{if .Elevated}}管理者権限{{else}}一般ユーザー（権限がなく読めないファイルは結果に含まれません）{{end}}</dd>
+{{if .Labels}}<dt>ラベル</dt><dd>{{range $i, $l := .Labels}}{{if $i}}、{{end}}{{$l}}{{end}}</dd>{{end}}
+</dl>
+{{range .Warnings}}<p class="note">注意: {{.}}</p>{{end}}
 </div>
 
-</section>
-<section class="block">
-<h2 id="services">サービスの設定</h2>
-{{if and (not .Active) (not .Inactive)}}<p>サービスは見つかりませんでした。</p>{{end}}
-{{range .Active}}
-<section class="svc">
-<h3>{{.Name}} <span class="badge good">{{.Activity}}</span></h3>
-{{template "service" .}}
-</section>
+<div class="block">
+<h2 id="{{.H}}-summary">要点</h2>
+{{template "cards" .}}
+</div>
+
+<div class="block">
+<h2 id="{{.H}}-services">サービスの設定</h2>
+{{if not .Services}}<p>サービスは見つかりませんでした。</p>{{else}}<p class="sub">見つかったサービスです。名前を選ぶと開きます。</p>{{end}}
+{{range .Services}}
+<details class="svc">
+<summary>{{.Name}}（{{.Activity}}）</summary>
+<dl class="meta">
+<dt>状態</dt><dd><span class="tip" data-tip="{{.ActivityTip}}">{{.Activity}}</span></dd>
+{{if .Evidence}}<dt>状態の根拠</dt><dd>{{range $i, $e := .Evidence}}{{if $i}}<br>{{end}}{{$e}}{{end}}</dd>{{end}}
+{{if .Component}}<dt>プログラム</dt><dd class="mono">{{.Component}}</dd>{{end}}
+{{if .Configs}}<dt>設定ファイル</dt><dd class="mono">{{range $i, $c := .Configs}}{{if $i}}、{{end}}{{$c}}{{end}}</dd>{{end}}
+</dl>
+{{range .Notes}}<p class="note">注意: {{.}}</p>{{end}}
+{{if not .Scopes}}<p class="sub">暗号に関する設定は見つかりませんでした。</p>{{end}}
+{{range .Scopes}}
+<div class="scope">
+<h4>{{if .Name}}範囲: {{.Name}}{{else}}サービス全体{{end}}</h4>
+{{range .Effective}}
+<p><strong>{{.Label}}</strong>{{if .Resolved}} — このサービスが受け入れる設定になっている方式です（設定の記載と既定値から算出。<span class="tip" data-tip="確度「高」は、導入されている版そのもので実測した表から求めた値。「中」は、近い版の実測を当てはめたか、証明書などを読めずに絞り込みの一部をしていない値">{{.Confidence}}</span>）{{else}} <span class="badge unk">特定できませんでした</span>{{end}}</p>
+{{if not .Resolved}}<p class="note">理由: {{.Reason}}</p>{{end}}
+{{range .Notes}}<p class="note">注意: {{.}}</p>{{end}}
+{{if .Steps}}<p class="sub">求め方:</p><ol class="steps">{{range .Steps}}<li>{{.}}</li>{{end}}</ol>{{end}}
+{{if .Resolved}}{{if .Fold}}<details><summary>{{.Counts}}（一覧を開く）</summary>{{template "values" .}}</details>{{else}}<p class="sub">{{.Counts}}</p>{{template "values" .}}{{end}}{{end}}
 {{end}}
-{{range .Inactive}}
-<details>
-<summary>{{.Name}}（{{.Activity}}。起動するよう設定されていないサービス）</summary>
-<section class="svc">
-{{template "service" .}}
-</section>
+{{if .Settings}}
+<div class="tablewrap"><table>
+<tr><th>設定に書かれている項目</th><th>値</th><th>場所</th></tr>
+{{range .Settings}}<tr><td>{{.Label}}{{if .Shadowed}}（他の記載が優先され、効いていない）{{end}}</td><td class="mono">{{.Values}}{{range .Badges}}{{if eq .Classical.Class "bad"}} <span class="badge bad tip" data-tip="{{.Classical.Tip}}">{{.Name}}: {{.Classical.Label}}</span>{{end}}{{end}}</td><td class="mono">{{.Location}}</td></tr>
+{{end}}</table></div>
+{{end}}
+</div>
+{{end}}
 </details>
 {{end}}
+</div>
 
-</section>
-<section class="block">
-<h2 id="files">証明書と鍵</h2>
-{{if .Unreferenced}}
-<h3>参照されていない秘密鍵（{{len .Unreferenced}} 件）</h3>
-<p class="sub">どのサービスの設定からも参照されていない秘密鍵です。使われていないなら、置いたままにする理由がないか確認してください。</p>
-{{template "assets" .Unreferenced}}
+<div class="block">
+<h2 id="{{.H}}-files">証明書と鍵</h2>
+{{if .Unconfirmed}}
+<h3>設定からの参照を確認できなかった秘密鍵（{{len .Unconfirmed}} 件）</h3>
+<div class="alert">このツールが読んだ設定（対応しているサービスの設定ファイル）からは、参照が見つからなかった秘密鍵です。<strong>使われていないことを示すものではありません。</strong>このツールが対応していないアプリや、調べていない場所から使われている可能性があります。この表示だけを根拠に削除しないでください。</div>
+{{template "assets" .Unconfirmed}}
 {{end}}
 <h3>ファイルとして見つかったもの（{{len .Files}} 件）</h3>
 {{if .Files}}{{template "assets" .Files}}{{else}}<p>証明書ストアの外では、証明書や鍵は見つかりませんでした。</p>{{end}}
 
 {{if .Stores}}
 <h3>証明書ストア</h3>
-<p class="sub">OS や実行環境が信頼する CA 証明書の置き場です。件数が多いので畳んでいます。中は署名の方式ごとにまとめています。</p>
+<p class="sub">OS や実行環境が信頼する CA 証明書の置き場です。件数が多いので畳んでいます。</p>
 {{range .Stores}}
 <details>
 <summary>{{.Name}}（{{.Count}} 件）</summary>
+<p class="sub">署名の方式ごとの件数と、その方式の判定です。判定は署名の方式に対するもので、同じ行の証明書すべてに当てはまります。</p>
+<div class="tablewrap"><table>
+<tr><th>署名の方式</th><th>件数</th><th>量子計算機に対して</th><th>現在の計算機に対して</th></tr>
+{{range .Groups}}<tr><td class="mono">{{.Signature}}</td><td>{{.Count}}</td><td>{{if .Quantum.Label}}<span class="badge {{.Quantum.Class}} tip" data-tip="{{.Quantum.Tip}}">{{.Quantum.Label}}</span>{{end}}</td><td>{{if .Classical.Label}}<span class="badge {{.Classical.Class}} tip" data-tip="{{.Classical.Tip}}">{{.Classical.Label}}</span>{{end}}</td></tr>
+{{end}}</table></div>
 {{range .Groups}}
-<h4>署名 {{.Signature}}（{{.Count}} 件）{{if .Quantum.Label}} <span class="badge {{.Quantum.Class}}">{{.Quantum.Label}}</span>{{end}}{{if .Classical.Label}} <span class="badge {{.Classical.Class}}">{{.Classical.Label}}</span>{{end}}</h4>
+<h4>署名 {{.Signature}}（{{.Count}} 件）</h4>
 <div class="tablewrap"><table>
 <tr><th>種類</th><th>名前</th><th>アルゴリズム</th><th>有効期限</th><th>場所</th></tr>
 {{range .Rows}}<tr><td>{{.Kind}}</td><td>{{.Name}}</td><td class="mono">{{.Algorithm}}</td><td>{{.Expiry}}{{if .ExpiryTag.Label}} <span class="badge {{.ExpiryTag.Class}}">{{.ExpiryTag.Label}}</span>{{end}}</td><td class="mono">{{.Path}}</td></tr>
@@ -202,10 +316,10 @@ footer { max-width: 1200px; margin: 0 auto; padding: 0 20px 40px; color: var(--s
 </details>
 {{end}}
 {{end}}
+</div>
 
-</section>
-<section class="block">
-<h2 id="system">OS とライブラリ</h2>
+<div class="block">
+<h2 id="{{.H}}-system">OS とライブラリ</h2>
 {{if .OSSettings}}
 <h3>OS 全体の暗号設定</h3>
 <div class="tablewrap"><table><tr><th>項目</th><th>値</th><th>場所</th></tr>
@@ -225,98 +339,57 @@ footer { max-width: 1200px; margin: 0 auto; padding: 0 20px 40px; color: var(--s
 {{end}}</table></div>
 {{end}}
 {{if and (not .OSSettings) (not .Components) (not .Packages)}}<p>該当する情報はありませんでした。</p>{{end}}
+</div>
 
-</section>
-<section class="block">
-<h2 id="coverage">調べられなかった範囲</h2>
+<div class="block">
+<h2 id="{{.H}}-coverage">探索した範囲と、読み飛ばしたもの</h2>
+<p>探索の起点: <span class="mono">{{if .Roots}}{{.Roots}}{{else}}（記録なし）{{end}}</span></p>
+<p class="sub">この起点の外は調べていません（例: 利用者のホームディレクトリ、アプリケーションが独自に使う場所）。起点の下で調べたのは、ファイル {{.Coverage.FilesExamined}}、ディレクトリ {{.Coverage.DirsExamined}} です（辿らなかったシンボリックリンク {{.Coverage.SymlinksIgnored}}、開かなかった特殊ファイル {{.Coverage.SpecialIgnored}}）。</p>
+<h3>起点の下で読み飛ばしたもの</h3>
 {{if .SkippedBy}}
 <div class="tablewrap"><table><tr><th>理由</th><th>件数</th></tr>
-{{range .SkippedBy}}<tr><td class="mono">{{.Key}}</td><td>{{.Value}}</td></tr>
+{{range .SkippedBy}}<tr><td>{{.Key}}</td><td>{{.Value}}</td></tr>
 {{end}}</table></div>
-{{else}}<p>読み飛ばした箇所は記録されていません。</p>{{end}}
+{{else}}<p>読み飛ばしたものは記録されていません。</p>{{end}}
 {{if .Skipped}}
 <details>
 <summary>読み飛ばした場所の一覧（{{len .Skipped}} 件{{if .SkippedCut}}。件数が多いため一部だけを載せています。全件はスキャンのログにあります{{end}}）</summary>
 <div class="tablewrap"><table><tr><th>場所</th><th>理由</th><th>詳細</th></tr>
-{{range .Skipped}}<tr><td class="mono">{{.Key}}</td><td class="mono">{{.Value}}</td><td class="mono">{{.Where}}</td></tr>
+{{range .Skipped}}<tr><td class="mono">{{.Key}}</td><td>{{.Value}}</td><td class="mono">{{.Where}}</td></tr>
 {{end}}</table></div>
 </details>
 {{end}}
-<p class="sub">調べたファイル {{.Coverage.FilesExamined}}、ディレクトリ {{.Coverage.DirsExamined}}、辿らなかったシンボリックリンク {{.Coverage.SymlinksIgnored}}、開かなかった特殊ファイル {{.Coverage.SpecialIgnored}}。</p>
+</div>
 
-</section>
-<section class="block">
-<h2 id="limits">このレポートでは分からないこと</h2>
+<div class="block">
+<h2 id="{{.H}}-limits">このレポートでは分からないこと</h2>
 <ul class="plain">
-<li>実際にネゴシエーションされている暗号。設定から分かるのは「許可されている」ものまでで、相手との間でどれが選ばれているかは通信を観測しないと分かりません。</li>
+<li>実際にネゴシエーションされている暗号。設定から分かるのは「受け入れる設定になっている」ものまでで、相手との間でどれが選ばれているかは通信を観測しないと分かりません。</li>
 <li>サービスが実際に動いているか。「有効」は起動するよう設定されているという意味で、止まっていることも、手動で動かされていることもあり得ます。</li>
 <li>どのプロトコルの版（TLS 1.0〜1.3）が実際に通るか。プロトコルは設定に書かれた値を示すにとどめています。暗号スイートは、いずれかの版が有効なら受け入れ得るものの一覧です。</li>
+<li>このツールが対応していないアプリケーションの設定と、そこからの鍵・証明書の利用。対応しているのは一部のサーバーソフトウェアだけです。</li>
 <li>クライアントとしての利用。定期実行されるスクリプトなどからの暗号の利用は、サービスとしては見えません。</li>
-<li>ネットワーク越しのファイルシステム上のもの、権限がなく読めなかったもの、パスワードで保護されたキーストアの中身。</li>
+<li>探索の起点の外にあるもの、ネットワーク越しのファイルシステム上のもの、権限がなく読めなかったもの、パスワードで保護されたキーストアの中身。</li>
 <li>証明書の信頼性。署名の検証、信頼の連鎖、失効は確認していません。自己署名のルート証明書の署名方式は、判定には出ますが、安全性には影響しません。</li>
-<li>確度が「中」の値は、近い版での実測を当てはめたか、証明書などを読めずに絞り込みの一部を行っていません。</li>
+<li>パッケージの版を変えずに中身が差し替えられている場合（独自にビルドしたプログラムへの置き換えなど）。判定は、導入されているパッケージの版で実測した挙動に基づいています。</li>
 </ul>
-<p class="sub">判定は、下の文書に照らした目安です。個々のシステムで移行が必要か、いつまでに行うかは、扱う情報と利用期間に応じて判断してください。</p>
-
+</div>
 </section>
-<section class="block">
-<h2 id="criteria">判定の基準と出典</h2>
-{{if .Rules}}
-<h3>このレポートで使った判定</h3>
-<div class="tablewrap"><table><tr><th>判定の理由</th><th>根拠にした文書</th></tr>
-{{range .Rules}}<tr><td>{{.Summary}}</td><td>{{range $i, $r := .Refs}}{{if $i}}<br>{{end}}{{$r}}{{end}}</td></tr>
-{{end}}</table></div>
 {{end}}
-<h3>文書</h3>
-<div class="tablewrap"><table><tr><th>文書</th><th>該当する内容</th></tr>
-{{range .Refs}}<tr><td>{{.Title}}<br><a href="{{.URL}}" rel="noopener noreferrer">{{.URL}}</a></td><td>{{.Note}}</td></tr>
-{{end}}</table></div>
-</section>
-</main>
-<footer>このファイルは外部の資源を読み込みません。スキャン結果は機密として扱ってください。</footer>
-</body>
-</html>
+
 {{define "values"}}
 <div class="tablewrap"><table>
 {{if .IsSuite}}<tr><th>スイート</th><th>鍵交換</th><th>認証</th><th>暗号化</th><th>量子計算機に対して</th><th>現在の計算機に対して</th></tr>
-{{range .Rows}}<tr><td class="mono">{{.Name}}</td><td class="mono">{{.Kx}}</td><td class="mono">{{.Au}}</td><td class="mono">{{.Enc}}</td><td>{{if .HasVerdict}}<span class="badge {{.Quantum.Class}}">{{.Quantum.Label}}</span>{{end}}</td><td>{{if .HasVerdict}}<span class="badge {{.Classical.Class}}">{{.Classical.Label}}</span>{{end}}</td></tr>
+{{range .Rows}}<tr><td class="mono">{{.Name}}</td><td class="mono">{{.Kx}}</td><td class="mono">{{.Au}}</td><td class="mono">{{.Enc}}</td><td>{{if .HasVerdict}}<span class="badge {{.Quantum.Class}} tip" data-tip="{{.Quantum.Tip}}">{{.Quantum.Label}}</span>{{end}}</td><td>{{if .HasVerdict}}<span class="badge {{.Classical.Class}} tip" data-tip="{{.Classical.Tip}}">{{.Classical.Label}}</span>{{end}}</td></tr>
 {{end}}{{else}}<tr><th>値</th><th>量子計算機に対して</th><th>現在の計算機に対して</th></tr>
-{{range .Rows}}<tr><td class="mono">{{.Name}}</td><td>{{if .HasVerdict}}<span class="badge {{.Quantum.Class}}">{{.Quantum.Label}}</span>{{end}}</td><td>{{if .HasVerdict}}<span class="badge {{.Classical.Class}}">{{.Classical.Label}}</span>{{end}}</td></tr>
+{{range .Rows}}<tr><td class="mono">{{.Name}}</td><td>{{if .HasVerdict}}<span class="badge {{.Quantum.Class}} tip" data-tip="{{.Quantum.Tip}}">{{.Quantum.Label}}</span>{{end}}</td><td>{{if .HasVerdict}}<span class="badge {{.Classical.Class}} tip" data-tip="{{.Classical.Tip}}">{{.Classical.Label}}</span>{{end}}</td></tr>
 {{end}}{{end}}</table></div>
-{{if .Reasons}}<ul class="reasons">{{range .Reasons}}<li>{{.Summary}}</li>{{end}}</ul>{{end}}
-{{end}}
-
-{{define "service"}}
-<dl class="meta">
-{{if .Evidence}}<dt>根拠</dt><dd>{{range $i, $e := .Evidence}}{{if $i}}<br>{{end}}{{$e}}{{end}}</dd>{{end}}
-{{if .Component}}<dt>プログラム</dt><dd class="mono">{{.Component}}</dd>{{end}}
-{{if .Configs}}<dt>設定ファイル</dt><dd class="mono">{{range $i, $c := .Configs}}{{if $i}}、{{end}}{{$c}}{{end}}</dd>{{end}}
-</dl>
-{{range .Notes}}<p class="note">注意: {{.}}</p>{{end}}
-{{if not .Scopes}}<p class="sub">暗号に関する設定は見つかりませんでした。</p>{{end}}
-{{range .Scopes}}
-<div class="scope">
-<h4>{{if .Name}}範囲: {{.Name}}{{else}}全体{{end}}</h4>
-{{range .Effective}}
-<p><strong>{{.Label}}</strong>{{if .Resolved}}（実際に効く値。{{.Confidence}}）{{else}} <span class="badge unk">求められませんでした</span>{{end}}</p>
-{{if not .Resolved}}<p class="note">理由: {{.Reason}}</p>{{end}}
-{{range .Notes}}<p class="note">注意: {{.}}</p>{{end}}
-{{if .Steps}}<ol class="steps">{{range .Steps}}<li>{{.}}</li>{{end}}</ol>{{end}}
-{{if .Resolved}}{{if .Fold}}<details><summary>{{.Counts}}（一覧を開く）</summary>{{template "values" .}}</details>{{else}}<p class="sub">{{.Counts}}</p>{{template "values" .}}{{end}}{{end}}
-{{end}}
-{{if .Settings}}
-<div class="tablewrap"><table>
-<tr><th>設定に書かれている項目</th><th>値</th><th>場所</th></tr>
-{{range .Settings}}<tr><td>{{.Label}}{{if .Shadowed}}（他の記載が優先され、効いていない）{{end}}</td><td class="mono">{{.Values}}{{range .Badges}}{{if eq .Classical.Class "bad"}} <span class="badge bad">{{.Name}}: {{.Classical.Label}}</span>{{end}}{{end}}</td><td class="mono">{{.Location}}</td></tr>
-{{end}}</table></div>
-{{end}}
-</div>
-{{end}}
+{{if .Reasons}}<p class="sub">判定の理由:</p><ul class="reasons">{{range .Reasons}}<li>{{.Summary}}</li>{{end}}</ul>{{end}}
 {{end}}
 
 {{define "assets"}}
 <div class="tablewrap"><table>
-<tr><th>種類</th><th>名前</th><th>アルゴリズム</th><th>有効期限</th><th>場所</th><th>利用の確からしさ</th><th>判定</th></tr>
-{{range .}}<tr><td>{{.Kind}}</td><td>{{.Name}}</td><td class="mono">{{.Algorithm}}</td><td>{{.Expiry}}{{if .ExpiryTag.Label}} <span class="badge {{.ExpiryTag.Class}}">{{.ExpiryTag.Label}}</span>{{end}}</td><td class="mono">{{.Path}}</td><td>{{.Activity}}{{range .Evidence}}<br><span class="sub">{{.}}</span>{{end}}</td><td>{{if .Quantum.Label}}<span class="badge {{.Quantum.Class}}">{{.Quantum.Label}}</span> {{end}}{{if .Classical.Label}}<span class="badge {{.Classical.Class}}">{{.Classical.Label}}</span>{{end}}</td></tr>
+<tr><th>種類</th><th>名前</th><th>アルゴリズム</th><th>有効期限</th><th>場所</th><th>設定からの参照</th><th>量子計算機に対して</th><th>現在の計算機に対して</th></tr>
+{{range .}}<tr><td>{{.Kind}}</td><td>{{.Name}}</td><td class="mono">{{.Algorithm}}</td><td>{{.Expiry}}{{if .ExpiryTag.Label}} <span class="badge {{.ExpiryTag.Class}} tip" data-tip="{{.ExpiryTag.Tip}}">{{.ExpiryTag.Label}}</span>{{end}}</td><td class="mono">{{.Path}}</td><td>{{.Activity}}{{range .Evidence}}<br><span class="sub">{{.}}</span>{{end}}</td><td>{{if .Quantum.Label}}<span class="badge {{.Quantum.Class}} tip" data-tip="{{.Quantum.Tip}}">{{.Quantum.Label}}</span>{{end}}</td><td>{{if .Classical.Label}}<span class="badge {{.Classical.Class}} tip" data-tip="{{.Classical.Tip}}">{{.Classical.Label}}</span>{{end}}</td></tr>
 {{end}}</table></div>
 {{end}}

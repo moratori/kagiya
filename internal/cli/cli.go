@@ -29,7 +29,7 @@ const usage = `kagiya - cryptographic inventory tool (read-only, no network)
 Usage:
   kagiya scan [options]                 scan this host and write the inventory
   kagiya convert --to csv RESULT.json   convert a result file to CSV
-  kagiya report RESULT.json             write an HTML report for one host
+  kagiya report RESULT.json...          write an HTML report (one host, or several hosts combined)
   kagiya rules export --output-dir DIR  write the built-in rules to DIR
   kagiya rules validate --rules DIR     check a rule directory
   kagiya version                        show version information

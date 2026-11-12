@@ -11,6 +11,7 @@ package report
 
 import (
 	_ "embed"
+	"errors"
 	"html/template"
 	"io"
 	"sort"
@@ -37,22 +38,46 @@ const expiringDays = 30
 type badge struct {
 	Label string
 	Class string
+	Tip   string // マウスを載せると出る説明
 }
 
 var quantumBadge = map[string]badge{
-	"vulnerable":   {"量子計算機に弱い", "bad"},
-	"hybrid":       {"ハイブリッド", "good"},
-	"resistant":    {"耐量子", "good"},
-	"reduced":      {"量子計算機で強度が下がる", "warn"},
-	"not-targeted": {"対象外", "none"},
-	"unknown":      {"判定できない", "unk"},
+	"vulnerable":   {"量子計算機に弱い", "bad", "現行の公開鍵暗号（RSA、楕円曲線、DH など）。暗号解読に使える水準の量子計算機ができると破られるため、耐量子の方式への移行の対象です"},
+	"hybrid":       {"ハイブリッド", "good", "現行の方式と耐量子の方式を組み合わせた鍵交換。どちらか一方が破られても安全性が保たれるように作られています"},
+	"resistant":    {"耐量子", "good", "量子計算機でも破れないと考えられている方式（耐量子の公開鍵暗号、または十分な長さの共通鍵暗号・ハッシュ関数）"},
+	"reduced":      {"量子計算機で強度が下がる", "warn", "共通鍵暗号・ハッシュ関数のうち、量子計算機で強度が下がり、CRYPTREC の耐量子計算機暗号リストに載っていない長さのもの（AES-128、SHA-256 など）。NIST は置き換えを求めていません"},
+	"not-targeted": {"対象外", "none", "参照した文書に、耐量子の観点での記載がない共通鍵暗号・MAC など"},
+	"unknown":      {"判定できない", "unk", "この情報だけでは判定できないもの（参照した文書に記載がない方式、または決まり方が別の設定によるもの）"},
 }
 
 var classicalBadge = map[string]badge{
-	"weak":    {"危殆化", "bad"},
-	"legacy":  {"非推奨", "warn"},
-	"ok":      {"該当なし", "none"},
-	"unknown": {"判定できない", "unk"},
+	"weak":    {"危殆化", "bad", "現在の計算機でも安全とは言えないもの。すでに解読の恐れがある方式や、必要な強度（112 ビット）に満たない鍵長・方式です"},
+	"legacy":  {"非推奨", "warn", "いますぐ危険ではないが、公的な文書で推奨されなくなった方式や、強度が 112 ビットで移行の期限（2030 年）が示されているもの"},
+	"ok":      {"指摘なし", "none", "参照した文書に照らして、現在の計算機に対する問題は見つかっていないもの（量子計算機に対する評価は別の列です）"},
+	"unknown": {"判定できない", "unk", "参照した文書に記載がなく、判定できないもの"},
+}
+
+var activityTip = map[string]string{
+	"running":    "プロセスが動いていることを確認できたもの",
+	"enabled":    "OS の起動時に立ち上がるよう設定されているサービス（実際に動いているかは確認していません）",
+	"referenced": "サービスの設定ファイルから参照されているもの",
+	"installed":  "導入されているが、起動するよう設定されていないもの（手動で起動されている可能性はあります）",
+	"unknown":    "このツールが読んだ設定からは、使われ方が分からないもの",
+}
+
+// 読み飛ばしの理由の表示名。
+var skipLabel = map[string]string{
+	"permission-denied":    "権限がなく読めなかった",
+	"network-fs":           "ネットワーク越しのファイルシステム（読まない）",
+	"unknown-fs":           "種別が分からないファイルシステム（読まない）",
+	"excluded":             "除外の指定（結果の出力先など）",
+	"not-found":            "指定された場所がなかった",
+	"invalid-root":         "探索の起点として使えなかった",
+	"parse-error":          "形式を解釈できなかった",
+	"config-problem":       "設定ファイルの一部を読めなかった",
+	"invalid-value":        "設定値として妥当でなかった",
+	"not-interpreted":      "値を確定できなかった設定（変数を含むなど）",
+	"unrecognized-setting": "記録の対象外の設定項目",
 }
 
 var activityLabel = map[string]string{
@@ -96,12 +121,13 @@ var valueScheme = map[string]string{
 }
 
 type valueRow struct {
-	Name         string
-	Kx, Au, Enc  string // 暗号スイートの場合だけ
-	Quantum      badge
-	Classical    badge
-	HasVerdict   bool
-	KeyEstablish bool // 鍵共有が量子計算機に弱い
+	Name        string
+	Kx, Au, Enc string // 暗号スイートの場合だけ
+	Quantum     badge
+	Classical   badge
+	HasVerdict  bool
+	VulnKex     bool // 鍵交換が量子計算機に弱い
+	VulnSig     bool // 署名・認証が量子計算機に弱い
 }
 
 type ruleView struct {
@@ -140,13 +166,15 @@ type scopeView struct {
 }
 
 type serviceView struct {
-	Name      string
-	Activity  string
-	Evidence  []string
-	Component string
-	Configs   []string
-	Notes     []string
-	Scopes    []scopeView
+	Name        string
+	Activity    string
+	ActivityTip string
+	Active      bool // 起動するよう設定されている（稼働中を含む）
+	Evidence    []string
+	Component   string
+	Configs     []string
+	Notes       []string
+	Scopes      []scopeView
 }
 
 type assetRow struct {
@@ -182,51 +210,98 @@ type refView struct {
 	ID, Title, URL, Note string
 }
 
+// summaryView は要点の数。サービスの設定の数は、サービス・範囲ごとに許可されている方式の延べ数。
 type summaryView struct {
-	ActiveServices   int
-	KeyEstablishment int // 有効なサービスが許可している、鍵共有が量子計算機に弱い方式の数
-	QuantumOther     int
-	Hybrid           int
-	Weak             int
-	Legacy           int
-	Unknown          int
-	Unresolved       int
-	FileQuantum      int
-	FileWeak         int
-	FileLegacy       int
-	Expired          int
-	Expiring         int
-	Unreferenced     int
-	Skipped          int
+	Services   int // 見つかったサービス（起動するよう設定されているかどうかによらない）
+	Quantum    int // 量子計算機に弱い方式（鍵交換か署名・認証のどちらかが弱いもの）
+	Kex        int // うち、鍵交換が弱いもの
+	Sig        int // うち、署名・認証が弱いもの
+	Reduced    int // 量子計算機で強度が下がる方式
+	Hybrid     int
+	Weak       int
+	Legacy     int
+	Unknown    int
+	Unresolved int
+
+	FileQuantum int
+	FileWeak    int
+	FileLegacy  int
+	Expired     int
+	Expiring    int
+	Unconfirmed int // 設定からの参照を確認できなかった秘密鍵
+
+	Files      int
+	Dirs       int
+	Permission int // 権限がなく読めなかったもの
+	OtherSkips int // それ以外の読み飛ばし（除外の指定を除く）
 }
 
-type view struct {
-	Host, OSArch, Started, Finished string
-	ToolVersion, RulesVersion       string
-	RulesSource                     string
-	Labels                          []string
-	Incomplete                      bool
-	IncompleteReason                string
-	Elevated                        bool
-	Warnings                        []string
-	PolicyTitle, PolicyVersion      string
-	ExpiringDays                    int
+func (s *summaryView) add(o summaryView) {
+	s.Services += o.Services
+	s.Quantum += o.Quantum
+	s.Kex += o.Kex
+	s.Sig += o.Sig
+	s.Reduced += o.Reduced
+	s.Hybrid += o.Hybrid
+	s.Weak += o.Weak
+	s.Legacy += o.Legacy
+	s.Unknown += o.Unknown
+	s.Unresolved += o.Unresolved
+	s.FileQuantum += o.FileQuantum
+	s.FileWeak += o.FileWeak
+	s.FileLegacy += o.FileLegacy
+	s.Expired += o.Expired
+	s.Expiring += o.Expiring
+	s.Unconfirmed += o.Unconfirmed
+	s.Files += o.Files
+	s.Dirs += o.Dirs
+	s.Permission += o.Permission
+	s.OtherSkips += o.OtherSkips
+}
 
-	Summary      summaryView
-	Active       []serviceView
-	Inactive     []serviceView
-	Unreferenced []assetRow
-	Files        []assetRow
-	Stores       []storeView
-	OSSettings   []kv
-	Packages     []kv
-	Components   []kv
-	Skipped      []kv
-	SkippedBy    []kv
-	SkippedCut   bool
-	Coverage     model.Coverage
-	Rules        []ruleView
-	Refs         []refView
+// view は 1 ホスト分の表示。
+type view struct {
+	N      int    // 何番目のホストか（1 始まり）
+	H      string // このホストの中の見出しの ID に付ける接頭辞（h1、h2 …）
+	ViewID string // このホストの表示のまとまりの ID（host-1 …）
+
+	Host, OSArch, Distribution, Started, Finished string
+	ToolVersion, RulesVersion                     string
+	RulesSource                                   string
+	Labels                                        []string
+	Incomplete                                    bool
+	IncompleteReason                              string
+	Elevated                                      bool
+	Warnings                                      []string
+	ExpiringDays                                  int
+	Roots                                         string
+
+	Summary     summaryView
+	Services    []serviceView
+	Unconfirmed []assetRow
+	Files       []assetRow
+	Stores      []storeView
+	OSSettings  []kv
+	Packages    []kv
+	Components  []kv
+	Skipped     []kv
+	SkippedBy   []kv
+	SkippedCut  bool
+	Coverage    model.Coverage
+	Tips        map[string]string // 用語の説明（マウスを載せると出る）
+}
+
+// page はレポート全体。
+type page struct {
+	Multi                      bool // 複数ホスト（全体の集計の画面を持つ）
+	Hosts                      []*view
+	Total                      summaryView
+	PolicyTitle, PolicyVersion string
+	ExpiringDays               int
+	Rules                      []ruleView
+	Refs                       []refView
+	Tips                       map[string]string
+	TotalView                  *view // 全体の集計（要点の表示に使う）
 }
 
 type builder struct {
@@ -240,55 +315,97 @@ type builder struct {
 	used     map[string]bool
 }
 
-// Render は、1ホスト分の結果からレポートを書き出す。
+// Render は、1 ホスト分の結果からレポートを書き出す。
 func Render(w io.Writer, inv *model.Inventory, rs *ruleset.RuleSet, policy string) error {
+	return RenderAll(w, []*model.Inventory{inv}, rs, policy)
+}
+
+// RenderAll は、1 つ以上のホストの結果からレポートを書き出す。
+// 複数のホストの場合は、全体の集計の画面と、ホストごとの詳細（1 ホストのときと同じ内容）を 1 つのファイルに入れる。
+func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy string) error {
+	if len(invs) == 0 {
+		return errors.New("no result to report")
+	}
 	ev, err := assess.New(rs, policy)
 	if err != nil {
 		return err
 	}
-	b := &builder{inv: inv, ev: ev, a: ev.Assess(inv), rs: rs, settings: map[string]model.Setting{}, assets: map[string]model.Asset{}, used: map[string]bool{}}
-	for _, s := range inv.Settings {
-		b.settings[s.ID] = s
-	}
-	for _, as := range inv.Assets {
-		b.assets[as.ID] = as
-	}
-	for _, ts := range []string{inv.Meta.FinishedAt, inv.Meta.StartedAt} {
-		if t, err := time.Parse(time.RFC3339, ts); err == nil {
-			b.scanTime = t
-			break
+	// ホスト名の順（同じ名前ならスキャンの順）に並べる
+	sorted := append([]*model.Inventory{}, invs...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		a, b := sorted[i].Meta, sorted[j].Meta
+		if a.Host.Hostname != b.Host.Hostname {
+			return a.Host.Hostname < b.Host.Hostname
 		}
+		return a.StartedAt < b.StartedAt
+	})
+	p := ev.Policy()
+	pg := &page{Multi: len(sorted) > 1, PolicyTitle: p.Title, PolicyVersion: p.Version, ExpiringDays: expiringDays,
+		Tips: map[string]string{
+			"quantum": quantumBadge["vulnerable"].Tip, "reduced": quantumBadge["reduced"].Tip, "hybrid": quantumBadge["hybrid"].Tip,
+			"weak": classicalBadge["weak"].Tip, "legacy": classicalBadge["legacy"].Tip, "unknown": quantumBadge["unknown"].Tip,
+			"kex":         "通信の暗号鍵を相手と決める手順。ここが量子計算機に弱いと、いま記録された通信が将来解読され得ます（harvest now, decrypt later）",
+			"sig":         "相手が本物であることを確かめる手順（証明書の署名、ホスト鍵など）。その時点で量子計算機が存在しなければ破られません",
+			"unresolved":  "設定の書き方や、導入されている版の情報が足りず、受け入れる方式の一覧を求められなかった項目",
+			"unconfirmed": "このツールが読んだ設定（対応しているサービスの設定）からは参照が見つからなかった秘密鍵。使われていないことを示すものではありません",
+			"confidence":  "確度「高」は、導入されている版そのもので実測した表から求めた値。「中」は、近い版の実測を当てはめたか、証明書などを読めずに絞り込みの一部をしていない値",
+		}}
+	used := map[string]bool{}
+	for i, inv := range sorted {
+		b := &builder{inv: inv, ev: ev, a: ev.Assess(inv), rs: rs, settings: map[string]model.Setting{}, assets: map[string]model.Asset{}, used: used}
+		for _, s := range inv.Settings {
+			b.settings[s.ID] = s
+		}
+		for _, as := range inv.Assets {
+			b.assets[as.ID] = as
+		}
+		for _, ts := range []string{inv.Meta.FinishedAt, inv.Meta.StartedAt} {
+			if t, err := time.Parse(time.RFC3339, ts); err == nil {
+				b.scanTime = t
+				break
+			}
+		}
+		v := b.build(i + 1)
+		v.Tips = pg.Tips
+		pg.Hosts = append(pg.Hosts, v)
+		pg.Total.add(v.Summary)
 	}
-	return tmpl.Execute(w, b.build())
-}
-
-func (b *builder) build() *view {
-	m := b.inv.Meta
-	p := b.ev.Policy()
-	v := &view{Host: m.Host.Hostname, OSArch: m.Host.OS + " / " + m.Host.Arch, Started: m.StartedAt, Finished: m.FinishedAt,
-		ToolVersion: m.Tool.Version, RulesVersion: m.Rules.Version, RulesSource: m.Rules.Source,
-		Incomplete: !m.Completed, IncompleteReason: m.Incomplete, Elevated: m.Privilege.Elevated, Warnings: m.Warnings,
-		PolicyTitle: p.Title, PolicyVersion: p.Version, ExpiringDays: expiringDays, Coverage: b.inv.Coverage}
-	for k, val := range m.Labels {
-		v.Labels = append(v.Labels, k+"="+val)
-	}
-	sort.Strings(v.Labels)
-
-	b.services(v)
-	b.files(v)
-	b.misc(v)
-
+	pg.TotalView = &view{Summary: pg.Total, Tips: pg.Tips, ExpiringDays: expiringDays}
 	// 判定の理由として挙げた規則と、出典
 	titles := map[string]string{}
 	for _, r := range p.References {
 		titles[r.ID] = r.Title
-		v.Refs = append(v.Refs, refView{ID: r.ID, Title: r.Title, URL: r.URL, Note: r.Note})
+		pg.Refs = append(pg.Refs, refView{ID: r.ID, Title: r.Title, URL: r.URL, Note: r.Note})
 	}
 	for _, r := range p.Rules {
-		if b.used[r.ID] {
-			v.Rules = append(v.Rules, b.rule(r, titles))
+		if used[r.ID] {
+			rv := ruleView{ID: r.ID, Summary: r.Summary}
+			for _, id := range r.Refs {
+				rv.Refs = append(rv.Refs, titles[id])
+			}
+			pg.Rules = append(pg.Rules, rv)
 		}
 	}
+	return tmpl.Execute(w, pg)
+}
+
+func (b *builder) build(n int) *view {
+	m := b.inv.Meta
+	v := &view{N: n, H: "h" + strconv.Itoa(n), ViewID: "host-" + strconv.Itoa(n),
+		Host: m.Host.Hostname, OSArch: m.Host.OS + " / " + m.Host.Arch, Started: m.StartedAt, Finished: m.FinishedAt,
+		ToolVersion: m.Tool.Version, RulesVersion: m.Rules.Version, RulesSource: m.Rules.Source,
+		Incomplete: !m.Completed, IncompleteReason: m.Incomplete, Elevated: m.Privilege.Elevated, Warnings: m.Warnings,
+		ExpiringDays: expiringDays, Coverage: b.inv.Coverage, Roots: strings.Join(m.Invocation.Roots, "、")}
+	if m.Host.Distribution != nil {
+		v.Distribution = m.Host.Distribution.Name
+	}
+	for k, val := range m.Labels {
+		v.Labels = append(v.Labels, k+"="+val)
+	}
+	sort.Strings(v.Labels)
+	b.services(v)
+	b.files(v)
+	b.misc(v)
 	return v
 }
 
@@ -364,8 +481,12 @@ func (b *builder) values(parameter string, names []string) (rows []valueRow, rea
 						seen[id] = true
 						reasons = append(reasons, id)
 					}
-					if r, found := b.policyRule(id); found && r.Role == "key-establishment" && r.Quantum == "vulnerable" {
-						row.KeyEstablish = true
+					if r, found := b.policyRule(id); found && r.Quantum == "vulnerable" {
+						if r.Role == "key-establishment" {
+							row.VulnKex = true
+						} else {
+							row.VulnSig = true
+						}
 					}
 				}
 			}
@@ -441,40 +562,52 @@ func (b *builder) step(s model.ResolutionStep) string {
 	return s.Layer + " / " + s.Op
 }
 
-func countText(rows []valueRow) string {
-	var ke, q, hy, weak, legacy, unk int
+// tally は、値の一覧を要点の数に数える。
+func tally(rows []valueRow) summaryView {
+	var t summaryView
 	for _, r := range rows {
-		switch {
-		case r.KeyEstablish:
-			ke++
-		case r.Quantum.Class == "bad":
-			q++
+		if r.VulnKex || r.VulnSig || r.Quantum.Class == "bad" {
+			t.Quantum++
 		}
-		if r.Quantum.Label == "ハイブリッド" {
-			hy++
+		if r.VulnKex {
+			t.Kex++
+		}
+		if r.VulnSig {
+			t.Sig++
+		}
+		if r.Quantum.Label == quantumBadge["reduced"].Label {
+			t.Reduced++
+		}
+		if r.Quantum.Label == quantumBadge["hybrid"].Label {
+			t.Hybrid++
 		}
 		switch r.Classical.Class {
 		case "bad":
-			weak++
+			t.Weak++
 		case "warn":
-			legacy++
+			t.Legacy++
 		}
 		if r.HasVerdict && (r.Quantum.Class == "unk" || r.Classical.Class == "unk") {
-			unk++
+			t.Unknown++
 		}
 	}
+	return t
+}
+
+func countText(rows []valueRow) string {
+	t := tally(rows)
 	parts := []string{strconv.Itoa(len(rows)) + " 個"}
 	add := func(n int, s string) {
 		if n > 0 {
 			parts = append(parts, s+" "+strconv.Itoa(n))
 		}
 	}
-	add(ke, "鍵共有が量子計算機に弱い")
-	add(q, "量子計算機に弱い")
-	add(hy, "ハイブリッド")
-	add(weak, "危殆化")
-	add(legacy, "非推奨")
-	add(unk, "判定できない")
+	add(t.Quantum, "量子計算機に弱い")
+	add(t.Reduced, "量子計算機で強度が下がる")
+	add(t.Hybrid, "ハイブリッド")
+	add(t.Weak, "危殆化")
+	add(t.Legacy, "非推奨")
+	add(t.Unknown, "判定できない")
 	return strings.Join(parts, "、")
 }
 
@@ -486,7 +619,8 @@ func (b *builder) services(v *view) {
 		components[c.ID] = c
 	}
 	for _, s := range svcs {
-		sv := serviceView{Name: s.App, Activity: activityLabel[s.Activity.Level], Configs: s.ConfigFiles, Notes: s.Notes}
+		sv := serviceView{Name: s.App, Activity: activityLabel[s.Activity.Level], ActivityTip: activityTip[s.Activity.Level], Configs: s.ConfigFiles, Notes: s.Notes,
+			Active: s.Activity.Level == "running" || s.Activity.Level == "enabled"}
 		if sv.Activity == "" {
 			sv.Activity = s.Activity.Level
 		}
@@ -505,7 +639,6 @@ func (b *builder) services(v *view) {
 				}
 			}
 		}
-		active := s.Activity.Level == "running" || s.Activity.Level == "enabled"
 
 		// 範囲（全体、server、VirtualHost など）ごとにまとめる
 		var order []string
@@ -538,29 +671,8 @@ func (b *builder) services(v *view) {
 				ef.Reasons = b.reasonViews(reasons)
 				ef.Fold = len(ef.Rows) > foldRows
 				ef.Counts = countText(ef.Rows)
-				if active {
-					for _, r := range ef.Rows {
-						switch {
-						case r.KeyEstablish:
-							v.Summary.KeyEstablishment++
-						case r.Quantum.Class == "bad":
-							v.Summary.QuantumOther++
-						}
-						if r.Quantum.Label == "ハイブリッド" {
-							v.Summary.Hybrid++
-						}
-						switch r.Classical.Class {
-						case "bad":
-							v.Summary.Weak++
-						case "warn":
-							v.Summary.Legacy++
-						}
-						if r.HasVerdict && (r.Quantum.Class == "unk" || r.Classical.Class == "unk") {
-							v.Summary.Unknown++
-						}
-					}
-				}
-			} else if active {
+				v.Summary.add(tally(ef.Rows))
+			} else {
 				v.Summary.Unresolved++
 			}
 			sc := scope(e.Scope)
@@ -582,7 +694,7 @@ func (b *builder) services(v *view) {
 				for _, r := range rows {
 					if r.HasVerdict {
 						st.Badges = append(st.Badges, r)
-						if active && r.Classical.Class == "bad" {
+						if r.Classical.Class == "bad" {
 							v.Summary.Weak++
 						}
 					}
@@ -595,13 +707,11 @@ func (b *builder) services(v *view) {
 		for _, name := range order {
 			sv.Scopes = append(sv.Scopes, *scopes[name])
 		}
-		if active {
-			v.Summary.ActiveServices++
-			v.Active = append(v.Active, sv)
-		} else {
-			v.Inactive = append(v.Inactive, sv)
-		}
+		v.Summary.Services++
+		v.Services = append(v.Services, sv)
 	}
+	// 起動するよう設定されているサービスを先に並べる（どれも畳んで示す）
+	sort.SliceStable(v.Services, func(i, j int) bool { return v.Services[i].Active && !v.Services[j].Active })
 }
 
 func shortAlg(id string) string { return strings.TrimPrefix(id, "alg:") }
@@ -644,9 +754,9 @@ func (b *builder) assetRow(o model.Occurrence) (assetRow, bool) {
 		if t, err := time.Parse(time.RFC3339, c.NotAfter); err == nil && !b.scanTime.IsZero() {
 			switch {
 			case t.Before(b.scanTime):
-				row.ExpiryTag = badge{"期限切れ", "bad"}
+				row.ExpiryTag = badge{"期限切れ", "bad", "スキャンした時点で、有効期限を過ぎていた証明書"}
 			case t.Before(b.scanTime.AddDate(0, 0, expiringDays)):
-				row.ExpiryTag = badge{strconv.Itoa(expiringDays) + " 日以内に期限", "warn"}
+				row.ExpiryTag = badge{strconv.Itoa(expiringDays) + " 日以内に期限", "warn", "スキャンした時点から数えて、まもなく有効期限が来る証明書"}
 			}
 		}
 	case (as.Type == "private-key" || as.Type == "public-key") && as.Key != nil:
@@ -714,8 +824,8 @@ func (b *builder) files(v *view) {
 			level = o.Activity.Level
 		}
 		if as.Type == "private-key" && (level == "" || level == "unknown" || level == "installed") {
-			v.Unreferenced = append(v.Unreferenced, row)
-			v.Summary.Unreferenced++
+			v.Unconfirmed = append(v.Unconfirmed, row)
+			v.Summary.Unconfirmed++
 		}
 		v.Files = append(v.Files, row)
 		if row.Quantum.Class == "bad" {
@@ -743,7 +853,7 @@ func (b *builder) files(v *view) {
 		})
 	}
 	byPath(v.Files)
-	byPath(v.Unreferenced)
+	byPath(v.Unconfirmed)
 	var names []string
 	for name := range stores {
 		names = append(names, name)
@@ -790,7 +900,11 @@ func (b *builder) misc(v *view) {
 		v.Components = append(v.Components, kv{c.Name, val, strings.Join(links, "、")})
 	}
 	for _, s := range b.inv.Skipped {
-		v.Skipped = append(v.Skipped, kv{s.Path, s.Reason, s.Detail})
+		name := skipLabel[s.Reason]
+		if name == "" {
+			name = s.Reason
+		}
+		v.Skipped = append(v.Skipped, kv{s.Path, name, s.Detail})
 	}
 	var reasons []string
 	for r := range b.inv.Coverage.SkippedByReason {
@@ -799,8 +913,19 @@ func (b *builder) misc(v *view) {
 	sort.Strings(reasons)
 	for _, r := range reasons {
 		n := b.inv.Coverage.SkippedByReason[r]
-		v.SkippedBy = append(v.SkippedBy, kv{r, strconv.Itoa(n), ""})
-		v.Summary.Skipped += n
+		name := skipLabel[r]
+		if name == "" {
+			name = r
+		}
+		v.SkippedBy = append(v.SkippedBy, kv{name, strconv.Itoa(n), r})
+		switch r {
+		case "permission-denied":
+			v.Summary.Permission += n
+		case "excluded":
+		default:
+			v.Summary.OtherSkips += n
+		}
 	}
+	v.Summary.Files, v.Summary.Dirs = b.inv.Coverage.FilesExamined, b.inv.Coverage.DirsExamined
 	v.SkippedCut = b.inv.Coverage.SkippedTruncated
 }
