@@ -943,3 +943,33 @@ sshd と暗号ポリシーの結び付き方（設計書 5.4 の「順序が逆�
 
 - `DT_NEEDED` に `libcrypto.so.1.1` があり、`/lib64/libcrypto.so.1.1` に解決される。
 - バイナリ内の文字列を `OpenSSH_[0-9]...` のような緩いパターンで探すと、互換性判定用の文字列（`OpenSSH_2`、`OpenSSH_3.0` など）が多数当たる。版の特定には `OpenSSH_<数字>.<数字>p<数字>` の形に絞る必要がある。
+
+### 15 ディストリビューション（amd64）からの採取（2026-11-12、GitHub Actions）
+
+`.github/workflows/linux-facts.yml`（`ci/linux-facts.sh`）で、各イメージに OpenSSL・OpenSSH・nginx・Apache httpd を導入して採取した。
+パッケージ版は採取時点で各ディストリのリポジトリから導入されたもの（エポックは省略）。Debian 11 はパッケージの取得に失敗（セキュリティ更新のリポジトリが 404 を返した）したため未採取。
+
+| OS | イメージ（ダイジェスト） | openssl | openssh-server | nginx | Apache httpd | パッケージ DB | 暗号ポリシー |
+|---|---|---|---|---|---|---|---|
+| AlmaLinux 8.10 (Cerulean Leopard) | `almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b` | `1.1.1k-18.el8_6` | `8.0p1-34.el8_10` | `1.14.1-9.module_el8.10.0+4171+d7eec01b.alma.1` | `2.4.37-65.module_el8.10.0+4332+2bef2e0d.13` | rpm（Berkeley DB） | DEFAULT |
+| AlmaLinux 9.8 (Olive Jaguar) | `almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2` | `3.5.8-2.el9_8` | `9.9p1-13.el9_8.alma.1` | `1.20.1-28.el9_8.6.alma.1` | `2.4.62-13.el9_8.9` | rpm（SQLite） | DEFAULT |
+| Debian GNU/Linux 11 (bullseye) | `debian@sha256:6f519a81440354a85eb592c5f32109ab80605f6b892455983a6f618bf87fabe9` | `-` | `-` | `-` | `-` | dpkg | なし |
+| Debian GNU/Linux 12 (bookworm) | `debian@sha256:268fb24c39bca92d326dd83ea3abebe4a3f7751c804ffef23bb6d857dd343ff8` | `3.0.22-1~deb12u2` | `9.2p1-2+deb12u10` | `1.22.1-9+deb12u10` | `2.4.68-1~deb12u1` | dpkg | なし |
+| Debian GNU/Linux 13 (trixie) | `debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6` | `3.5.7-1~deb13u3` | `10.0p1-7+deb13u4` | `1.26.3-3+deb13u10` | `2.4.69-1~deb13u1` | dpkg | なし |
+| Rocky Linux 8.9 (Green Obsidian) | `rockylinux@sha256:9794037624aaa6212aeada1d28861ef5e0a935adaf93e4ef79837119f2a2d04c` | `1.1.1k-18.el8_10` | `8.0p1-34.el8_10` | `1.14.1-9.module+el8.4.0+542+81547229` | `2.4.37-65.module+el8.10.0+40402+af9563a3.13` | rpm（Berkeley DB） | DEFAULT |
+| Rocky Linux 9.3 (Blue Onyx) | `rockylinux@sha256:d7be1c094cc5845ee815d4632fe377514ee6ebcf8efaed6892889657e5ddaaa6` | `3.5.8-2.el9_8` | `9.9p1-13.el9_8.rocky.0.1` | `1.20.1-28.el9_8.6.rocky.0.1` | `2.4.62-13.el9_8.9` | rpm（SQLite） | DEFAULT |
+| Red Hat Enterprise Linux 10.3 (Coughlan) | `redhat/ubi10@sha256:1e9193f051ac70582821c8a941325c5053488c54c75cd0c31b577d871ac29dba` | `3.5.9-1.el10_3` | `9.9p1-33.el10_3` | `1.26.3-16.el10_3.1` | `2.4.63-13.el10_2.8` | rpm（SQLite） | DEFAULT |
+| Red Hat Enterprise Linux 8.10 (Ootpa) | `redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e` | `1.1.1k-18.el8_6` | `8.0p1-34.el8_10` | `1.14.1-9.module+el8.0.0+4108+af250afe` | `2.4.37-65.module+el8.10.0+25092+6f3ea0dd.13` | rpm（Berkeley DB） | DEFAULT |
+| Red Hat Enterprise Linux 9.9 (Plow) | `redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81` | `3.5.9-1.el9_9` | `9.9p1-16.el9_9` | `1.20.1-32.el9_9.1` | `2.4.62-13.el9_8.9` | rpm（SQLite） | DEFAULT |
+| Ubuntu 16.04.7 LTS | `ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6` | `1.0.2g-1ubuntu4.20` | `7.2p2-4ubuntu2.10` | `1.10.3-0ubuntu0.16.04.5` | `2.4.18-2ubuntu3.17` | dpkg | なし |
+| Ubuntu 18.04.6 LTS | `ubuntu@sha256:152dc042452c496007f07ca9127571cb9c29697f42acbfad72324b2bb2e43c98` | `1.1.1-1ubuntu2.1~18.04.23` | `7.6p1-4ubuntu0.7` | `1.14.0-0ubuntu1.11` | `2.4.29-1ubuntu4.27` | dpkg | なし |
+| Ubuntu 20.04.6 LTS | `ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214` | `1.1.1f-1ubuntu2.24` | `8.2p1-4ubuntu0.13` | `1.18.0-0ubuntu1.7` | `2.4.41-4ubuntu3.23` | dpkg | なし |
+| Ubuntu 22.04.5 LTS | `ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c` | `3.0.2-0ubuntu1.30` | `8.9p1-3ubuntu0.18` | `1.18.0-6ubuntu14.22` | `2.4.52-1ubuntu4.26` | dpkg | なし |
+| Ubuntu 24.04.5 LTS | `ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5` | `3.0.13-0ubuntu3.16` | `9.6p1-3ubuntu13.20` | `1.24.0-2ubuntu7.19` | `2.4.58-1ubuntu8.18` | dpkg | なし |
+
+この採取から分かること:
+
+- パッケージ DB は、RHEL 8 系（RHEL 8.10、AlmaLinux 8.10、Rocky Linux 8.9）が Berkeley DB、RHEL 9 系と 10 系が SQLite。両方の読み取りが必要。
+- システム全体の暗号ポリシーがあるのは RHEL 系だけで、採取したすべてで `DEFAULT`。Debian / Ubuntu にはない。
+- 同じ RHEL 8 系でも、互換ディストリではパッケージのリリース文字列が異なる（例: nginx のモジュールストリームの識別子）。既定値表のキーはディストリを含める必要がある。
+- Ubuntu は 16.04（OpenSSL 1.0.2g）、18.04 / 20.04（1.1.1 系）、22.04 / 24.04（3.0 系）で OpenSSL の系統が変わる。
