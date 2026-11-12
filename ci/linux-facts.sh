@@ -82,6 +82,9 @@ mkdir -p /run/sshd /var/empty/sshd
 SSHD=$(command -v sshd || echo /usr/sbin/sshd)
 save ssh-version.txt sh -c "ssh -V; $SSHD -V 2>&1 | head -3"
 save sshd-T.txt "$SSHD" -T
+# 既定値（設定が空のときに sshd 自身が報告する値）。パッケージ版ごとの既定値表のもとになる
+: >/tmp/empty_sshd_config
+save sshd-T-bare.txt "$SSHD" -T -f /tmp/empty_sshd_config
 save ssh-Q.txt sh -c "for q in cipher cipher-auth mac kex kex-gss key key-cert key-plain key-sig sig HostKeyAlgorithms PubkeyAcceptedAlgorithms PubkeyAcceptedKeyTypes; do echo \"== \$q\"; ssh -Q \$q 2>&1; done"
 keep /etc/ssh/sshd_config /etc/ssh/ssh_config /etc/sysconfig/sshd /etc/default/ssh
 for f in /etc/ssh/sshd_config.d/* /etc/ssh/ssh_config.d/*; do keep "$f"; done

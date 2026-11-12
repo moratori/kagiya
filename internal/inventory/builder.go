@@ -32,6 +32,7 @@ type Builder struct {
 	osSettings   []model.OSSetting
 	services     []model.Service
 	settings     []model.Setting
+	effective    []model.EffectiveValue
 	skipped      []model.Skipped
 	skipByReason map[string]int
 	skipTotal    int
@@ -143,6 +144,16 @@ func (b *Builder) AddPackage(p model.Package) { b.packages = append(b.packages, 
 // AddService はサービスを記録する。
 func (b *Builder) AddService(s model.Service) { b.services = append(b.services, s) }
 
+// Settings は記録済みの設定値を返す。
+func (b *Builder) Settings() []model.Setting { return b.settings }
+
+// AddEffective は実効値を記録する。
+func (b *Builder) AddEffective(e model.EffectiveValue) {
+	h := sha256.Sum256([]byte(e.Service + "\x00" + e.Parameter + "\x00" + e.Direction))
+	e.ID = "eff:" + hex.EncodeToString(h[:12])
+	b.effective = append(b.effective, e)
+}
+
 // ServiceNote は、記録済みのサービスに注記を足す。
 func (b *Builder) ServiceNote(id, note string) {
 	for i := range b.services {
@@ -239,6 +250,10 @@ func (b *Builder) Inventory() *model.Inventory {
 	}
 	if inv.Settings == nil {
 		inv.Settings = []model.Setting{}
+	}
+	inv.EffectiveValues = b.effective
+	if inv.EffectiveValues == nil {
+		inv.EffectiveValues = []model.EffectiveValue{}
 	}
 	for _, a := range b.assets {
 		inv.Assets = append(inv.Assets, *a)

@@ -48,6 +48,7 @@ type RuleSet struct {
 	Packages  []PackageRule
 	Apps      []AppRule
 	Libraries []LibraryRule
+	Defaults  []DefaultSet
 
 	byAlias     map[string]int
 	storePaths  map[string]string // パス → ストア ID
@@ -224,6 +225,16 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 			}
 			if err := rs.addLibrary(lf.Library, ids); err != nil {
 				return nil, fmt.Errorf("%s: %w", f.Path, err)
+			}
+		case strings.HasPrefix(f.Path, "defaults/") && strings.HasSuffix(f.Path, ".yaml") && strings.Count(f.Path, "/") == 1:
+			var df defaultsFile
+			if err := decodeStrict(f.Data, &df); err != nil {
+				return nil, fmt.Errorf("%s: %w", f.Path, err)
+			}
+			for _, d := range df.Defaults {
+				if err := rs.addDefaults(d, ids); err != nil {
+					return nil, fmt.Errorf("%s: %w", f.Path, err)
+				}
 			}
 		case f.Path == "os/packages.yaml":
 			var pf packagesFile
@@ -737,4 +748,61 @@ func (rs *RuleSet) LibraryForSOName(soname string) (LibraryRule, bool) {
 		}
 	}
 	return LibraryRule{}, false
+}
+
+// DefaultSet は、あるアプリの、あるパッケージ版での既定値（設定に記載がないときの値）。
+// 既定値は上流の版だけでは決まらず、ディストリのパッケージ版ごとに違うため、パッケージ版をキーにする。出典が必須。
+type DefaultSet struct {
+	App     string            `yaml:"app"`
+	Package string            `yaml:"package"`
+	Version string            `yaml:"version"` // rpm は「バージョン-リリース」、dpkg は Version の全体
+	Source  Source            `yaml:"source"`
+	Values  map[string]string `yaml:"values"` // 項目名 → カンマ区切りの値
+}
+
+type defaultsFile struct {
+	Defaults []DefaultSet `yaml:"defaults"`
+}
+
+var (
+	pkgVersionPattern   = regexp.MustCompile(`^[0-9A-Za-z][0-9A-Za-z.:+~_-]{0,127}$`)
+	defaultValuePattern = regexp.MustCompile(`^[A-Za-z0-9@._,*-]+$`)
+)
+
+func (rs *RuleSet) addDefaults(d DefaultSet, ids map[string]bool) error {
+	if !idPattern.MatchString(d.App) || !pkgNamePattern.MatchString(d.Package) || strings.HasSuffix(d.Package, "*") || !pkgVersionPattern.MatchString(d.Version) {
+		return fmt.Errorf("invalid default set (app %q, package %q, version %q)", d.App, d.Package, d.Version)
+	}
+	key := "default\x00" + d.App + "\x00" + d.Package + "\x00" + d.Version
+	if ids[key] {
+		return fmt.Errorf("duplicate default set for %s %s %s", d.App, d.Package, d.Version)
+	}
+	ids[key] = true
+	if err := checkSources([]Source{d.Source}); err != nil {
+		return fmt.Errorf("defaults for %s %s: %w", d.Package, d.Version, err)
+	}
+	if len(d.Values) == 0 {
+		return fmt.Errorf("defaults for %s %s: no values", d.Package, d.Version)
+	}
+	for k, v := range d.Values {
+		if !idPattern.MatchString(k) || len(v) > 32768 || !defaultValuePattern.MatchString(v) {
+			return fmt.Errorf("defaults for %s %s: invalid value for %q", d.Package, d.Version, k)
+		}
+	}
+	rs.Defaults = append(rs.Defaults, d)
+	return nil
+}
+
+// AppDefaults は、アプリのパッケージ版に対応する既定値と、その出典を返す。完全に一致する版だけを返す（近い版では代用しない）。
+func (rs *RuleSet) AppDefaults(app, pkg, version string) (map[string][]string, Source, bool) {
+	for _, d := range rs.Defaults {
+		if d.App == app && d.Package == pkg && d.Version == version {
+			out := make(map[string][]string, len(d.Values))
+			for k, v := range d.Values {
+				out[k] = strings.Split(v, ",")
+			}
+			return out, d.Source, true
+		}
+	}
+	return nil, Source{}, false
 }

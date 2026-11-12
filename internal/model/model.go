@@ -19,6 +19,8 @@ type Inventory struct {
 	// サービス（アプリケーションのインスタンス）と、その設定値
 	Services []Service `json:"services"`
 	Settings []Setting `json:"settings"`
+	// 実効値: 設定の記載と既定値から求めた、実際に効く値
+	EffectiveValues []EffectiveValue `json:"effective_values"`
 	// 見つかったアプリケーションと暗号ライブラリ、およびそのリンク関係
 	Components []Component `json:"components"`
 	Skipped    []Skipped   `json:"skipped"`
@@ -304,4 +306,35 @@ type Setting struct {
 type SettingLocation struct {
 	Path string `json:"path,omitempty"`
 	Line int    `json:"line,omitempty"`
+}
+
+// EffectiveValue は、ある項目について実際に効く値（設定の記載と、パッケージ版ごとの既定値から求めたもの）。
+// 求められなかった場合は Status が unresolved になり、理由を Reason に残す（推測で埋めない）。
+// 「許可されている」値であり、実際の通信でどれが選ばれているかを示すものではない。
+type EffectiveValue struct {
+	ID         string           `json:"id"`
+	Service    string           `json:"service"`
+	Parameter  string           `json:"parameter"`
+	Direction  string           `json:"direction,omitempty"`
+	Status     string           `json:"status"` // resolved | unresolved
+	Values     []string         `json:"values,omitempty"`
+	Confidence string           `json:"confidence,omitempty"`
+	Reason     string           `json:"reason,omitempty"`
+	Steps      []ResolutionStep `json:"steps,omitempty"` // どの層の値から、どう求めたか
+}
+
+// ResolutionStep は、実効値を求める過程の1段。
+type ResolutionStep struct {
+	Layer   string      `json:"layer"`             // app-default | os-policy | app-config
+	Op      string      `json:"op"`                // default | override | append | remove | prepend
+	Setting string      `json:"setting,omitempty"` // 根拠になった設定値の ID
+	Source  *Provenance `json:"source,omitempty"`  // 既定値の出典
+}
+
+// Provenance は、既定値を実物で確認した出典。
+type Provenance struct {
+	Image   string `json:"image"`
+	OS      string `json:"os"`
+	Package string `json:"package"`
+	Version string `json:"version"`
 }
