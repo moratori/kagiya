@@ -1,0 +1,32 @@
+name: Windows facts
+
+# Windows の検出ルールとテストの根拠になる事実を採取し、アーティファクトとして残す。
+# 手動実行のみ。採取する内容は ci/windows-facts.ps1 を参照。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    name: collect (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    steps:
+      - uses: actions/checkout@v4
+      - name: 事実を採取
+        shell: powershell
+        run: ./ci/windows-facts.ps1 -Out "$env:RUNNER_TEMP\windows-facts"
+      - name: 採取物の一覧
+        shell: powershell
+        run: Get-Content "$env:RUNNER_TEMP\windows-facts\MANIFEST.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-facts-${{ matrix.os }}
+          path: ${{ runner.temp }}/windows-facts
+          retention-days: 14
+          if-no-files-found: error
