@@ -372,3 +372,60 @@ func TestLoadAppRules(t *testing.T) {
 		t.Error("library without sources must be rejected")
 	}
 }
+
+func TestBuiltinAppDefaults(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 実物で採取した値（出典はルールファイルに記載）
+	v, src, ok := rs.AppDefaults("openssh", "openssh-server", "9.9p1-16.el9_9")
+	if !ok || !strings.HasPrefix(src.Image, "redhat/ubi9@sha256:") || src.OS != "Red Hat Enterprise Linux 9.9 (Plow)" {
+		t.Fatalf("RHEL 9.9 defaults: ok=%v src=%+v", ok, src)
+	}
+	if kex := v["ssh.kex-algorithms"]; len(kex) < 5 || kex[0] != "sntrup761x25519-sha512" {
+		t.Errorf("kex = %v", kex)
+	}
+	if v["ssh.required-rsa-size"][0] != "1024" {
+		t.Errorf("required-rsa-size = %v", v["ssh.required-rsa-size"])
+	}
+	// 同じ上流の版（9.9p1）でも、RHEL 10.3 のパッケージは既定値が違う
+	v10, _, ok := rs.AppDefaults("openssh", "openssh-server", "9.9p1-33.el10_3")
+	if !ok || strings.Join(v10["ssh.kex-algorithms"], ",") == strings.Join(v["ssh.kex-algorithms"], ",") {
+		t.Errorf("RHEL 10.3 defaults must differ from RHEL 9.9: %v", v10["ssh.kex-algorithms"])
+	}
+	if _, _, ok := rs.AppDefaults("openssh", "openssh-server", "9.9p1-1.unknown"); ok {
+		t.Error("unknown package version must not match")
+	}
+}
+
+func TestLoadAppDefaults(t *testing.T) {
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	with := func(y string) map[string]string {
+		m := map[string]string{"defaults/x.yaml": y}
+		for k, v := range base {
+			m[k] = v
+		}
+		return m
+	}
+	src := "    source:\n      image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n      os: \"X\"\n"
+	ok := "defaults:\n  - app: myapp\n    package: myapp\n    version: \"1.2-3\"\n" + src + "    values:\n      tls.ciphers: \"a,b\"\n"
+	rs, err := Load(mapFS(with(ok)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, _, found := rs.AppDefaults("myapp", "myapp", "1.2-3"); !found || strings.Join(v["tls.ciphers"], "|") != "a|b" {
+		t.Errorf("defaults = %v %v", v, found)
+	}
+	for name, y := range map[string]string{
+		"no source":     "defaults:\n  - app: a\n    package: a\n    version: \"1\"\n    values:\n      p: \"x\"\n",
+		"no values":     "defaults:\n  - app: a\n    package: a\n    version: \"1\"\n" + src,
+		"bad value":     "defaults:\n  - app: a\n    package: a\n    version: \"1\"\n" + src + "    values:\n      p: \"x y;z\"\n",
+		"no version":    "defaults:\n  - app: a\n    package: a\n" + src + "    values:\n      p: \"x\"\n",
+		"duplicate key": ok + "  - app: myapp\n    package: myapp\n    version: \"1.2-3\"\n" + src + "    values:\n      tls.ciphers: \"c\"\n",
+	} {
+		if _, err := Load(mapFS(with(y))); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+}

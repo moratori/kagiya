@@ -477,3 +477,131 @@ func TestApacheUbuntu2404(t *testing.T) {
 		t.Errorf("tls.enabled = %q", got)
 	}
 }
+
+// ---- 実効値の解決（Phase 1c）----
+
+func effectiveValue(t *testing.T, inv *model.Inventory, param string) model.EffectiveValue {
+	t.Helper()
+	for _, e := range inv.EffectiveValues {
+		if e.Service == "svc:openssh" && e.Parameter == param {
+			return e
+		}
+	}
+	t.Fatalf("no effective value for %s (have %d)", param, len(inv.EffectiveValues))
+	return model.EffectiveValue{}
+}
+
+func withPackage(version string, more func(p string, b *inventory.Builder)) func(p string, b *inventory.Builder) {
+	return func(p string, b *inventory.Builder) {
+		b.AddPackage(model.Package{Manager: "dpkg", Name: "openssh-server", Version: version, Role: "ssh"})
+		if more != nil {
+			more(p, b)
+		}
+	}
+}
+
+// 以下の期待値は、Ubuntu 24.04.5（openssh-server 1:9.6p1-3ubuntu13.20）で sshd 自身が報告した値（sshd -T）。
+const (
+	ubuntu2404Version       = "1:9.6p1-3ubuntu13.20"
+	ubuntu2404DefaultKex    = "sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256"
+	ubuntu2404ModifiedKex   = "sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256,diffie-hellman-group1-sha1"
+	ubuntu2404ModifiedCiph  = "aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com"
+	ubuntu2404ModifiedMACs  = "hmac-sha2-512,umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha1"
+	ubuntu2404ModifiedHostK = "ssh-ed25519-cert-v01@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com,sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,ssh-ed25519,sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,rsa-sha2-512,rsa-sha2-256"
+)
+
+// 設定に記載のない項目は、導入されているパッケージ版の既定値になる。
+func TestEffectiveDefaults(t *testing.T) {
+	_, inv := collect(t, "ubuntu2404", withPackage(ubuntu2404Version, nil))
+	e := effectiveValue(t, inv, "ssh.kex-algorithms")
+	if e.Status != "resolved" || strings.Join(e.Values, ",") != ubuntu2404DefaultKex || e.Confidence != "high" || e.Direction != "inbound" {
+		t.Errorf("kex = %+v", e)
+	}
+	if len(e.Steps) != 1 || e.Steps[0].Layer != "app-default" || e.Steps[0].Op != "default" || e.Steps[0].Source == nil ||
+		!strings.HasPrefix(e.Steps[0].Source.Image, "ubuntu@sha256:2198e4c6") || e.Steps[0].Source.Version != ubuntu2404Version {
+		t.Errorf("steps = %+v", e.Steps)
+	}
+	if r := effectiveValue(t, inv, "ssh.required-rsa-size"); strings.Join(r.Values, ",") != "1024" {
+		t.Errorf("required-rsa-size = %+v", r)
+	}
+}
+
+// 既定の一覧を加工する書き方（+ 追加、- 削除、^ 先頭へ、ワイルドカード）。
+func TestEffectiveModifiers(t *testing.T) {
+	_, inv := collect(t, "", withPackage(ubuntu2404Version, func(p string, b *inventory.Builder) {
+		os.MkdirAll(p+"/etc/ssh", 0o755)
+		os.WriteFile(p+"/etc/ssh/sshd_config", []byte("KexAlgorithms +diffie-hellman-group1-sha1\nCiphers -chacha20-poly1305@openssh.com\nMACs ^hmac-sha2-512\nHostKeyAlgorithms -ssh-rsa*,ecdsa-*\n"), 0o644)
+	}))
+	for param, want := range map[string]string{
+		"ssh.kex-algorithms":      ubuntu2404ModifiedKex,
+		"ssh.ciphers":             ubuntu2404ModifiedCiph,
+		"ssh.macs":                ubuntu2404ModifiedMACs,
+		"ssh.host-key-algorithms": ubuntu2404ModifiedHostK,
+	} {
+		e := effectiveValue(t, inv, param)
+		if e.Status != "resolved" || strings.Join(e.Values, ",") != want {
+			t.Errorf("%s:\n got  %s\n want %s (%+v)", param, strings.Join(e.Values, ","), want, e)
+		}
+		if len(e.Steps) != 2 || e.Steps[0].Op != "default" || e.Steps[1].Layer != "app-config" || e.Steps[1].Setting == "" {
+			t.Errorf("%s: steps = %+v", param, e.Steps)
+		}
+	}
+	if e := effectiveValue(t, inv, "ssh.kex-algorithms"); e.Steps[1].Op != "append" {
+		t.Errorf("op = %s", e.Steps[1].Op)
+	}
+}
+
+// 明記された一覧は、既定値を置き換える。RHEL 9.9 では、暗号ポリシーが明記した値になる。
+func TestEffectiveExplicitFromPolicy(t *testing.T) {
+	_, inv := collect(t, "rhel9", func(p string, b *inventory.Builder) {
+		b.AddPackage(model.Package{Manager: "rpm", Name: "openssh-server", Version: "9.9p1", Release: "16.el9_9", Role: "ssh"})
+	})
+	e := effectiveValue(t, inv, "ssh.ciphers")
+	if e.Status != "resolved" || strings.Join(e.Values, ",") != "aes256-gcm@openssh.com,chacha20-poly1305@openssh.com,aes256-ctr,aes128-gcm@openssh.com,aes128-ctr" {
+		t.Errorf("ciphers = %+v", e)
+	}
+	if len(e.Steps) != 1 || e.Steps[0].Layer != "os-policy" || e.Steps[0].Op != "override" {
+		t.Errorf("steps = %+v", e.Steps)
+	}
+	// RHEL 9.9 の sshd の既定の鍵交換には耐量子の方式が含まれるが、暗号ポリシーが明記した一覧には含まれない（実物で確認）
+	if k := effectiveValue(t, inv, "ssh.kex-algorithms"); k.Values[0] != "curve25519-sha256" || strings.Contains(strings.Join(k.Values, ","), "mlkem") {
+		t.Errorf("kex = %+v", k.Values)
+	}
+}
+
+// 既定値表にないパッケージ版では、記載のない項目は「不明」とする（推測で埋めない）。明記された項目は解決できる。
+func TestEffectiveUnknownPackageVersion(t *testing.T) {
+	_, inv := collect(t, "", withPackage("1:99.9p9-1custom", func(p string, b *inventory.Builder) {
+		os.MkdirAll(p+"/etc/ssh", 0o755)
+		os.WriteFile(p+"/etc/ssh/sshd_config", []byte("Ciphers aes256-ctr\nKexAlgorithms +diffie-hellman-group1-sha1\n"), 0o644)
+	}))
+	if e := effectiveValue(t, inv, "ssh.ciphers"); e.Status != "resolved" || strings.Join(e.Values, ",") != "aes256-ctr" {
+		t.Errorf("explicit ciphers = %+v", e)
+	}
+	e := effectiveValue(t, inv, "ssh.kex-algorithms")
+	if e.Status != "unresolved" || len(e.Values) != 0 || !strings.Contains(e.Reason, "1:99.9p9-1custom") {
+		t.Errorf("kex with unknown defaults = %+v", e)
+	}
+	if m := effectiveValue(t, inv, "ssh.macs"); m.Status != "unresolved" {
+		t.Errorf("macs = %+v", m)
+	}
+}
+
+// パッケージの情報がない（パッケージ管理外の導入など）場合も「不明」。
+func TestEffectiveWithoutPackageInformation(t *testing.T) {
+	_, inv := collect(t, "ubuntu2404", nil)
+	if e := effectiveValue(t, inv, "ssh.kex-algorithms"); e.Status != "unresolved" || e.Reason == "" {
+		t.Errorf("kex = %+v", e)
+	}
+}
+
+// ワイルドカードを含む追加・先頭指定は、その版が対応する全アルゴリズムの一覧が要るため解決しない。
+func TestEffectiveWildcardInAppendIsUnresolved(t *testing.T) {
+	_, inv := collect(t, "", withPackage(ubuntu2404Version, func(p string, b *inventory.Builder) {
+		os.MkdirAll(p+"/etc/ssh", 0o755)
+		os.WriteFile(p+"/etc/ssh/sshd_config", []byte("KexAlgorithms +diffie-hellman-*\n"), 0o644)
+	}))
+	if e := effectiveValue(t, inv, "ssh.kex-algorithms"); e.Status != "unresolved" {
+		t.Errorf("kex = %+v", e)
+	}
+}
