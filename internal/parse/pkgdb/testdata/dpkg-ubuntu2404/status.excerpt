@@ -1,0 +1,169 @@
+Package: openssl
+Status: install ok installed
+Priority: optional
+Section: utils
+Installed-Size: 1897
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Architecture: arm64
+Multi-Arch: foreign
+Version: 3.0.13-0ubuntu3.16
+Depends: libc6 (>= 2.34), libssl3t64 (>= 3.0.9)
+Suggests: ca-certificates
+Conffiles:
+ /etc/ssl/openssl.cnf 953fe829df1b6f2b1b39c7742ab6d0b8
+Description: Secure Sockets Layer toolkit - cryptographic utility
+ This package is part of the OpenSSL project's implementation of the SSL
+ and TLS cryptographic protocols for secure communication over the
+ Internet.
+ .
+ It contains the general-purpose command line binary /usr/bin/openssl,
+ useful for cryptographic operations such as:
+  * creating RSA, DH, and DSA key parameters;
+  * creating X.509 certificates, CSRs, and CRLs;
+  * calculating message digests;
+  * encrypting and decrypting with ciphers;
+  * testing SSL/TLS clients and servers;
+  * handling S/MIME signed or encrypted mail.
+Homepage: https://www.openssl.org/
+Original-Maintainer: Debian OpenSSL Team <pkg-openssl-devel@alioth-lists.debian.net>
+
+Package: openssh-server
+Status: install ok installed
+Priority: optional
+Section: net
+Installed-Size: 2076
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Architecture: arm64
+Multi-Arch: foreign
+Source: openssh
+Version: 1:9.6p1-3ubuntu13.20
+Replaces: openssh-client (<< 1:7.9p1-8), ssh, ssh-krb5
+Provides: ssh-server
+Depends: adduser, libpam-modules, libpam-runtime, lsb-base, openssh-client (= 1:9.6p1-3ubuntu13.20), openssh-sftp-server, procps, ucf, debconf (>= 0.5) | debconf-2.0, libaudit1 (>= 1:2.2.1), libc6 (>= 2.38), libcom-err2 (>= 1.43.9), libcrypt1 (>= 1:4.1.0), libgssapi-krb5-2 (>= 1.17), libkrb5-3 (>= 1.13~alpha1+dfsg), libpam0g (>= 0.99.7.1), libselinux1 (>= 3.1~), libssl3t64 (>= 3.0.13), libwrap0 (>= 7.6-4~), zlib1g (>= 1:1.1.4)
+Pre-Depends: init-system-helpers (>= 1.54~)
+Recommends: default-logind | logind | libpam-systemd, ncurses-term, xauth, ssh-import-id
+Suggests: molly-guard, monkeysphere, ssh-askpass, ufw
+Conflicts: sftp, ssh-socks, ssh2
+Conffiles:
+ /etc/default/ssh 500e3cf069fe9a7b9936108eb9d9c035
+ /etc/init.d/ssh 3649a6fe8c18ad1d5245fd91737de507
+ /etc/pam.d/sshd 8b4c7a12b031424b2a9946881da59812
+ /etc/ssh/moduli 366395e79244c54223455e5f83dafba3
+ /etc/ufw/applications.d/openssh-server 486b78d54b93cc9fdc950c1d52ff479e
+Description: secure shell (SSH) server, for secure access from remote machines
+ This is the portable version of OpenSSH, a free implementation of
+ the Secure Shell protocol as specified by the IETF secsh working
+ group.
+ .
+ Ssh (Secure Shell) is a program for logging into a remote machine
+ and for executing commands on a remote machine.
+ It provides secure encrypted communications between two untrusted
+ hosts over an insecure network. X11 connections and arbitrary TCP/IP
+ ports can also be forwarded over the secure channel.
+ It can be used to provide applications with a secure communication
+ channel.
+ .
+ This package provides the sshd server.
+ .
+ In some countries it may be illegal to use any encryption at all
+ without a special permit.
+ .
+ sshd replaces the insecure rshd program, which is obsolete for most
+ purposes.
+Homepage: https://www.openssh.com/
+Original-Maintainer: Debian OpenSSH Maintainers <debian-ssh@lists.debian.org>
+
+Package: nginx-common
+Status: deinstall ok config-files
+Priority: optional
+Section: httpd
+Installed-Size: 241
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Architecture: all
+Multi-Arch: foreign
+Source: nginx
+Version: 1.24.0-2ubuntu7.19
+Config-Version: 1.24.0-2ubuntu7.19
+Replaces: nginx (<< 1.22.1-8)
+Depends: debconf (>= 0.5) | debconf-2.0
+Suggests: fcgiwrap, nginx-doc, ssl-cert
+Breaks: nginx (<< 1.22.1-8)
+Conffiles:
+ /etc/default/nginx 596fbc1f5712caaa02e8c799a4e2a01f
+ /etc/init.d/nginx 290f6f12a12bc8e882bc5af46c1bfe7c
+ /etc/logrotate.d/nginx b29112f9480a70fa7de2729ff39923e2
+ /etc/nginx/fastcgi.conf 74e91892a9e591cde6d65c3e8e7e5fb2
+ /etc/nginx/fastcgi_params ed054bf064ade22488fcccc49174327d
+ /etc/nginx/koi-utf 3e338aca6a53a5420fc791b5ef86f64c
+ /etc/nginx/koi-win bfa0b80381fed2b1dfcf617b0ba204ec
+ /etc/nginx/mime.types 96fd3f507b3a4fe666fcb0bb0042f428
+ /etc/nginx/nginx.conf e5398edc0b51497dba606859fb13a86e
+ /etc/nginx/proxy_params 2612ba3438c3b7855ea7779a879e6aef
+ /etc/nginx/scgi_params df8c71e25e0356ffc539742f08fddfff
+ /etc/nginx/sites-available/default f1f26aef86f90a484f3a2f46ccc46ff6
+ /etc/nginx/snippets/fastcgi-php.conf 828e5bd1f3de7b3ef0e6856598b2a8c0
+ /etc/nginx/snippets/snakeoil.conf 0a8bff8a55d8ec9d002e1b8460d2d64f
+ /etc/nginx/uwsgi_params 88ac833ee8ea60904a8b3063fde791de
+ /etc/nginx/win-utf 0f39cbfca77d4f3bb5d33f009a514c71
+ /etc/ufw/applications.d/nginx 3e24def79cf627acc2ab1b1bdfbc645c
+Description: small, powerful, scalable web/proxy server - common files
+ Nginx ("engine X") is a high-performance web and reverse proxy server
+ created by Igor Sysoev. It can be used both as a standalone web server
+ and as a proxy to reduce the load on back-end HTTP or mail servers.
+ .
+ This package contains base configuration files used by all versions of
+ nginx.
+Homepage: https://nginx.org
+Original-Maintainer: Debian Nginx Maintainers <pkg-nginx-maintainers@alioth-lists.debian.net>
+
+Package: libc6
+Status: install ok installed
+Priority: required
+Section: libs
+Installed-Size: 23352
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Architecture: arm64
+Multi-Arch: same
+Source: glibc
+Version: 2.39-0ubuntu8.9
+Replaces: libc6-lse
+Provides: libc6-lse
+Depends: libgcc-s1
+Recommends: libidn2-0 (>= 2.0.5~)
+Suggests: glibc-doc, debconf | debconf-2.0, locales, libnss-nis, libnss-nisplus
+Breaks: chrony (<< 4.2-3~), cyrus-imapd (<< 3.6.1-2ubuntu1), fakechroot (<< 2.19-3.5), firefox (<< 91~), firefox-esr (<< 91~), gnumach-image-1.8-486 (<< 2:1.8+git20210923~), gnumach-image-1.8-486-dbg (<< 2:1.8+git20210923~), gnumach-image-1.8-xen-486 (<< 2:1.8+git20210923~), gnumach-image-1.8-xen-486-dbg (<< 2:1.8+git20210923~), hurd (<< 1:0.9.git20220301-2), locales (<< 2.39), locales-all (<< 2.39), nscd (<< 2.39), python3-iptables (<< 1.0.0-2), scipy (<< 1.10.1-10build1), tinydns (<< 1:1.05-14), valgrind (<< 1:3.19.0-1~)
+Conflicts: libc6-lse
+Conffiles:
+ /etc/ld.so.conf.d/aarch64-linux-gnu.conf da8a2db277c6c69cad56b6c778193e40
+Description: GNU C Library: Shared libraries
+ Contains the standard libraries that are used by nearly all programs on
+ the system. This package includes shared versions of the standard C library
+ and the standard math library, as well as many others.
+Homepage: https://www.gnu.org/software/libc/libc.html
+Original-Maintainer: GNU Libc Maintainers <debian-glibc@lists.debian.org>
+Original-Vcs-Browser: https://salsa.debian.org/glibc-team/glibc
+Original-Vcs-Git: https://salsa.debian.org/glibc-team/glibc.git
+
+Package: libssl3t64
+Status: install ok installed
+Priority: required
+Section: libs
+Installed-Size: 6123
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Architecture: arm64
+Multi-Arch: same
+Source: openssl
+Version: 3.0.13-0ubuntu3.16
+Replaces: libssl3
+Provides: libssl3 (= 3.0.13-0ubuntu3.16)
+Depends: libc6 (>= 2.38)
+Breaks: libssl3 (<< 3.0.13-0ubuntu3.16)
+Description: Secure Sockets Layer toolkit - shared libraries
+ This package is part of the OpenSSL project's implementation of the SSL
+ and TLS cryptographic protocols for secure communication over the
+ Internet.
+ .
+ It provides the libssl and libcrypto shared libraries.
+Homepage: https://www.openssl.org/
+Original-Maintainer: Debian OpenSSL Team <pkg-openssl-devel@alioth-lists.debian.net>
+

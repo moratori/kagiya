@@ -1,0 +1,5 @@
+ca-certificates	0	2026.2.92_v9.0.319	81.3.el8_10	noarch	ca-certificates-2026.2.92_v9.0.319-81.3.el8_10.src.rpm
+httpd-filesystem	0	2.4.37	65.module+el8.10.0+25092+6f3ea0dd.13	noarch	httpd-2.4.37-65.module+el8.10.0+25092+6f3ea0dd.13.src.rpm
+nginx-filesystem	1	1.14.1	9.module+el8.0.0+4108+af250afe	noarch	nginx-1.14.1-9.module+el8.0.0+4108+af250afe.src.rpm
+openssh-server	0	8.0p1	34.el8_10	aarch64	openssh-8.0p1-34.el8_10.src.rpm
+openssl-libs	1	1.1.1k	18.el8_6	aarch64	openssl-1.1.1k-18.el8_6.src.rpm

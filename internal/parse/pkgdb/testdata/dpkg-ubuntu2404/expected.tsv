@@ -1,0 +1,6 @@
+ca-certificates			un 	ca-certificates	
+libc6	2.39-0ubuntu8.9	arm64	ii 	glibc	2.39-0ubuntu8.9
+libssl3t64	3.0.13-0ubuntu3.16	arm64	ii 	openssl	3.0.13-0ubuntu3.16
+nginx-common	1.24.0-2ubuntu7.19	all	rc 	nginx	1.24.0-2ubuntu7.19
+openssh-server	1:9.6p1-3ubuntu13.20	arm64	ii 	openssh	1:9.6p1-3ubuntu13.20
+openssl	3.0.13-0ubuntu3.16	arm64	ii 	openssl	3.0.13-0ubuntu3.16
