@@ -28,9 +28,13 @@ func IsActive(level string) bool { return level == ActivityRunning || level == A
 
 // アプリをまたいで揃えている設定項目の名前のうち、コードから名指しで使うもの。
 const (
-	ParamTLSCiphers       = "tls.ciphers"            // 暗号スイート（TLS 1.2 以下）
-	ParamTLSCiphersuites  = "tls.ciphersuites-tls13" // 暗号スイート（TLS 1.3）
-	ParamTLSProtocols     = "tls.protocols"
+	ParamTLSCiphers      = "tls.ciphers"            // 暗号スイート（TLS 1.2 以下）
+	ParamTLSCiphersuites = "tls.ciphersuites-tls13" // 暗号スイート（TLS 1.3）
+	ParamTLSProtocols    = "tls.protocols"
+	// OS 設定: システムの openssl.cnf に書かれているが、値を記録しなかった項目（値は項目の名前）。
+	// 後の処理が「指定なし」として扱わないための印
+	OSSettingOpenSSLUnread = "openssl.system_default.unread"
+
 	ParamTLSGroups        = "tls.groups"                // 鍵交換のグループ（楕円曲線、有限体 DH、耐量子のハイブリッド）
 	ParamTLSDHEWithout    = "tls.dhe-without-params"    // 既定の表: DH パラメータなしで DHE を使えるか
 	ParamTLSCertSelection = "tls.certificate-selection" // 既定の表: 同じ名前の証明書を複数使えるか

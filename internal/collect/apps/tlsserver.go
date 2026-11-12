@@ -204,8 +204,13 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 
 	// システムの openssl.cnf の既定（RHEL 系では暗号ポリシーが生成した内容）
 	sysCipher, sysTLS13 := "", ""
+	sysUnread := "" // 書かれているが値を読めていない項目（暗号スイートに関わるもの）
 	for _, s := range c.Builder.OSSettings() {
 		switch s.ID {
+		case model.OSSettingOpenSSLUnread:
+			if s.Value == "CipherString" || s.Value == "Ciphersuites" {
+				sysUnread = s.Value
+			}
 		case "openssl.system_default.CipherString":
 			sysCipher = s.Value
 		case "openssl.system_default.Ciphersuites":
@@ -230,6 +235,7 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 		sysStep = model.ResolutionStep{Layer: "os-policy", Op: "security-level"}
 	}
 	groups := c.newGroupResolver(app, svc, appProv, appNote, defs)
+	groups.levelUnknown = sysUnread == "CipherString"
 	for _, sc := range scopes {
 		// 暗号スイート（TLS 1.2 以下と TLS 1.3）。適用されたセキュリティレベルを返す（鍵交換のグループの絞り込みにも使う）
 		level, levelStep := func() (int, model.ResolutionStep) {
@@ -250,6 +256,10 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			}
 			if sc.blocker != "" {
 				fail(sc.blocker)
+				return sysLevel, sysStep
+			}
+			if sysUnread != "" {
+				fail("the " + sysUnread + " setting in the system OpenSSL configuration could not be read, so the system default and the security level are not known")
 				return sysLevel, sysStep
 			}
 			in := tlseffective.Input{Table: table, Profile: profile, SystemLevel: sysLevel}

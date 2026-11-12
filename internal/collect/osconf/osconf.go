@@ -31,7 +31,7 @@ const (
 
 var (
 	policyName   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9:_@+-]{0,127}$`)
-	settingValue = regexp.MustCompile(`^[A-Za-z0-9_:+!@=.,*~ -]+$`)
+	settingValue = regexp.MustCompile(`^[A-Za-z0-9_:+!@=.,*~?/ -]+$`)
 )
 
 type Collector struct {
@@ -166,6 +166,8 @@ func (c *Collector) openssl(lib ruleset.LibraryRule) {
 			}
 			if len(e.Value) > maxValueLen || !settingValue.MatchString(e.Value) {
 				c.reject(file, "openssl.system_default."+e.Key)
+				// 「書かれているが読めていない」ことを残す（項目の名前は許可リストにあるもの）
+				c.Builder.AddOSSetting(model.OSSetting{ID: model.OSSettingOpenSSLUnread, Value: e.Key, Path: file, Line: e.Line})
 				continue
 			}
 			c.Builder.AddOSSetting(model.OSSetting{ID: "openssl.system_default." + e.Key, Value: e.Value, Path: file, Line: e.Line})

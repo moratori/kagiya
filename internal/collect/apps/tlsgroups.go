@@ -24,9 +24,13 @@ type groupResolver struct {
 	note    string            // 補間した場合の注記
 	noTable string            // 対応表がない理由
 	system  string            // システムの openssl.cnf の Groups（古い書き方の Curves も同じ意味）
-	appProv *model.Provenance
-	appNote string
-	defs    map[string][]string
+	// システムの Groups / Curves が書かれているが、値を読めていない
+	systemUnread bool
+	// システムの暗号文字列を読めておらず、セキュリティレベルが分からない
+	levelUnknown bool
+	appProv      *model.Provenance
+	appNote      string
+	defs         map[string][]string
 }
 
 func (c *Collector) newGroupResolver(app ruleset.AppRule, svc model.Service, appProv *model.Provenance, appNote string, defs map[string][]string) *groupResolver {
@@ -47,6 +51,8 @@ func (c *Collector) newGroupResolver(app ruleset.AppRule, svc model.Service, app
 			g.system = s.Value
 		case "openssl.system_default.Curves":
 			curves = s.Value
+		case model.OSSettingOpenSSLUnread:
+			g.systemUnread = g.systemUnread || s.Value == "Groups" || s.Value == "Curves"
 		}
 	}
 	if g.system == "" {
@@ -90,6 +96,9 @@ func (g *groupResolver) resolve(sc tlsScope, level int, levelStep model.Resoluti
 		if g.appNote != "" {
 			notes = append(notes, g.appNote)
 		}
+	case g.systemUnread:
+		fail("the Groups setting in the system OpenSSL configuration could not be read")
+		return
 	case g.system != "":
 		spec = g.system
 		e.Steps = []model.ResolutionStep{{Layer: "os-policy", Op: "override"}}
@@ -114,6 +123,9 @@ func (g *groupResolver) resolve(sc tlsScope, level int, levelStep model.Resoluti
 		} else {
 			notes = append(notes, "the effect of this security level on groups is not measured for this OpenSSL version, so groups are not narrowed down by it")
 		}
+	}
+	if g.levelUnknown {
+		notes = append(notes, "the security level is not known (the system cipher string could not be read), so groups are not narrowed down by it")
 	}
 	if g.note != "" {
 		notes = append(notes, g.note)
