@@ -17,4 +17,14 @@
 
 サービスの有効化を表すリンク（`/etc/systemd/system/*.wants/` 配下）は、テストコードの中で実物と同じ形に作る。
 
-ライセンス: OpenSSH の設定ファイルとユニットファイルは openssh パッケージ（BSD ライセンス）、暗号ポリシーの生成物は crypto-policies パッケージ（LGPL-2.1-or-later）に由来する。
+nginx と Apache httpd の設定（`rhel9/etc/nginx`、`rhel9/etc/httpd`、`ubuntu2404/etc/nginx`、`ubuntu2404/etc/apache2`）は、
+GitHub Actions で採取した amd64 の実物（RHEL 9.9 は nginx 1.20.1-32.el9_9.1 と httpd 2.4.62-13.el9_8.9、
+Ubuntu 24.04.5 は nginx 1.24.0-2ubuntu7.19 と apache2 2.4.58-1ubuntu8.18。イメージのダイジェストは上の表と同じ）から、次のように抜き出した。
+
+- `nginx.conf`、`sites-available/default`、`conf.d/ssl.conf`、`mods-available/ssl.conf`、`ssl.load`、`sites-available/default-ssl.conf`、`ports.conf`: コメント行と空行を除いた行
+- `httpd.conf`、`apache2.conf`: ServerRoot、Listen、Include、IncludeOptional の行だけ
+- `conf.modules.d/00-ssl.conf`: 全体（1行）
+
+Debian 系で設定を有効にするリンク（`mods-enabled/`、`sites-enabled/`）は、テストコードの中で作る。
+
+ライセンス: nginx の設定ファイルは nginx パッケージ（BSD-2-Clause）、Apache httpd の設定ファイルは httpd / apache2 パッケージ（Apache-2.0）に由来する。OpenSSH の設定ファイルとユニットファイルは openssh パッケージ（BSD ライセンス）、暗号ポリシーの生成物は crypto-policies パッケージ（LGPL-2.1-or-later）に由来する。

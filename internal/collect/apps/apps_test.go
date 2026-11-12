@@ -285,3 +285,183 @@ func TestNothingInstalled(t *testing.T) {
 		t.Errorf("inv = %+v", inv)
 	}
 }
+
+func byParam(inv *model.Inventory, service string) map[string][]model.Setting {
+	out := map[string][]model.Setting{}
+	for _, s := range inv.Settings {
+		if s.Service == service {
+			key := s.Direction + ":" + s.Parameter
+			out[key] = append(out[key], s)
+		}
+	}
+	return out
+}
+
+func values(ss []model.Setting) string {
+	var out []string
+	for _, s := range ss {
+		out = append(out, strings.Join(s.Values, " "))
+	}
+	return strings.Join(out, " | ")
+}
+
+// RHEL 9.9 の nginx: 既定の設定には TLS の設定がない。TLS のサーバーを足した場合の読み取りを確かめる。
+func TestNginxRHEL9(t *testing.T) {
+	prefix, inv := collect(t, "rhel9", nil)
+	if s := byParam(inv, "svc:nginx"); len(s) != 0 {
+		t.Errorf("default nginx.conf has no TLS settings, got %v", s)
+	}
+	prefix, inv = collect(t, "rhel9", func(p string, b *inventory.Builder) {
+		os.MkdirAll(p+"/etc/nginx/conf.d", 0o755)
+		os.WriteFile(p+"/etc/nginx/conf.d/tls.conf", []byte(`server {
+    listen 443 ssl http2;
+    listen 8080;
+    server_name www.example.jp;
+    ssl_certificate /etc/pki/tls/certs/www.crt;
+    ssl_certificate_key /etc/pki/tls/private/www.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers PROFILE=SYSTEM;
+    ssl_ecdh_curve X25519:prime256v1;
+    ssl_prefer_server_ciphers on;
+    ssl_password_file /etc/nginx/secret.pass;
+    location / {
+        proxy_pass https://backend.internal;
+        proxy_ssl_protocols TLSv1.2;
+        proxy_ssl_ciphers HIGH:!aNULL;
+        proxy_ssl_certificate /etc/nginx/client.crt;
+        proxy_ssl_certificate_key $client_key_path;
+    }
+}
+`), 0o644)
+	})
+	s := byParam(inv, "svc:nginx")
+	scope := "server www.example.jp"
+	check := func(key, want string) {
+		t.Helper()
+		ss := s[key]
+		if len(ss) != 1 || values(ss) != want || ss[0].Scope != scope || !ss[0].Effective || ss[0].Basis != "configured" || ss[0].Layer != "app-config" {
+			t.Errorf("%s = %q (%+v), want %q", key, values(ss), ss, want)
+		}
+	}
+	check("inbound:tls.listen", "443 ssl http2") // TLS を使う待ち受けだけを記録する
+	check("inbound:tls.protocols", "TLSv1.2 TLSv1.3")
+	check("inbound:tls.ciphers", "PROFILE=SYSTEM")
+	check("inbound:tls.groups", "X25519 prime256v1")
+	check("inbound:tls.prefer-server-ciphers", "on")
+	check("inbound:tls.certificate", "/etc/pki/tls/certs/www.crt")
+	check("inbound:tls.private-key", "/etc/pki/tls/private/www.key")
+	// 上流への接続（送信側）は方向を区別する
+	check("outbound:tls.protocols", "TLSv1.2")
+	check("outbound:tls.ciphers", "HIGH !aNULL")
+	check("outbound:tls.certificate", "/etc/nginx/client.crt")
+	if c := s["inbound:tls.certificate"][0]; c.Location.Path != prefix+"/etc/nginx/conf.d/tls.conf" || c.Location.Line != 5 || c.ReferencedPaths[0] != prefix+"/etc/pki/tls/certs/www.crt" {
+		t.Errorf("certificate setting = %+v", c)
+	}
+	// 変数を含むパスは、どのファイルか分からないので記録しない（問題としては数えない）
+	if _, ok := s["outbound:tls.private-key"]; ok {
+		t.Error("a path containing a variable must not be recorded")
+	}
+	// 許可リストにない項目（パスワードファイルなど）は記録しない
+	for _, st := range inv.Settings {
+		if strings.Contains(strings.Join(st.Values, " "), "secret.pass") {
+			t.Errorf("unexpected setting %+v", st)
+		}
+	}
+	reasons := map[string]int{}
+	for _, k := range inv.Skipped {
+		reasons[k.Reason]++
+	}
+	if reasons["not-interpreted"] != 1 || len(inv.Skipped) != 1 {
+		t.Errorf("skipped = %+v", inv.Skipped)
+	}
+}
+
+// Ubuntu 24.04 の nginx: http の階層に ssl_protocols と ssl_prefer_server_ciphers が書かれている（実物）。
+func TestNginxUbuntu2404(t *testing.T) {
+	_, inv := collect(t, "ubuntu2404", func(p string, b *inventory.Builder) {
+		link(t, p, "/etc/nginx/sites-available/default", "/etc/nginx/sites-enabled/default")
+	})
+	s := byParam(inv, "svc:nginx")
+	if got := values(s["inbound:tls.protocols"]); got != "TLSv1 TLSv1.1 TLSv1.2 TLSv1.3" || s["inbound:tls.protocols"][0].Scope != "http" {
+		t.Errorf("tls.protocols = %q %+v", got, s["inbound:tls.protocols"])
+	}
+	if got := values(s["inbound:tls.prefer-server-ciphers"]); got != "on" {
+		t.Errorf("prefer-server-ciphers = %q", got)
+	}
+	if len(s) != 2 {
+		t.Errorf("settings = %v", s)
+	}
+}
+
+// RHEL 9.9 の Apache httpd: conf.d/ssl.conf が既定で取り込まれる（実物）。
+func TestApacheRHEL9(t *testing.T) {
+	prefix, inv := collect(t, "rhel9", nil)
+	s := byParam(inv, "svc:httpd")
+	vh := "VirtualHost _default_:443"
+	for key, want := range map[string]string{
+		"inbound:tls.enabled":               "on",
+		"inbound:tls.ciphers":               "PROFILE=SYSTEM",
+		"inbound:tls.prefer-server-ciphers": "on",
+		"inbound:tls.certificate":           "/etc/pki/tls/certs/localhost.crt",
+		"inbound:tls.private-key":           "/etc/pki/tls/private/localhost.key",
+		"outbound:tls.ciphers":              "PROFILE=SYSTEM", // SSLProxyCipherSuite
+	} {
+		if ss := s[key]; len(ss) != 1 || values(ss) != want || ss[0].Scope != vh {
+			t.Errorf("%s = %q (%+v), want %q", key, values(ss), ss, want)
+		}
+	}
+	if ss := s["inbound:tls.listen"]; values(ss) != "443 https" || ss[0].Scope != "" {
+		t.Errorf("tls.listen = %+v", ss)
+	}
+	if c := s["inbound:tls.private-key"][0]; c.Location.Path != prefix+"/etc/httpd/conf.d/ssl.conf" || c.ReferencedPaths[0] != prefix+"/etc/pki/tls/private/localhost.key" {
+		t.Errorf("private key setting = %+v", c)
+	}
+	var svc model.Service
+	for _, x := range inv.Services {
+		if x.App == "httpd" {
+			svc = x
+		}
+	}
+	if len(svc.Notes) != 0 {
+		t.Errorf("notes = %v", svc.Notes)
+	}
+}
+
+// Ubuntu 24.04 の Apache: 既定では TLS のモジュールもサイトも有効になっていない。有効にするとリンクが作られる。
+func TestApacheUbuntu2404(t *testing.T) {
+	_, inv := collect(t, "ubuntu2404", nil)
+	if s := byParam(inv, "svc:httpd"); len(s) != 0 {
+		t.Errorf("TLS is not enabled by default, got %v", s)
+	}
+	var notes []string
+	for _, x := range inv.Services {
+		if x.App == "httpd" {
+			notes = x.Notes
+		}
+	}
+	if len(notes) != 1 || !strings.Contains(notes[0], "ssl_module") {
+		t.Errorf("notes = %v", notes)
+	}
+
+	_, inv = collect(t, "ubuntu2404", func(p string, b *inventory.Builder) {
+		link(t, p, "../mods-available/ssl.load", "/etc/apache2/mods-enabled/ssl.load")
+		link(t, p, "../mods-available/ssl.conf", "/etc/apache2/mods-enabled/ssl.conf")
+		link(t, p, "../sites-available/default-ssl.conf", "/etc/apache2/sites-enabled/default-ssl.conf")
+	})
+	s := byParam(inv, "svc:httpd")
+	if got := values(s["inbound:tls.ciphers"]); got != "HIGH !aNULL" || s["inbound:tls.ciphers"][0].Scope != "" {
+		t.Errorf("tls.ciphers = %q", got)
+	}
+	if got := values(s["inbound:tls.protocols"]); got != "all -SSLv3" {
+		t.Errorf("tls.protocols = %q", got)
+	}
+	if got := values(s["inbound:tls.listen"]); got != "443" { // ports.conf の <IfModule ssl_module> の中
+		t.Errorf("tls.listen = %q", got)
+	}
+	if ss := s["inbound:tls.certificate"]; values(ss) != "/etc/ssl/certs/ssl-cert-snakeoil.pem" || ss[0].Scope != "VirtualHost *:443" {
+		t.Errorf("tls.certificate = %+v", ss)
+	}
+	if got := values(s["inbound:tls.enabled"]); got != "on" {
+		t.Errorf("tls.enabled = %q", got)
+	}
+}
