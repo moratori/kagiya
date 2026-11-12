@@ -13,15 +13,22 @@ import (
 
 func shortAlg(id string) string { return strings.TrimPrefix(id, "alg:") }
 
-func (b *builder) verdict(assetID string) (badge, badge) {
+// 期限の状態（スキャンした時点を基準にする）。
+const (
+	expiryExpired  = "expired"
+	expiryExpiring = "expiring"
+)
+
+// verdict は、資産の判定を返す（判定に使われた規則を、出典の一覧に載せるために覚えておく）。
+func (b *builder) verdict(assetID string) (model.Verdict, bool) {
 	vd, ok := b.a.Assets[assetID]
 	if !ok {
-		return badge{}, badge{}
+		return model.Verdict{}, false
 	}
 	for _, id := range vd.Rules {
 		b.used[id] = true
 	}
-	return quantumBadge[vd.Quantum], classicalBadge[vd.Classical]
+	return vd, true
 }
 
 func (b *builder) assetRow(o model.Occurrence) (assetRow, bool) {
@@ -51,9 +58,9 @@ func (b *builder) assetRow(o model.Occurrence) (assetRow, bool) {
 		if t, err := time.Parse(time.RFC3339, c.NotAfter); err == nil && !b.scanTime.IsZero() {
 			switch {
 			case t.Before(b.scanTime):
-				row.ExpiryTag = badge{"期限切れ", "bad", "スキャンした時点で、有効期限を過ぎていた証明書"}
+				row.ExpiryState, row.ExpiryTag = expiryExpired, badge{"期限切れ", "bad", "スキャンした時点で、有効期限を過ぎていた証明書"}
 			case t.Before(b.scanTime.AddDate(0, 0, expiringDays)):
-				row.ExpiryTag = badge{strconv.Itoa(expiringDays) + " 日以内に期限", "warn", "スキャンした時点から数えて、まもなく有効期限が来る証明書"}
+				row.ExpiryState, row.ExpiryTag = expiryExpiring, badge{strconv.Itoa(expiringDays) + " 日以内に期限", "warn", "スキャンした時点から数えて、まもなく有効期限が来る証明書"}
 			}
 		}
 	case (as.Type == "private-key" || as.Type == "public-key") && as.Key != nil:
@@ -76,7 +83,10 @@ func (b *builder) assetRow(o model.Occurrence) (assetRow, bool) {
 	default:
 		return assetRow{}, false
 	}
-	row.Quantum, row.Classical = b.verdict(as.ID)
+	if vd, ok := b.verdict(as.ID); ok {
+		row.Verdict = vd
+		row.Quantum, row.Classical = quantumBadge[vd.Quantum], classicalBadge[vd.Classical]
+	}
 	return row, true
 }
 
@@ -120,24 +130,24 @@ func (b *builder) files(v *view) {
 		if o.Activity != nil {
 			level = o.Activity.Level
 		}
-		if as.Type == "private-key" && (level == "" || level == "unknown" || level == "installed") {
+		if as.Type == "private-key" && (level == "" || level == model.ActivityUnknown || level == model.ActivityInstalled) {
 			v.Unconfirmed = append(v.Unconfirmed, row)
 			v.Summary.Unconfirmed++
 		}
 		v.Files = append(v.Files, row)
-		if row.Quantum.Class == "bad" {
+		if row.Verdict.Quantum == model.QuantumVulnerable {
 			v.Summary.FileQuantum++
 		}
-		switch row.Classical.Class {
-		case "bad":
+		switch row.Verdict.Classical {
+		case model.ClassicalWeak:
 			v.Summary.FileWeak++
-		case "warn":
+		case model.ClassicalLegacy:
 			v.Summary.FileLegacy++
 		}
-		switch row.ExpiryTag.Class {
-		case "bad":
+		switch row.ExpiryState {
+		case expiryExpired:
 			v.Summary.Expired++
-		case "warn":
+		case expiryExpiring:
 			v.Summary.Expiring++
 		}
 	}

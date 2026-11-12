@@ -20,6 +20,7 @@ type valueRow struct {
 	Kx, Au, Enc string // 暗号スイートの場合だけ
 	Quantum     badge
 	Classical   badge
+	Verdict     model.Verdict // 評価の値（数えるときは、表示名ではなくこちらを見る）
 	HasVerdict  bool
 	VulnKex     bool // 鍵交換が量子計算機に弱い
 	VulnSig     bool // 署名・認証が量子計算機に弱い
@@ -73,16 +74,18 @@ type serviceView struct {
 }
 
 type assetRow struct {
-	Kind      string
-	Name      string
-	Algorithm string
-	Expiry    string
-	ExpiryTag badge
-	Path      string
-	Activity  string
-	Evidence  []string
-	Quantum   badge
-	Classical badge
+	Kind        string
+	Name        string
+	Algorithm   string
+	Expiry      string
+	ExpiryTag   badge
+	Path        string
+	Activity    string
+	Evidence    []string
+	Quantum     badge
+	Classical   badge
+	Verdict     model.Verdict // 評価の値（数えるときは、表示名ではなくこちらを見る）
+	ExpiryState string        // expired | expiring | 空（スキャンした時点を基準にした期限の状態）
 }
 
 type storeGroup struct {
@@ -203,7 +206,10 @@ type page struct {
 func tally(rows []valueRow) summaryView {
 	var t summaryView
 	for _, r := range rows {
-		if r.VulnKex || r.VulnSig || r.Quantum.Class == "bad" {
+		if !r.HasVerdict {
+			continue
+		}
+		if r.VulnKex || r.VulnSig || r.Verdict.Quantum == model.QuantumVulnerable {
 			t.Quantum++
 		}
 		if r.VulnKex {
@@ -212,19 +218,19 @@ func tally(rows []valueRow) summaryView {
 		if r.VulnSig {
 			t.Sig++
 		}
-		if r.Quantum.Label == quantumBadge["reduced"].Label {
+		switch r.Verdict.Quantum {
+		case model.QuantumReduced:
 			t.Reduced++
-		}
-		if r.Quantum.Label == quantumBadge["hybrid"].Label {
+		case model.QuantumHybrid:
 			t.Hybrid++
 		}
-		switch r.Classical.Class {
-		case "bad":
+		switch r.Verdict.Classical {
+		case model.ClassicalWeak:
 			t.Weak++
-		case "warn":
+		case model.ClassicalLegacy:
 			t.Legacy++
 		}
-		if r.HasVerdict && (r.Quantum.Class == "unk" || r.Classical.Class == "unk") {
+		if r.Verdict.Quantum == model.QuantumUnknown || r.Verdict.Classical == model.ClassicalUnknown {
 			t.Unknown++
 		}
 	}

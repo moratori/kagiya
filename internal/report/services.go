@@ -8,7 +8,6 @@ import (
 
 	"kagiya/internal/assess"
 	"kagiya/internal/model"
-	"kagiya/internal/ruleset"
 )
 
 // values は、名前の一覧を判定つきの行にする。
@@ -25,10 +24,11 @@ func (b *builder) values(parameter string, names []string) (rows []valueRow, rea
 				}
 			}
 			if ok || scheme != assess.SchemeTLSProtocol { // プロトコルの欄には版の名前でない語（all など）も入るので、当たらないものは判定を出さない
-				row.HasVerdict = true
+				row.HasVerdict, row.Verdict = true, vd
 				row.Quantum, row.Classical = quantumBadge[vd.Quantum], classicalBadge[vd.Classical]
 				if scheme == assess.SchemeTLSProtocol {
-					row.Quantum = badge{}
+					// プロトコルの版は、現在の計算機に対する評価だけを持つ
+					row.Quantum, row.Verdict.Quantum = badge{}, ""
 				}
 				for _, id := range vd.Rules {
 					b.used[id] = true
@@ -36,8 +36,8 @@ func (b *builder) values(parameter string, names []string) (rows []valueRow, rea
 						seen[id] = true
 						reasons = append(reasons, id)
 					}
-					if r, found := b.policyRule(id); found && r.Quantum == "vulnerable" {
-						if r.Role == "key-establishment" {
+					if r, found := b.rules[id]; found && r.Quantum == model.QuantumVulnerable {
+						if r.Role == model.RoleKeyEstablishment {
 							row.VulnKex = true
 						} else {
 							row.VulnSig = true
@@ -49,15 +49,6 @@ func (b *builder) values(parameter string, names []string) (rows []valueRow, rea
 		rows = append(rows, row)
 	}
 	return rows, reasons
-}
-
-func (b *builder) policyRule(id string) (ruleset.PolicyRule, bool) {
-	for _, r := range b.ev.Policy().Rules {
-		if r.ID == id {
-			return r, true
-		}
-	}
-	return ruleset.PolicyRule{}, false
 }
 
 func (b *builder) reasonViews(ids []string) []ruleView {
@@ -197,7 +188,7 @@ func (b *builder) services(v *view) {
 				for _, r := range rows {
 					if r.HasVerdict {
 						st.Badges = append(st.Badges, r)
-						if r.Classical.Class == "bad" {
+						if r.Verdict.Classical == model.ClassicalWeak {
 							v.Summary.Weak++
 						}
 					}

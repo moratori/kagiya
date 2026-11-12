@@ -44,6 +44,7 @@ type builder struct {
 	settings map[string]model.Setting
 	assets   map[string]model.Asset
 	used     map[string]bool
+	rules    map[string]ruleset.PolicyRule // 評価ポリシーの規則（ID から引く）
 }
 
 // Render は、1 ホスト分の結果からレポートを書き出す。
@@ -82,8 +83,12 @@ func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy
 			"confidence":  "確度「高」は、導入されている版そのもので実測した表から求めた値。「中」は、近い版の実測を当てはめたか、証明書などを読めずに絞り込みの一部をしていない値",
 		}}
 	used := map[string]bool{}
+	byID := make(map[string]ruleset.PolicyRule, len(p.Rules))
+	for _, r := range p.Rules {
+		byID[r.ID] = r
+	}
 	for i, inv := range sorted {
-		b := &builder{inv: inv, ev: ev, a: ev.Assess(inv), rs: rs, settings: map[string]model.Setting{}, assets: map[string]model.Asset{}, used: used}
+		b := &builder{inv: inv, ev: ev, a: ev.Assess(inv), rs: rs, settings: map[string]model.Setting{}, assets: map[string]model.Asset{}, used: used, rules: byID}
 		for _, s := range inv.Settings {
 			b.settings[s.ID] = s
 		}
