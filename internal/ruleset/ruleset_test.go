@@ -592,3 +592,47 @@ func TestBuiltinWebServerDefaults(t *testing.T) {
 		t.Errorf("apache2 on Ubuntu 24.04 = %v %v", v, ok)
 	}
 }
+
+// アプリの既定値表の補間: パッケージ名・上流の版・ディストリの系列が同じで、リリースだけが違う版は、実測した版の表で代用する。
+func TestAppDefaultsInterpolation(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 実測した版そのもの
+	v, measured, src, exact, ok := rs.AppDefaultsFor("openssh", "openssh-server", "1:9.6p1-3ubuntu13.20")
+	if !ok || !exact || measured != "1:9.6p1-3ubuntu13.20" || len(v["ssh.kex-algorithms"]) == 0 || !strings.Contains(src.Image, "@sha256:") {
+		t.Errorf("exact: ok=%v exact=%v measured=%s", ok, exact, measured)
+	}
+	for _, c := range []struct{ app, pkg, version, want string }{
+		{"openssh", "openssh-server", "1:9.6p1-3ubuntu13.21", "1:9.6p1-3ubuntu13.20"},
+		{"openssh", "openssh-server", "9.9p1-17.el9_9", "9.9p1-16.el9_9"}, // 同じ上流版でも、RHEL 10 の表ではなく RHEL 9 の表
+		{"openssh", "openssh-server", "9.9p1-40.el10_4", "9.9p1-33.el10_3"},
+		{"openssh", "openssh-server", "1:10.0p1-7+deb13u5", "1:10.0p1-7+deb13u4"},
+		{"nginx", "nginx-core", "1.20.1-33.el9_9.1", "1.20.1-32.el9_9.1"},
+	} {
+		v, measured, _, exact, ok := rs.AppDefaultsFor(c.app, c.pkg, c.version)
+		if !ok || exact || measured != c.want || len(v) == 0 {
+			t.Errorf("%s %s: ok=%v exact=%v measured=%s, want %s", c.pkg, c.version, ok, exact, measured, c.want)
+		}
+	}
+	// 代用しない: 上流の版が違う、ディストリの系列が違う・分からない、パッケージ名やアプリが違う
+	for _, c := range [][3]string{
+		{"openssh", "openssh-server", "9.8p1-16.el9_9"},
+		{"openssh", "openssh-server", "9.9p1-1.el11"},
+		{"openssh", "openssh-server", "9.9p1-1.fc42"},
+		{"openssh", "openssh-server", "1:9.6p1-1~deb13u1"},
+		{"openssh", "openssh-server", "1:99.9p9-1custom"},
+		{"openssh", "openssh", "9.9p1-17.el9_9"},
+		{"nginx", "openssh-server", "9.9p1-17.el9_9"},
+		{"openssh", "openssh-server", ""},
+	} {
+		if _, _, _, _, ok := rs.AppDefaultsFor(c[0], c[1], c[2]); ok {
+			t.Errorf("%v must not match", c)
+		}
+	}
+	// AppDefaults は、従来どおり完全に一致する版だけを返す
+	if _, _, ok := rs.AppDefaults("openssh", "openssh-server", "1:9.6p1-3ubuntu13.21"); ok {
+		t.Error("AppDefaults must stay exact")
+	}
+}

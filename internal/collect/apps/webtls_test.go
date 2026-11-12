@@ -366,3 +366,44 @@ func TestApacheEffectiveCiphersUbuntu2404(t *testing.T) {
 		}
 	}
 }
+
+// 既定値表の補間（sshd）: リリースだけが実測した版と違う場合、実測した版の既定値で求め、確度を一段下げて、その旨を残す。
+func TestEffectiveInterpolatedDefaults(t *testing.T) {
+	_, inv := collect(t, "ubuntu2404", withPackage("1:9.6p1-3ubuntu13.99", func(p string, b *inventory.Builder) {
+		os.WriteFile(p+"/etc/ssh/sshd_config", []byte("Ciphers aes256-ctr\nMACs ^hmac-sha2-512\n"), 0o644)
+	}))
+	// 記載のない項目: 実測した版（13.20）の既定値
+	e := effectiveValue(t, inv, "ssh.kex-algorithms")
+	if e.Status != "resolved" || strings.Join(e.Values, ",") != ubuntu2404DefaultKex || e.Confidence != "medium" {
+		t.Errorf("kex = %+v", e)
+	}
+	if len(e.Notes) != 1 || !strings.Contains(e.Notes[0], ubuntu2404Version) || !strings.Contains(e.Notes[0], "1:9.6p1-3ubuntu13.99") {
+		t.Errorf("notes must name both the measured and the installed version: %v", e.Notes)
+	}
+	if s := e.Steps[0].Source; s == nil || s.Version != ubuntu2404Version {
+		t.Errorf("the source must be the measured version: %+v", e.Steps[0].Source)
+	}
+	// 既定の一覧を加工する項目も、補間した既定値を使うので確度が下がる
+	if m := effectiveValue(t, inv, "ssh.macs"); m.Status != "resolved" || strings.Join(m.Values, ",") != ubuntu2404ModifiedMACs || m.Confidence != "medium" || len(m.Notes) != 1 {
+		t.Errorf("macs = %+v", m)
+	}
+	// 一覧が明記されている項目は、既定値を使わないので確度は下がらない
+	if c := effectiveValue(t, inv, "ssh.ciphers"); c.Status != "resolved" || strings.Join(c.Values, ",") != "aes256-ctr" || c.Confidence != "high" || len(c.Notes) != 0 {
+		t.Errorf("ciphers = %+v", c)
+	}
+}
+
+// 既定値表の補間（nginx）: アプリのリリースだけが違う場合も同じ扱い。
+func TestNginxEffectiveInterpolatedAppDefaults(t *testing.T) {
+	prepare := rhel9Web(t, "3.5.9", "1.el9_9", map[string]string{
+		nginxConf: "server { listen 127.0.0.1:8443 ssl; server_name default.lab.test; " + nginxCerts + " }\n"})
+	_, inv := collect(t, "rhel9", func(p string, b *inventory.Builder) {
+		b.AddPackage(model.Package{Manager: "rpm", Name: "nginx-core", Epoch: 2, Version: "1.20.1", Release: "33.el9_9.1", Role: "tls-server"})
+		prepare(p, b) // 実測した版（32.el9_9.1）は後から足されるが、導入されている版として先に見つかるのは 33
+	})
+	e := eff(t, inv, "svc:nginx", "tls.ciphers", "server default.lab.test")
+	checkSuites(t, e, 38, "8eb6eb3b8003ea16", "medium")
+	if !strings.Contains(strings.Join(e.Notes, " "), "1.20.1-32.el9_9.1") || !strings.Contains(strings.Join(e.Notes, " "), "1.20.1-33.el9_9.1") {
+		t.Errorf("notes = %v", e.Notes)
+	}
+}
