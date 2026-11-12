@@ -37,22 +37,28 @@ const (
 )
 
 // appDefaults は、導入されているパッケージ版に対応するアプリの既定値と、その出典を返す。
-// 完全に一致する版の表だけを使う。なければ defs は nil で、reason に理由が入る。
-func (c *Collector) appDefaults(app ruleset.AppRule) (defs map[string][]string, prov *model.Provenance, reason string) {
-	reason = "no package information for this application; the default values are unknown"
+//
+// 実測した版そのものの表がなければ、パッケージ名・上流の版・ディストリの系列が同じ実測版の表で補間する。
+// その場合は note に、実測した版と導入されている版が入る（呼び出し側は結果に残し、確度を下げる）。
+// どちらもなければ defs は nil で、reason に理由が入る。
+func (c *Collector) appDefaults(app ruleset.AppRule) (defs map[string][]string, prov *model.Provenance, note, reason string) {
 	for _, pat := range app.Packages {
 		for _, p := range c.Builder.Packages() {
 			if !ruleset.MatchName([]string{pat}, p.Name) {
 				continue
 			}
 			version := packageVersion(p)
-			if d, src, ok := c.Rules.AppDefaults(app.ID, p.Name, version); ok {
-				return d, &model.Provenance{Image: src.Image, OS: src.OS, Package: p.Name, Version: version}, ""
+			d, measured, src, exact, ok := c.Rules.AppDefaultsFor(app.ID, p.Name, version)
+			if !ok {
+				return nil, nil, "", "no default values are recorded for " + p.Name + " " + version
 			}
-			return nil, nil, "no default values are recorded for " + p.Name + " " + version
+			if !exact {
+				note = "the default values measured on " + p.Name + " " + measured + " are used for the installed " + p.Name + " " + version + " (same upstream version and distribution, different release)"
+			}
+			return d, &model.Provenance{Image: src.Image, OS: src.OS, Package: p.Name, Version: measured}, note, ""
 		}
 	}
-	return nil, nil, reason
+	return nil, nil, "", "no package information for this application; the default values are unknown"
 }
 
 func packageVersion(p model.Package) string {
@@ -201,7 +207,7 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 		return
 	}
 	table, libProv, libNote, noTable := c.cipherTable("openssl")
-	defs, appProv, noDefaults := c.appDefaults(app)
+	defs, appProv, appNote, noDefaults := c.appDefaults(app)
 
 	// システムの openssl.cnf の既定（RHEL 系では暗号ポリシーが生成した内容）
 	sysCipher, sysTLS13 := "", ""
@@ -250,6 +256,8 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			in.SystemTLS13 = strings.Split(sysTLS13, ":")
 		}
 
+		usedAppDefault := false // アプリの既定値表の値を使ったか（補間した表なら、確度を下げる）
+
 		// 1. 暗号文字列: 設定の記載、なければアプリの既定
 		first := model.ResolutionStep{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, paramCiphers, sc.cipherFile, sc.cipherLine)}
 		in.CipherString = sc.cipher
@@ -265,6 +273,7 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			}
 			in.CipherString = strings.Join(def, ",")
 			first = model.ResolutionStep{Layer: "app-default", Op: "default", Source: appProv}
+			usedAppDefault = true
 		}
 		e.Steps = []model.ResolutionStep{first}
 		if table.ProfileSystem != "" && strings.HasPrefix(in.CipherString, "PROFILE=SYSTEM") {
@@ -283,8 +292,10 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			in.DHE, in.DHEKnown = true, true
 		case v == "builtin":
 			in.DHE, in.DHEKnown, dheLayer, dheSource = true, true, "app-default", appProv
+			usedAppDefault = true
 		case v == "disabled":
 			in.DHE, in.DHEKnown, dheLayer, dheSource = false, true, "app-default", appProv
+			usedAppDefault = true
 		}
 
 		out, err := tlseffective.Resolve(in)
@@ -313,6 +324,9 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 		}
 		if libNote != "" {
 			notes = append(notes, libNote)
+		}
+		if appNote != "" && usedAppDefault {
+			notes = append(notes, appNote)
 		}
 		for _, u := range out.Unfiltered {
 			switch u {

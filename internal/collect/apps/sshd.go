@@ -163,10 +163,11 @@ func (c *Collector) sshdCommandLine(u unitInfo) []directive {
 //   - 「+追加」「-削除」「^先頭へ」の書き方なら、既定の一覧を加工する。
 //   - 記載がなければ、既定の一覧がそのまま実効値。
 //
-// 既定の一覧は、導入されているパッケージ版と完全に一致する既定値表から得る。
-// 一致する表がなければ「不明」とし、理由を残す（近い版の値で代用しない）。
+// 既定の一覧は、導入されているパッケージ版の既定値表から得る。実測した版そのものの表がなければ、
+// パッケージ名・上流の版・ディストリの系列が同じ実測版の表で補間し、確度を一段下げて、その旨を注記に残す。
+// それもなければ「不明」とし、理由を残す（上流の版やディストリが違う表では代用しない）。
 func (c *Collector) sshdEffective(app ruleset.AppRule, svc model.Service) {
-	defs, prov, noDefaults := c.appDefaults(app)
+	defs, prov, defNote, noDefaults := c.appDefaults(app)
 
 	configured := map[string]*model.Setting{}
 	settings := c.Builder.Settings()
@@ -213,6 +214,15 @@ func (c *Collector) sshdEffective(app ruleset.AppRule, svc model.Service) {
 			}
 			e.Values = values
 			e.Steps = []model.ResolutionStep{defaultStep, {Layer: conf.Layer, Op: op, Setting: conf.ID}}
+		}
+		// 補間した既定値を使った項目は、確度を一段下げる（一覧が明記されている項目は既定値を使わないので下げない）
+		if defNote != "" && e.Status == "resolved" {
+			for _, st := range e.Steps {
+				if st.Layer == "app-default" {
+					e.Confidence, e.Notes = "medium", []string{defNote}
+					break
+				}
+			}
 		}
 		c.Builder.AddEffective(e)
 	}

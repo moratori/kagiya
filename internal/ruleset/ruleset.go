@@ -818,3 +818,29 @@ func (rs *RuleSet) AppDefaults(app, pkg, version string) (map[string][]string, S
 	}
 	return nil, Source{}, false
 }
+
+// AppDefaultsFor は、アプリのパッケージ版に対応する既定値と、実測した版、その出典を返す。
+//
+//   - 実測した版そのものがあれば、それを返す（exact = true）。
+//   - なければ、パッケージ名・上流の版・ディストリの系列がすべて同じ実測版の既定値で補間する（exact = false）。
+//     リリース番号だけが違う版（エラータ）を想定している。呼び出し側は、補間であることを結果に残し、確度を下げること。
+//   - それ以外は返さない（同じ上流版でもディストリの系列が違えば既定値は違い得るので、代用しない）。
+func (rs *RuleSet) AppDefaultsFor(app, pkg, version string) (values map[string][]string, measured string, src Source, exact, ok bool) {
+	if version == "" {
+		return nil, "", Source{}, false, false
+	}
+	if v, s, found := rs.AppDefaults(app, pkg, version); found {
+		return v, version, s, true, true
+	}
+	up, tag := upstreamOf(version), distroTag(version)
+	if tag == "" {
+		return nil, "", Source{}, false, false
+	}
+	for _, d := range rs.Defaults {
+		if d.App == app && d.Package == pkg && upstreamOf(d.Version) == up && distroTag(d.Version) == tag {
+			v, s, _ := rs.AppDefaults(app, pkg, d.Version)
+			return v, d.Version, s, false, true
+		}
+	}
+	return nil, "", Source{}, false, false
+}
