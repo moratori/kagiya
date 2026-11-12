@@ -103,3 +103,67 @@ func (f *File) ReadAt(p []byte, off int64) (int, error) {
 }
 
 func (f *File) Close() error { return f.f.Close() }
+
+const maxLinkHops = 40
+
+// Resolve は、シンボリックリンクを含み得るパスを、リンクのない実際のパスに直す。
+// OS に一括で解決させず、1要素ずつ進める。各要素は触れる前にマウント表で判定するので、
+// リンクの行き先が読んではならない場所であれば、そこには触れずにスキップを記録して ErrSkipped を返す。
+func (o *Opener) Resolve(path string) (string, error) {
+	if !isCleanAbs(path) {
+		return "", fmt.Errorf("%q: %w", path, errNotPlain)
+	}
+	rest := strings.Split(strings.TrimPrefix(path, "/"), "/")
+	cur := "" // 解決済みの部分（ルートは空文字列で表す）
+	hops := 0
+	for len(rest) > 0 {
+		seg := rest[0]
+		rest = rest[1:]
+		switch seg {
+		case "", ".":
+			continue
+		case "..":
+			if i := strings.LastIndexByte(cur, '/'); i >= 0 {
+				cur = cur[:i]
+			}
+			continue
+		}
+		next := cur + "/" + seg
+		if o.Mounts != nil {
+			if v, m := o.Mounts.Check(next); v != Allow {
+				return "", o.skip(path, v.Reason(), m.FSType)
+			}
+		}
+		fi, err := os.Lstat(next)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			return "", fs.ErrNotExist
+		case errors.Is(err, fs.ErrPermission):
+			return "", o.skip(path, "permission-denied", "")
+		case err != nil:
+			return "", err
+		}
+		if fi.Mode()&fs.ModeSymlink == 0 {
+			cur = next
+			continue
+		}
+		if hops++; hops > maxLinkHops {
+			return "", fmt.Errorf("%q: too many symbolic links", path)
+		}
+		target, err := os.Readlink(next)
+		if err != nil || target == "" || len(target) > 4096 {
+			return "", fmt.Errorf("%q: %w", path, errNotPlain)
+		}
+		if strings.HasPrefix(target, "/") {
+			cur = "" // 絶対パスのリンク: ルートからやり直す
+		}
+		rest = append(strings.Split(target, "/"), rest...)
+		if len(rest) > 4096 {
+			return "", fmt.Errorf("%q: %w", path, errNotPlain)
+		}
+	}
+	if cur == "" {
+		return "/", nil
+	}
+	return cur, nil
+}
