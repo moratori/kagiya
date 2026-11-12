@@ -34,6 +34,8 @@ jobs:
           - { name: almalinux-9, image: "almalinux:9" }
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: イメージを取得
         run: |
           docker pull -q "${{ matrix.image }}"

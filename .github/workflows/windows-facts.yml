@@ -18,6 +18,8 @@ jobs:
         os: [windows-2022, windows-2025]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: 事実を採取
         shell: powershell
         run: ./ci/windows-facts.ps1 -Out "$env:RUNNER_TEMP\windows-facts"
