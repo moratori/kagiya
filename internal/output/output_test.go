@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -158,4 +160,108 @@ func TestAbortRemovesPartial(t *testing.T) {
 	if len(ents) != 0 {
 		t.Errorf("leftover files after Abort: %v", ents)
 	}
+}
+
+func TestEnsureDirRejectsGroupWritable(t *testing.T) {
+	d := filepath.Join(tmp(t), "gw")
+	os.Mkdir(d, 0o770)
+	os.Chmod(d, 0o770)
+	if err := EnsureDir(d); err == nil {
+		t.Error("group-writable directory must be rejected")
+	}
+}
+
+// ハードリンクを作れないファイルシステム（vfat、exfat など。USB メモリでの回収で使われる）では、
+// 上書きしない改名で確定する。
+func TestCommitFallsBackToExclusiveRename(t *testing.T) {
+	d := tmp(t)
+	restore := stubFinalize(
+		func(old, new string) error { return &os.LinkError{Op: "link", Old: old, New: new, Err: syscall.EPERM} },
+		func(old, new string) error {
+			if _, err := os.Lstat(new); err == nil {
+				return fs.ErrExist
+			}
+			return os.Rename(old, new)
+		})
+	defer restore()
+	w, err := Create(d, "result.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.Write([]byte("data"))
+	if err := w.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(d, "result.json")); string(b) != "data" {
+		t.Errorf("content = %q", b)
+	}
+	if ents, _ := os.ReadDir(d); len(ents) != 1 {
+		t.Errorf("leftover files: %v", ents)
+	}
+}
+
+// どの方法でも確定できない場合、書いた内容を捨てない。一時ファイルを残し、その場所をエラーで知らせる。
+func TestCommitKeepsPartialWhenItCannotFinalize(t *testing.T) {
+	d := tmp(t)
+	restore := stubFinalize(
+		func(old, new string) error { return &os.LinkError{Op: "link", Old: old, New: new, Err: syscall.EPERM} },
+		func(old, new string) error { return errors.ErrUnsupported })
+	defer restore()
+	w, _ := Create(d, "result.json")
+	w.Write([]byte("precious"))
+	err := w.Commit()
+	if err == nil {
+		t.Fatal("Commit must fail")
+	}
+	partial := filepath.Join(d, "result.json.partial")
+	if !strings.Contains(err.Error(), partial) {
+		t.Errorf("the error must name the kept file: %v", err)
+	}
+	if b, _ := os.ReadFile(partial); string(b) != "precious" {
+		t.Errorf("partial content = %q; the result must not be lost", b)
+	}
+}
+
+// 既に同じ名前のファイルがある場合は、上書きせず、一時ファイルも残さない。
+func TestCommitFallbackNeverOverwrites(t *testing.T) {
+	d := tmp(t)
+	restore := stubFinalize(
+		func(old, new string) error { return &os.LinkError{Op: "link", Old: old, New: new, Err: syscall.EPERM} },
+		func(old, new string) error { return fs.ErrExist })
+	defer restore()
+	w, _ := Create(d, "result.json")
+	w.Write([]byte("new"))
+	if err := w.Commit(); !errors.Is(err, fs.ErrExist) {
+		t.Errorf("err = %v, want fs.ErrExist", err)
+	}
+	if ents, _ := os.ReadDir(d); len(ents) != 0 {
+		t.Errorf("leftover files: %v", ents)
+	}
+}
+
+// 出力先でファイルを確定できるかを、スキャンの前に確かめる。
+func TestProbe(t *testing.T) {
+	d := tmp(t)
+	if err := Probe(d); err != nil {
+		t.Fatalf("Probe on a normal directory: %v", err)
+	}
+	if ents, _ := os.ReadDir(d); len(ents) != 0 {
+		t.Errorf("Probe left files behind: %v", ents)
+	}
+	restore := stubFinalize(
+		func(old, new string) error { return &os.LinkError{Op: "link", Old: old, New: new, Err: syscall.EPERM} },
+		func(old, new string) error { return errors.ErrUnsupported })
+	defer restore()
+	if err := Probe(d); err == nil {
+		t.Error("Probe must fail when files cannot be finalized")
+	}
+	if ents, _ := os.ReadDir(d); len(ents) != 0 {
+		t.Errorf("failed Probe left files behind: %v", ents)
+	}
+}
+
+func stubFinalize(link, rename func(old, new string) error) func() {
+	l, r := linkFile, renameNoReplace
+	linkFile, renameNoReplace = link, rename
+	return func() { linkFile, renameNoReplace = l, r }
 }

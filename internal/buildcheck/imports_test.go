@@ -21,35 +21,59 @@ var restricted = map[string][]string{
 	"os/signal":     {"internal/cli"},
 }
 
+// 任意のシステムコールを呼べる手段。vendor を含め、internal/platform 以外では使わせない。
+var lowLevel = map[string]bool{"syscall": true, "unsafe": true}
+
 func TestImportPolicy(t *testing.T) {
 	root := filepath.Join("..", "..")
 	fset := token.NewFileSet()
 	checked := 0
-	for _, top := range []string{"cmd", "internal"} {
+	for _, top := range []string{"cmd", "internal", "rules", "vendor"} {
 		err := filepath.WalkDir(filepath.Join(root, top), func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
-			if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			if d.IsDir() {
 				return nil
 			}
 			rel, _ := filepath.Rel(root, filepath.Dir(path))
 			rel = filepath.ToSlash(rel)
-			f, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly|parser.ParseComments)
+			// アセンブリやオブジェクトファイルは、Go の検査をすり抜けて任意の命令を実行できる。
+			if ext := filepath.Ext(path); (ext == ".s" || ext == ".S" || ext == ".syso") && rel != "internal/platform" {
+				t.Errorf("%s: assembly and object files are only allowed in internal/platform", path)
+			}
+			if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
+			// ファイル全体を解析する（import より後ろにあるコメントの指示も見るため）。
+			f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 			if err != nil {
 				return err
 			}
 			checked++
 			for _, cg := range f.Comments {
-				if strings.Contains(cg.Text(), "go:linkname") && rel != "internal/platform" {
-					t.Errorf("%s: go:linkname is only allowed in internal/platform", path)
+				for _, c := range cg.List {
+					if strings.HasPrefix(c.Text, "//go:linkname") && rel != "internal/platform" {
+						t.Errorf("%s: go:linkname is only allowed in internal/platform", fset.Position(c.Pos()))
+					}
 				}
 			}
+			vendored := strings.HasPrefix(rel, "vendor/") || rel == "vendor"
 			for _, imp := range f.Imports {
 				p, _ := strconv.Unquote(imp.Path.Value)
 				// lab/ は検証専用。本体から参照しない。
 				if p == "kagiya/lab" || strings.HasPrefix(p, "kagiya/lab/") {
 					t.Errorf("%s: the tool must not import lab code (%s)", path, p)
+				}
+				if p == "C" {
+					t.Errorf("%s: cgo is not allowed", path)
+				}
+				if vendored {
+					// 外部の依存は、任意のシステムコールを呼べる手段を使っていないこと（ファイルを扱う規則は本体のコードが対象）。
+					if lowLevel[p] {
+						t.Errorf("%s: vendored code must not import %q", path, p)
+					}
+					continue
 				}
 				allowed, isRestricted := restricted[p]
 				if !isRestricted {

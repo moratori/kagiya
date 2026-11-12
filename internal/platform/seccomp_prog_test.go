@@ -92,17 +92,23 @@ func TestSeccompFilterARM64(t *testing.T) {
 	}
 }
 
-// 実際に適用する拒否リストに、通信・プロセス起動・他プロセス操作の主要なものが含まれること。
+// 実際に適用する拒否リストに、通信・プロセス起動・他プロセス操作・マウント・鍵保管庫の操作が含まれること。
+// 番号は、カーネルのヘッダ（Debian 13 の linux-libc-dev 6.12.116-1、amd64 と arm64）から採取して確認した。
 func TestDeniedSyscallListsCoverEssentials(t *testing.T) {
 	want := map[string]map[string]uint32{
 		"amd64": {"socket": 41, "connect": 42, "accept": 43, "sendto": 44, "sendmsg": 46, "bind": 49, "listen": 50,
 			"socketpair": 53, "execve": 59, "ptrace": 101, "accept4": 288, "sendmmsg": 307,
 			"process_vm_readv": 310, "process_vm_writev": 311, "execveat": 322,
-			"io_uring_setup": 425, "io_uring_enter": 426, "io_uring_register": 427},
+			"io_uring_setup": 425, "io_uring_enter": 426, "io_uring_register": 427,
+			// マウント操作（ネットワークファイルシステムのマウントを含む）とカーネルの鍵保管庫
+			"mount": 165, "umount2": 166, "open_tree": 428, "move_mount": 429, "fsopen": 430, "fsconfig": 431, "fsmount": 432,
+			"add_key": 248, "request_key": 249, "keyctl": 250},
 		"arm64": {"socket": 198, "socketpair": 199, "bind": 200, "listen": 201, "accept": 202, "connect": 203,
 			"sendto": 206, "sendmsg": 211, "execve": 221, "accept4": 242, "ptrace": 117, "sendmmsg": 269,
 			"process_vm_readv": 270, "process_vm_writev": 271, "execveat": 281,
-			"io_uring_setup": 425, "io_uring_enter": 426, "io_uring_register": 427},
+			"io_uring_setup": 425, "io_uring_enter": 426, "io_uring_register": 427,
+			"mount": 40, "umount2": 39, "open_tree": 428, "move_mount": 429, "fsopen": 430, "fsconfig": 431, "fsmount": 432,
+			"add_key": 217, "request_key": 218, "keyctl": 219},
 	}
 	for arch, calls := range want {
 		list := deniedSyscalls(arch)
