@@ -4,6 +4,30 @@ app:
   binaries: ["/usr/sbin/nginx"]
   version_pattern: 'nginx/(\d+\.\d+\.\d+)'
   packages: ["nginx-core", "nginx"]
+  grammar: nginx
+  config_files: ["/etc/nginx/nginx.conf"]
+  units: ["nginx.service"]
+  direction: inbound
+  # 記録する設定項目。ssl_protocols と ssl_prefer_server_ciphers は Ubuntu 24.04 の既定の nginx.conf に、
+  # ssl_ciphers・ssl_certificate・ssl_certificate_key は RHEL 9.9 の既定の nginx.conf の設定例（コメント）にある。
+  # それ以外は nginx の公式文書（ngx_http_ssl_module、ngx_http_proxy_module）の項目名。
+  # proxy_ssl_* は上流（バックエンド）への接続の設定で、通信の方向は送信側。
+  directives:
+    - { name: listen, parameter: tls.listen, type: listen, multi: true }
+    - { name: ssl_protocols, parameter: tls.protocols, type: words }
+    - { name: ssl_ciphers, parameter: tls.ciphers, type: cipher-string }
+    - { name: ssl_ecdh_curve, parameter: tls.groups, type: colon-list }
+    - { name: ssl_prefer_server_ciphers, parameter: tls.prefer-server-ciphers, type: flag }
+    - { name: ssl_certificate, parameter: tls.certificate, type: path, multi: true }
+    - { name: ssl_certificate_key, parameter: tls.private-key, type: path, multi: true }
+    - { name: ssl_dhparam, parameter: tls.dh-params, type: path }
+    - { name: ssl_trusted_certificate, parameter: tls.trusted-certificates, type: path }
+    - { name: ssl_client_certificate, parameter: tls.client-ca, type: path }
+    - { name: proxy_ssl_protocols, parameter: tls.protocols, type: words, direction: outbound }
+    - { name: proxy_ssl_ciphers, parameter: tls.ciphers, type: cipher-string, direction: outbound }
+    - { name: proxy_ssl_certificate, parameter: tls.certificate, type: path, direction: outbound }
+    - { name: proxy_ssl_certificate_key, parameter: tls.private-key, type: path, direction: outbound }
+    - { name: proxy_ssl_trusted_certificate, parameter: tls.trusted-certificates, type: path, direction: outbound }
   sources:
     - image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
       os: "Red Hat Enterprise Linux 8.10 (Ootpa)"

@@ -1023,7 +1023,7 @@ OS ビルド別の既定値は、Microsoft の公式文書を出典とし、調�
 | リンクしている暗号ライブラリの特定（`DT_NEEDED`、版文字列） | 済 | ELF の動的セクションと `/etc/ld.so.cache` を直接読み、動的リンカと同じ順序（RPATH、RUNPATH、キャッシュ、既定のディレクトリ）で実体を特定する。版はライブラリ本体の版文字列から読む。アプリとライブラリの定義は `rules/apps/`、`rules/libraries/`（出典必須）。結果 JSON の `components` に記録 |
 | OS 暗号設定（暗号ポリシー、OpenSSL 設定など） | 済（一部） | システム全体の暗号ポリシー（選択されたポリシー名と適用済みのポリシー名）、カーネルの FIPS モード、OpenSSL のシステム既定の TLS 設定（設定ファイルの `.include` を辿って読む）。結果 JSON の `os_settings` に、値とその出どころ（ファイルと行）を記録する。GnuTLS、NSS、Kerberos、Java などは未対応 |
 | アプリの設定値と利用の確からしさ（OpenSSH） | 済 | sshd の設定ファイル（Include、Match を含む）と、systemd のユニット・環境ファイルから渡される起動引数を読み、明記された暗号関連の値を出どころとともに記録する。サービスの有効化状態（systemd の `*.wants` のリンク、マスク）から利用の確からしさを決め、設定から参照されている鍵にも付ける。通信の方向（受信／送信）を記録する。結果 JSON の `services`、`settings`、出現の `activity` |
-| nginx / Apache httpd の設定値 | 未 | |
+| nginx / Apache httpd の設定値 | 済 | nginx はブロックの入れ子と include、Apache はセクション・Include / IncludeOptional・`<IfModule>` の条件を辿り、明記された TLS 関連の値を、書かれている範囲（http 全体、どの server / VirtualHost）と通信の方向（受信／上流への送信）とともに記録する。Apache は TLS のモジュールが読み込まれているかも見る |
 
 パッケージ読み取りの実物確認（検証ラボ、arm64）: 各コンテナに OpenSSL・OpenSSH・nginx・Apache httpd を導入し、kagiya の結果を `rpm -qa` / `dpkg-query` の出力と突き合わせた。
 
@@ -1210,3 +1210,31 @@ ELF の読み取りは実物のバイナリ 30 個で `readelf -d` の出力と�
 | 7 | ワークフローのアクションをコミットのハッシュで固定する。`upload-artifact` は 4.4 以上にする | 採用。`actions/checkout` v4.4.0、`actions/setup-go` v5.6.0、`actions/upload-artifact` v4.6.2 のコミットに固定した（ハッシュは GitHub の API で2回取得して一致を確認） |
 
 実物での確認（検証ラボ、RHEL 8.10 と Ubuntu 16.04 のコンテナ）: 拒否対象を追加した seccomp を適用した状態で、スキャン・変換・ルールの書き出しと検証が最後まで動いた。上書きしない改名は、実際のカーネルで「新しい名前への改名は成功、既存の名前への改名は拒否」となることを確認した。
+
+### nginx・Apache httpd の設定値の実物確認（2026-11-12、検証ラボ、arm64）
+
+各コンテナで「導入しただけの状態」と「TLS を有効にした状態」の2通りを作り、kagiya が記録した設定値を実物と突き合わせた。
+nginx の正解は `nginx -T`（取り込みを展開した設定の全文）、Apache の正解は `-t -D DUMP_INCLUDES` が報告した取り込み済みファイルの内容。
+
+| イメージ | 場面 | nginx（kagiya / 正解） | Apache（kagiya / 正解） | サービスの有効化（nginx / Apache） |
+|---|---|---|---|---|
+| RHEL 8.10 | 導入のみ | 0 / 0 | 6 / 6 | 導入のみ / 導入のみ |
+| RHEL 8.10 | TLS 有効 | 8 / 8 | 6 / 6 | 同上 |
+| RHEL 9.9 | 導入のみ | 0 / 0 | 6 / 6 | 導入のみ / 導入のみ |
+| RHEL 9.9 | TLS 有効 | 8 / 8 | 6 / 6 | 同上 |
+| Ubuntu 16.04.7 | 導入のみ | 2 / 2 | 0 / 0 | 有効 / 導入のみ |
+| Ubuntu 16.04.7 | TLS 有効 | 10 / 10 | 5 /（照合手段なし） | 同上 |
+| Ubuntu 24.04.5 | 導入のみ | 2 / 2 | 0 / 0 | 有効 / 有効 |
+| Ubuntu 24.04.5 | TLS 有効 | 10 / 10 | 5 / 5 | 同上 |
+
+照合できた範囲では、項目・値とも全件一致した（イメージのダイジェストは他の実物確認と同じ）。
+
+分かったこと:
+
+- **RHEL 系の Apache は、導入しただけで TLS の設定が有効になっている**（`conf.d/ssl.conf` が取り込まれ、`SSLEngine on`、`SSLCipherSuite PROFILE=SYSTEM`）。一方、サービスは有効化されていない。
+- **Debian / Ubuntu の Apache は、導入しただけでは TLS が無効**。TLS のモジュールもサイトも `mods-enabled/`・`sites-enabled/` へのリンクで有効にする方式で、リンクがなければ設定ファイルが存在しても取り込まれない。ポート 443 の待ち受けも `<IfModule ssl_module>` の中にある。
+- **Ubuntu の nginx は、導入しただけで `ssl_protocols TLSv1 TLSv1.1 TLSv1.2 ...` が http 全体に書かれている**（16.04 は TLSv1.2 まで、24.04 は TLSv1.3 まで）。RHEL 系の既定の設定には TLS の記載がない。
+- **パッケージを導入したときにサービスが有効化されるかは、ディストリで違う**。RHEL 系は nginx も httpd も有効化されず、Ubuntu は nginx が有効化される。「入っているだけ」と「起動するよう設定されている」の区別が、実物でも分かれることを確認した。
+- 照合の正解側の制約: RHEL 8.10 の「導入のみ」では、証明書ファイルがまだ無いため `httpd -M` 自体が失敗する（kagiya は設定ファイルからモジュールの読み込みを読むので影響を受けない）。Ubuntu 16.04 の Apache 2.4.18 は `DUMP_INCLUDES` に対応しておらず、取り込み済みファイルの一覧が得られなかった（`-S` と `-M` の表示とは整合）。
+
+これで Phase 1b（Linux の事実収集）の項目は一通り実装した。記録しているのは「設定に明記された値」までで、記載のない項目の既定値の解決（実効値）は Phase 1c で行う。

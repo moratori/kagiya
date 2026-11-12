@@ -53,6 +53,18 @@ func link(t *testing.T, prefix, target, linkPath string) {
 	}
 }
 
+// service は、指定したアプリのサービスを返す（同じテストデータに複数のアプリの設定が入っているため）。
+func service(t *testing.T, inv *model.Inventory, app string) model.Service {
+	t.Helper()
+	for _, s := range inv.Services {
+		if s.App == app {
+			return s
+		}
+	}
+	t.Fatalf("service %s not found in %+v", app, inv.Services)
+	return model.Service{}
+}
+
 func find(inv *model.Inventory, param string) []model.Setting {
 	var out []model.Setting
 	for _, s := range inv.Settings {
@@ -86,7 +98,7 @@ func TestOpenSSHRHEL8(t *testing.T) {
 	if len(inv.Services) != 1 {
 		t.Fatalf("services = %+v", inv.Services)
 	}
-	svc := inv.Services[0]
+	svc := service(t, inv, "openssh")
 	if svc.App != "openssh" || svc.Activity.Level != "enabled" || len(svc.Activity.Evidence) == 0 ||
 		svc.Activity.Evidence[0].Path != prefix+"/etc/systemd/system/multi-user.target.wants/sshd.service" {
 		t.Errorf("service = %+v", svc)
@@ -132,8 +144,8 @@ func TestOpenSSHRHEL8ConfigIsShadowedByPolicy(t *testing.T) {
 		}
 	}
 	// 有効化のリンクがなければ「導入のみ」
-	if inv.Services[0].Activity.Level != "installed" {
-		t.Errorf("activity = %+v", inv.Services[0].Activity)
+	if service(t, inv, "openssh").Activity.Level != "installed" {
+		t.Errorf("activity = %+v", service(t, inv, "openssh").Activity)
 	}
 }
 
@@ -169,8 +181,8 @@ func TestOpenSSHRHEL9(t *testing.T) {
 	if len(keys) != 3 || keys[0].Basis != "default" || keys[2].Values[0] != "/etc/ssh/ssh_host_ed25519_key" {
 		t.Errorf("host keys = %+v", keys)
 	}
-	if inv.Services[0].Activity.Level != "enabled" || len(inv.Skipped) != 0 {
-		t.Errorf("service = %+v skipped = %+v", inv.Services[0], inv.Skipped)
+	if service(t, inv, "openssh").Activity.Level != "enabled" || len(inv.Skipped) != 0 {
+		t.Errorf("service = %+v skipped = %+v", service(t, inv, "openssh"), inv.Skipped)
 	}
 }
 
@@ -179,12 +191,12 @@ func TestOpenSSHUbuntu2404(t *testing.T) {
 	prefix, inv := collect(t, "ubuntu2404", func(p string, b *inventory.Builder) {
 		link(t, p, "/lib/systemd/system/ssh.socket", "/etc/systemd/system/sockets.target.wants/ssh.socket")
 	})
-	svc := inv.Services[0]
+	svc := service(t, inv, "openssh")
 	if svc.Activity.Level != "enabled" || svc.Activity.Evidence[0].Path != prefix+"/etc/systemd/system/sockets.target.wants/ssh.socket" {
 		t.Errorf("service = %+v", svc)
 	}
 	for _, s := range inv.Settings {
-		if s.Parameter != "ssh.host-key" {
+		if s.Service == svc.ID && s.Parameter != "ssh.host-key" {
 			t.Errorf("unexpected setting %+v", s)
 		}
 	}
@@ -202,8 +214,8 @@ func TestOpenSSHUbuntu1604(t *testing.T) {
 	if len(keys) != 4 || keys[1].Values[0] != "/etc/ssh/ssh_host_dsa_key" || keys[1].Basis != "configured" {
 		t.Errorf("host keys = %+v", keys)
 	}
-	if inv.Services[0].Activity.Level != "enabled" {
-		t.Errorf("activity = %+v", inv.Services[0].Activity)
+	if service(t, inv, "openssh").Activity.Level != "enabled" {
+		t.Errorf("activity = %+v", service(t, inv, "openssh").Activity)
 	}
 }
 
@@ -222,8 +234,8 @@ func TestOpenSSHFirstValueWinsAndMatchScope(t *testing.T) {
 		t.Errorf("kex = %+v", k)
 	}
 	// 設定ファイルはあるがバイナリも有効化も見つからない
-	if inv.Services[0].Activity.Level != "unknown" {
-		t.Errorf("activity = %+v", inv.Services[0].Activity)
+	if service(t, inv, "openssh").Activity.Level != "unknown" {
+		t.Errorf("activity = %+v", service(t, inv, "openssh").Activity)
 	}
 }
 
@@ -249,7 +261,7 @@ func TestOpenSSHMaskedUnit(t *testing.T) {
 		link(t, p, "/usr/lib/systemd/system/sshd.service", "/etc/systemd/system/multi-user.target.wants/sshd.service")
 		link(t, p, "/dev/null", "/etc/systemd/system/sshd.service")
 	})
-	a := inv.Services[0].Activity
+	a := service(t, inv, "openssh").Activity
 	if a.Level != "installed" || len(a.Evidence) == 0 || a.Evidence[0].Kind != "unit-masked" {
 		t.Errorf("activity = %+v", a)
 	}

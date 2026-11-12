@@ -7,6 +7,31 @@ app:
   modules: ["/usr/lib64/httpd/modules/mod_ssl.so", "/usr/lib/apache2/modules/mod_ssl.so"]
   version_pattern: 'Apache/(\d+\.\d+\.\d+)'
   packages: ["httpd-core", "httpd", "apache2-bin"]
+  grammar: apache
+  # RHEL 系は /etc/httpd/conf/httpd.conf、Debian / Ubuntu は /etc/apache2/apache2.conf。
+  config_files: ["/etc/httpd/conf/httpd.conf", "/etc/apache2/apache2.conf"]
+  units: ["httpd.service", "apache2.service"]
+  direction: inbound
+  # 記録する設定項目。SSLEngine・SSLCipherSuite・SSLProxyCipherSuite・SSLHonorCipherOrder・SSLCertificateFile・
+  # SSLCertificateKeyFile・Listen は RHEL 9.9 の既定の conf.d/ssl.conf に、SSLProtocol は Ubuntu 24.04 の
+  # mods-available/ssl.conf にある。それ以外は Apache の公式文書（mod_ssl）の項目名。
+  # SSLProxy* は上流（バックエンド）への接続の設定で、通信の方向は送信側。
+  directives:
+    - { name: Listen, parameter: tls.listen, type: listen, multi: true }
+    - { name: SSLEngine, parameter: tls.enabled, type: flag }
+    - { name: SSLProtocol, parameter: tls.protocols, type: words }
+    - { name: SSLCipherSuite, parameter: tls.ciphers, type: cipher-string, multi: true }
+    - { name: SSLHonorCipherOrder, parameter: tls.prefer-server-ciphers, type: flag }
+    - { name: SSLOpenSSLConfCmd, parameter: tls.openssl-conf-cmd, type: words, multi: true }
+    - { name: SSLCertificateFile, parameter: tls.certificate, type: path, multi: true }
+    - { name: SSLCertificateKeyFile, parameter: tls.private-key, type: path, multi: true }
+    - { name: SSLCertificateChainFile, parameter: tls.certificate-chain, type: path }
+    - { name: SSLCACertificateFile, parameter: tls.client-ca, type: path }
+    - { name: SSLProxyEngine, parameter: tls.enabled, type: flag, direction: outbound }
+    - { name: SSLProxyProtocol, parameter: tls.protocols, type: words, direction: outbound }
+    - { name: SSLProxyCipherSuite, parameter: tls.ciphers, type: cipher-string, multi: true, direction: outbound }
+    - { name: SSLProxyMachineCertificateFile, parameter: tls.certificate, type: path, direction: outbound }
+    - { name: SSLProxyCACertificateFile, parameter: tls.trusted-certificates, type: path, direction: outbound }
   sources:
     - image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
       os: "Red Hat Enterprise Linux 8.10 (Ootpa)"

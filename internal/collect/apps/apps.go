@@ -13,6 +13,8 @@ import (
 
 	"kagiya/internal/inventory"
 	"kagiya/internal/model"
+	"kagiya/internal/parse/apacheconf"
+	"kagiya/internal/parse/nginxconf"
 	"kagiya/internal/parse/sshdconf"
 	"kagiya/internal/parse/unitfile"
 	"kagiya/internal/ruleset"
@@ -30,6 +32,10 @@ var (
 	algorithmList = regexp.MustCompile(`^[A-Za-z0-9@._*?-]+(,[A-Za-z0-9@._*?-]+)*$`)
 	intValue      = regexp.MustCompile(`^[0-9]{1,9}$`)
 	intList       = regexp.MustCompile(`^[0-9]{1,9}(,[0-9]{1,9})*$`)
+	listItem      = regexp.MustCompile(`^[A-Za-z0-9@._*-]{1,128}$`)
+	wordItem      = regexp.MustCompile(`^[A-Za-z0-9._:+=@!,*/\[\]-]{1,256}$`)
+	cipherString  = regexp.MustCompile(`^[A-Za-z0-9_:+!@=. -]+$`)
+	scopeText     = regexp.MustCompile(`^[A-Za-z0-9 ._:*\[\]-]{1,256}$`)
 )
 
 type Collector struct {
@@ -94,8 +100,13 @@ func (c *Collector) application(app ruleset.AppRule) {
 	svc.Activity = c.activity(app, units, hasComp, comp)
 	c.Builder.AddService(svc)
 
-	if app.Grammar == "sshd" {
+	switch app.Grammar {
+	case "sshd":
 		c.sshd(app, svc, config, units)
+	case "nginx":
+		c.nginx(app, svc, config)
+	case "apache":
+		c.apache(app, svc, config)
 	}
 }
 
@@ -211,7 +222,7 @@ func (c *Collector) sshd(app ruleset.AppRule, svc model.Service, config string, 
 		if d.match != "" {
 			s.Scope = "Match " + d.match
 		}
-		if !c.fill(&s, rule, d.args) {
+		if c.fill(&s, rule, d.args, "") != valueOK {
 			c.Builder.Skip(safefs.Skip{Path: c.Prefix + d.file, Reason: "invalid-value", Detail: rule.Parameter})
 			continue
 		}
@@ -238,10 +249,30 @@ func (c *Collector) sshd(app ruleset.AppRule, svc model.Service, config string, 
 	}
 }
 
+type valueStatus int
+
+const (
+	valueOK             valueStatus = iota
+	valueInvalid                    // 設定値として妥当でない（記録しない。問題として報告する）
+	valueNotInterpreted             // 変数を含むなど、値を確定できない（記録しない。問題としては数えない）
+)
+
 // fill は、値を種類ごとに検証して設定に入れる。検証を通らない値は記録しない（設定ファイルに紛れた秘密が出力に写るのを防ぐ）。
-func (c *Collector) fill(s *model.Setting, rule ruleset.DirectiveRule, args string) bool {
+// baseDir は、相対パスの基準になるディレクトリ（接頭辞なし。空なら相対パスは受け付けない）。
+func (c *Collector) fill(s *model.Setting, rule ruleset.DirectiveRule, args, baseDir string) valueStatus {
 	if len(args) == 0 || len(args) > 8192 {
-		return false
+		return valueInvalid
+	}
+	each := func(items []string, re *regexp.Regexp) bool {
+		if len(items) == 0 || len(items) > 256 {
+			return false
+		}
+		for _, it := range items {
+			if !re.MatchString(it) {
+				return false
+			}
+		}
+		return true
 	}
 	switch rule.Type {
 	case "algorithm-list":
@@ -249,29 +280,220 @@ func (c *Collector) fill(s *model.Setting, rule ruleset.DirectiveRule, args stri
 			s.Modifier, args = args[:1], args[1:]
 		}
 		if !algorithmList.MatchString(args) {
-			return false
+			return valueInvalid
 		}
 		s.Values = strings.Split(args, ",")
+	case "colon-list":
+		items := strings.Split(args, ":")
+		if !each(items, listItem) {
+			return valueInvalid
+		}
+		s.Values = items
+	case "cipher-string":
+		if !cipherString.MatchString(args) {
+			return valueInvalid
+		}
+		s.Values = strings.Split(args, ":")
+	case "words", "listen":
+		items := strings.Fields(args)
+		if !each(items, wordItem) {
+			return valueInvalid
+		}
+		s.Values = items
+	case "flag":
+		v := strings.ToLower(args)
+		if v != "on" && v != "off" {
+			return valueInvalid
+		}
+		s.Values = []string{v}
 	case "path":
-		if !strings.HasPrefix(args, "/") || strings.ContainsAny(args, "\x00\n\r*?[$%~") || strings.Contains(args, "/../") || len(args) > 1024 {
-			return false
+		if strings.ContainsAny(args, "$%") {
+			return valueNotInterpreted // 変数を含む。どのファイルかを確定できない
+		}
+		if strings.ContainsAny(args, "\x00\n\r*?[~") || len(args) > 1024 {
+			return valueInvalid
+		}
+		full := args
+		if !strings.HasPrefix(full, "/") {
+			if baseDir == "" {
+				return valueInvalid
+			}
+			full = strings.TrimRight(baseDir, "/") + "/" + full
+		}
+		for _, seg := range strings.Split(full, "/") {
+			if seg == ".." {
+				return valueInvalid
+			}
 		}
 		s.Values = []string{args}
-		s.ReferencedPaths = []string{c.Prefix + args}
+		s.ReferencedPaths = []string{c.Prefix + full}
 	case "int":
 		if !intValue.MatchString(args) {
-			return false
+			return valueInvalid
 		}
 		s.Values = []string{args}
 	case "int-list":
 		if !intList.MatchString(args) {
-			return false
+			return valueInvalid
 		}
 		s.Values = strings.Split(args, ",")
 	default:
-		return false
+		return valueInvalid
 	}
-	return true
+	return valueOK
+}
+
+// record は、設定の1項目を検証して記録する。
+func (c *Collector) record(app ruleset.AppRule, svc model.Service, rule ruleset.DirectiveRule, args, file string, line int, scope, baseDir string) {
+	s := model.Setting{
+		Service: svc.ID, Parameter: rule.Parameter, Direction: app.Direction, Scope: scope, Basis: "configured",
+		Layer: "app-config", Source: "config-file", Effective: true,
+		Location: model.SettingLocation{Path: c.Prefix + file, Line: line},
+	}
+	if rule.Direction != "" {
+		s.Direction = rule.Direction
+	}
+	switch c.fill(&s, rule, args, baseDir) {
+	case valueOK:
+		c.Builder.AddSetting(s)
+	case valueNotInterpreted:
+		c.Builder.Skip(safefs.Skip{Path: c.Prefix + file, Reason: "not-interpreted", Detail: rule.Parameter})
+	default:
+		c.Builder.Skip(safefs.Skip{Path: c.Prefix + file, Reason: "invalid-value", Detail: rule.Parameter})
+	}
+}
+
+func dirOf(path string) string {
+	if i := strings.LastIndexByte(path, '/'); i > 0 {
+		return path[:i]
+	}
+	return "/"
+}
+
+// nginx は nginx の設定を読む。
+//
+// 記録するのは、設定に明記された TLS 関連の値と、それがどの範囲（http 全体、どの server）に書かれているか。
+// 外側の階層の値が内側に引き継がれる規則や、同じ項目の上書きの解決は行わない。
+func (c *Collector) nginx(app ruleset.AppRule, svc model.Service, config string) {
+	if config == "" {
+		return
+	}
+	ds, problems := nginxconf.Parse(config, confFS{c})
+	for _, pr := range problems {
+		c.Builder.Skip(safefs.Skip{Path: c.Prefix + config, Reason: "config-problem", Detail: pr})
+	}
+	// server ブロックごとの名前（最初の server_name）
+	serverOf := func(ctx string) string {
+		for _, seg := range strings.Split(ctx, "/") {
+			if strings.HasPrefix(seg, "server#") {
+				return seg
+			}
+		}
+		return ""
+	}
+	names := map[string]string{}
+	for _, d := range ds {
+		if d.Name == "server_name" && len(d.Args) > 0 && strings.HasSuffix(d.Context, serverOf(d.Context)) {
+			if id := serverOf(d.Context); id != "" && names[id] == "" && wordItem.MatchString(d.Args[0]) {
+				names[id] = d.Args[0]
+			}
+		}
+	}
+	base := dirOf(config)
+	for _, d := range ds {
+		rule, ok := app.Directive(d.Name)
+		if !ok || len(d.Args) == 0 {
+			continue
+		}
+		if rule.Type == "listen" {
+			tls := false
+			for _, a := range d.Args[1:] {
+				tls = tls || a == "ssl" || a == "quic"
+			}
+			if !tls {
+				continue // TLS を使わない待ち受け
+			}
+		}
+		scope := d.Context
+		if id := serverOf(d.Context); id != "" {
+			scope = "server " + names[id]
+			if names[id] == "" {
+				scope = id
+			}
+		} else if i := strings.IndexByte(scope, '/'); i >= 0 {
+			scope = scope[:i]
+		}
+		c.record(app, svc, rule, strings.Join(d.Args, " "), d.File, d.Line, scope, base)
+	}
+}
+
+// apache は Apache HTTP Server の設定を読む。
+//
+// TLS のモジュール（ssl_module）が読み込まれていない場合は、その旨をサービスの注記に残す。
+// Listen は、TLS を有効にした <VirtualHost> と同じポートのもの（または https の指定があるもの）だけを記録する。
+func (c *Collector) apache(app ruleset.AppRule, svc model.Service, config string) {
+	if config == "" {
+		return
+	}
+	r := apacheconf.Parse(config, confFS{c})
+	for _, pr := range r.Problems {
+		c.Builder.Skip(safefs.Skip{Path: c.Prefix + config, Reason: "config-problem", Detail: pr})
+	}
+	hasSSL := false
+	for _, m := range r.Modules {
+		hasSSL = hasSSL || m == "ssl_module"
+	}
+	if !hasSSL {
+		c.Builder.ServiceNote(svc.ID, "ssl_module is not loaded by the configuration; TLS directives are not in effect")
+	}
+	vhost := func(sections []string) string {
+		for i := len(sections) - 1; i >= 0; i-- {
+			if strings.HasPrefix(strings.ToLower(sections[i]), "virtualhost ") {
+				return "VirtualHost " + strings.TrimSpace(sections[i][len("virtualhost "):])
+			}
+		}
+		return ""
+	}
+	portOf := func(addr string) string {
+		addr = strings.Fields(addr + " x")[0]
+		if i := strings.LastIndexByte(addr, ':'); i >= 0 {
+			return addr[i+1:]
+		}
+		return addr
+	}
+	tlsPorts := map[string]bool{}
+	for _, d := range r.Directives {
+		if d.Name == "sslengine" && strings.EqualFold(unquoteArg(d.Args), "on") {
+			if vh := vhost(d.Sections); vh != "" {
+				tlsPorts[portOf(strings.TrimPrefix(vh, "VirtualHost "))] = true
+			}
+		}
+	}
+	for _, d := range r.Directives {
+		rule, ok := app.Directive(d.Name)
+		if !ok {
+			continue
+		}
+		args := unquoteArg(d.Args)
+		if rule.Type == "listen" {
+			f := strings.Fields(args)
+			if len(f) == 0 || !(tlsPorts[portOf(f[0])] || (len(f) > 1 && strings.EqualFold(f[1], "https"))) {
+				continue
+			}
+		}
+		scope := vhost(d.Sections)
+		if scope != "" && !scopeText.MatchString(scope) {
+			scope = "VirtualHost"
+		}
+		c.record(app, svc, rule, args, d.File, d.Line, scope, r.ServerRoot)
+	}
+}
+
+func unquoteArg(s string) string {
+	if len(s) >= 2 && (s[0] == '"' || s[0] == '\'') && s[len(s)-1] == s[0] {
+		return s[1 : len(s)-1]
+	}
+	return s
 }
 
 // sshdCommandLine は、ユニットファイルの ExecStart と環境ファイルから、sshd に渡される -o オプションを読む。

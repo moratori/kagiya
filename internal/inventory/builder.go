@@ -47,7 +47,7 @@ func (b *Builder) Skip(k safefs.Skip) {
 	b.skipTotal++
 	b.skipByReason[k.Reason]++
 	// 除外指定、存在しない起点、記録対象外の設定項目は、問題としては数えない。
-	if k.Reason != "excluded" && k.Reason != "not-found" && k.Reason != "unrecognized-setting" {
+	if k.Reason != "excluded" && k.Reason != "not-found" && k.Reason != "unrecognized-setting" && k.Reason != "not-interpreted" {
 		b.problemSkips++
 	}
 	b.log.Warn("skip", "path", k.Path, "reason", k.Reason, "detail", k.Detail)
@@ -142,6 +142,15 @@ func (b *Builder) AddPackage(p model.Package) { b.packages = append(b.packages, 
 
 // AddService はサービスを記録する。
 func (b *Builder) AddService(s model.Service) { b.services = append(b.services, s) }
+
+// ServiceNote は、記録済みのサービスに注記を足す。
+func (b *Builder) ServiceNote(id, note string) {
+	for i := range b.services {
+		if b.services[i].ID == id {
+			b.services[i].Notes = append(b.services[i].Notes, note)
+		}
+	}
+}
 
 // AddSetting は設定値を記録する。ID はサービス・項目・場所から決まる。
 func (b *Builder) AddSetting(s model.Setting) {

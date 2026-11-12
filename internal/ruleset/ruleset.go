@@ -496,7 +496,7 @@ type AppRule struct {
 	Packages       []string `yaml:"packages"` // このアプリを含むパッケージ名（優先順）
 
 	// 設定の読み取り
-	Grammar     string          `yaml:"grammar"`      // 設定ファイルの文法（sshd）
+	Grammar     string          `yaml:"grammar"`      // 設定ファイルの文法（sshd | nginx | apache）
 	ConfigFiles []string        `yaml:"config_files"` // 設定ファイルの候補（先に見つかったものを使う）
 	Units       []string        `yaml:"units"`        // systemd のユニット名（有効化状態と起動引数を読む）
 	Direction   string          `yaml:"direction"`    // 通信の方向: inbound（受信）| outbound（送信）
@@ -512,8 +512,12 @@ type AppRule struct {
 type DirectiveRule struct {
 	Name      string `yaml:"name"`
 	Parameter string `yaml:"parameter"` // 結果での項目名（アプリをまたいで揃える）
-	Type      string `yaml:"type"`      // algorithm-list | path | int | int-list
+	// Type は値の種類。種類ごとの検証を通った値だけを記録する。
+	//   algorithm-list（カンマ区切り）| colon-list（コロン区切り）| cipher-string | words（空白区切り）|
+	//   flag（on / off）| listen（待ち受け）| path | int | int-list
+	Type      string `yaml:"type"`
 	Multi     bool   `yaml:"multi"`     // 複数回書けて、すべてが有効になる項目
+	Direction string `yaml:"direction"` // この項目だけ通信の方向が違う場合（上流への接続の設定など）
 }
 
 type DefaultReference struct {
@@ -521,7 +525,10 @@ type DefaultReference struct {
 	Paths     []string `yaml:"paths"`
 }
 
-var directiveTypes = map[string]bool{"algorithm-list": true, "path": true, "int": true, "int-list": true}
+var directiveTypes = map[string]bool{
+	"algorithm-list": true, "colon-list": true, "cipher-string": true, "words": true, "flag": true, "listen": true,
+	"path": true, "int": true, "int-list": true,
+}
 
 // Directive は、キーワード（大文字小文字を区別しない）に対応する項目の定義を返す。
 func (a AppRule) Directive(keyword string) (DirectiveRule, bool) {
@@ -555,6 +562,8 @@ type appFile struct {
 type libraryFile struct {
 	Library LibraryRule `yaml:"library"`
 }
+
+var directiveNamePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_.]{0,63}$`)
 
 var settingKeyPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9.]{0,63}$`)
 
@@ -650,7 +659,7 @@ func (rs *RuleSet) addApp(a AppRule, ids map[string]bool) error {
 			return fmt.Errorf("app %q: path %q must be a clean absolute path", a.ID, p)
 		}
 	}
-	if a.Grammar != "" && a.Grammar != "sshd" {
+	if a.Grammar != "" && a.Grammar != "sshd" && a.Grammar != "nginx" && a.Grammar != "apache" {
 		return fmt.Errorf("app %q: unknown grammar %q", a.ID, a.Grammar)
 	}
 	if a.Direction != "" && a.Direction != "inbound" && a.Direction != "outbound" {
@@ -660,7 +669,8 @@ func (rs *RuleSet) addApp(a AppRule, ids map[string]bool) error {
 		return fmt.Errorf("app %q: %w", a.ID, err)
 	}
 	for _, d := range a.Directives {
-		if !settingKeyPattern.MatchString(d.Name) || !idPattern.MatchString(d.Parameter) || !directiveTypes[d.Type] {
+		if !directiveNamePattern.MatchString(d.Name) || !idPattern.MatchString(d.Parameter) || !directiveTypes[d.Type] ||
+			(d.Direction != "" && d.Direction != "inbound" && d.Direction != "outbound") {
 			return fmt.Errorf("app %q: invalid directive definition %q", a.ID, d.Name)
 		}
 	}
