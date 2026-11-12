@@ -632,3 +632,75 @@ func TestScanKeyMaterial(t *testing.T) {
 		t.Error("password or keystore alias leaked")
 	}
 }
+
+func TestConvertToCSV(t *testing.T) {
+	fx := setup(t)
+	if code, _, stderr := run(fx.scanArgs()...); code != 0 {
+		t.Fatalf("scan: exit %d: %s", code, stderr)
+	}
+	result := singleFile(t, fx.out, ".json")
+	csvDir := filepath.Dir(fx.root) + "/csv"
+	code, stdout, stderr := run("convert", "--to", "csv", "--output-dir", csvDir, result)
+	if code != 0 {
+		t.Fatalf("convert: exit %d: %s", code, stderr)
+	}
+	out := singleFile(t, csvDir, ".csv")
+	if !strings.Contains(stdout, out) {
+		t.Errorf("stdout must name the written file: %q", stdout)
+	}
+	if filepath.Base(out) != strings.TrimSuffix(filepath.Base(result), ".json")+".csv" {
+		t.Errorf("csv file name = %s", filepath.Base(out))
+	}
+	fi, _ := os.Stat(out)
+	if fi.Mode().Perm() != 0o600 {
+		t.Errorf("csv mode = %o, want 600", fi.Mode().Perm())
+	}
+	data, _ := os.ReadFile(out)
+	if !bytes.HasPrefix(data, []byte("\xef\xbb\xbf")) {
+		t.Error("CSV must start with a BOM by default")
+	}
+	if n := bytes.Count(data, []byte("\n")); n != 4 { // 見出し + 出現3件
+		t.Errorf("csv has %d lines, want 4", n)
+	}
+	if !bytes.Contains(data, []byte("CN=rsa.example.jp")) || !bytes.Contains(data, []byte("/etc/ssl/ec.cer")) {
+		t.Errorf("csv lacks expected content:\n%s", data)
+	}
+	// 上書きしない
+	if code, _, _ := run("convert", "--to", "csv", "--output-dir", csvDir, result); code != 3 {
+		t.Errorf("second convert: exit %d, want 3 (no overwrite)", code)
+	}
+	// BOM なし
+	csv2 := filepath.Dir(fx.root) + "/csv2"
+	if code, _, _ := run("convert", "--to", "csv", "--no-bom", "--output-dir", csv2, result); code != 0 {
+		t.Fatal("convert --no-bom failed")
+	}
+	if d, _ := os.ReadFile(singleFile(t, csv2, ".csv")); bytes.HasPrefix(d, []byte("\xef\xbb\xbf")) {
+		t.Error("--no-bom must omit the BOM")
+	}
+}
+
+func TestConvertRejectsBadInput(t *testing.T) {
+	base := tmp(t)
+	notJSON := base + "/x.json"
+	os.WriteFile(notJSON, []byte("hello"), 0o600)
+	otherSchema := base + "/y.json"
+	os.WriteFile(otherSchema, []byte(`{"schema":"something-else/v9"}`), 0o600)
+	for _, c := range []struct {
+		args []string
+		want int
+	}{
+		{[]string{"convert"}, 2},
+		{[]string{"convert", "--to", "csv"}, 2},
+		{[]string{"convert", "--to", "xml", notJSON}, 2},
+		{[]string{"convert", "--to", "csv", "--output-dir", base + "/o", base + "/missing.json"}, 3},
+		{[]string{"convert", "--to", "csv", "--output-dir", base + "/o", notJSON}, 3},
+		{[]string{"convert", "--to", "csv", "--output-dir", base + "/o", otherSchema}, 3},
+	} {
+		if code, _, _ := run(c.args...); code != c.want {
+			t.Errorf("args %v: exit %d, want %d", c.args, code, c.want)
+		}
+	}
+	if ents, _ := os.ReadDir(base + "/o"); len(ents) != 0 {
+		t.Errorf("failed conversions left files behind: %v", ents)
+	}
+}
