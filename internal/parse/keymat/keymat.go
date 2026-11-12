@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/pem"
 	"regexp"
 	"strings"
@@ -32,6 +33,7 @@ type CSR struct {
 	Subject               string
 	SignatureAlgorithmOID string
 	Key                   Key
+	SHA256                string // CSR 全体（DER）の SHA-256
 }
 
 type Key struct {
@@ -88,9 +90,8 @@ func Parse(name string, data []byte) (items []Item, failed int) {
 	case strings.HasPrefix(base, "authorized_keys") || strings.HasPrefix(base, "known_hosts") || strings.HasSuffix(base, ".pub"):
 		items, failed = parseSSHLines(data)
 	case len(data) > 0 && data[0] == 0x30:
-		if it, ok := parseDER(data); ok {
-			items = []Item{it}
-		} else {
+		var ok bool
+		if items, ok = parseDER(data); !ok {
 			failed = 1
 		}
 	}
@@ -107,6 +108,14 @@ func parsePEM(data []byte) (items []Item, failed int) {
 		block, rest = pem.Decode(rest)
 		if block == nil {
 			break
+		}
+		if block.Type == "PKCS7" {
+			if certs, ok := parsePKCS7(block.Bytes); ok {
+				items = append(items, certs...)
+			} else {
+				failed++
+			}
+			continue
 		}
 		it, ok, relevant := parsePEMBlock(block)
 		switch {
@@ -432,45 +441,86 @@ func parseCSR(data []byte) (CSR, bool) {
 		return CSR{}, false
 	}
 	r.Key = Key{AlgOID: pk.AlgOID, CurveOID: pk.CurveOID, Bits: pk.Bits, SPKISHA256: pk.SPKISHA256}
+	sum := sha256.Sum256(data)
+	r.SHA256 = hex.EncodeToString(sum[:])
 	return r, true
 }
 
+const oidSignedData = "1.2.840.113549.1.7.2"
+
+// parsePKCS7 は PKCS#7 SignedData（証明書の束、.p7b）から証明書を取り出す。署名は検証しない。
+func parsePKCS7(data []byte) ([]Item, bool) {
+	kids, ok := top(data)
+	if !ok || len(kids) != 2 || kids[0].Tag != der.TagOID || kids[1].Class != der.ClassContext || kids[1].Tag != 0 {
+		return nil, false
+	}
+	if oid, err := der.OID(kids[0].Content); err != nil || oid != oidSignedData {
+		return nil, false
+	}
+	sd, ok := top(kids[1].Content)
+	if !ok || len(sd) < 3 {
+		return nil, false
+	}
+	var items []Item
+	for _, e := range sd[3:] {
+		if e.Class != der.ClassContext || e.Tag != 0 || !e.Constructed {
+			continue
+		}
+		certs, err := der.Children(e.Content)
+		if err != nil {
+			return nil, false
+		}
+		for _, c := range certs {
+			if len(items) >= maxItems {
+				break
+			}
+			if cert, err := x509cert.Parse(c.Raw); err == nil {
+				items = append(items, Item{Kind: "certificate", Format: "x509", Cert: cert})
+			}
+		}
+	}
+	return items, true
+}
+
 // parseDER は PEM に包まれていない DER を、構造から種類を判定して読む。
-func parseDER(data []byte) (Item, bool) {
+func parseDER(data []byte) ([]Item, bool) {
 	if c, err := x509cert.Parse(data); err == nil {
-		return Item{Kind: "certificate", Format: "x509", Cert: c}, true
+		return []Item{{Kind: "certificate", Format: "x509", Cert: c}}, true
 	}
 	kids, ok := top(data)
 	if !ok || len(kids) < 2 {
-		return Item{}, false
+		return nil, false
+	}
+	if kids[0].Tag == der.TagOID && kids[0].Class == der.ClassUniversal {
+		return parsePKCS7(data)
 	}
 	switch {
 	case isInt(kids[0]) && len(kids) >= 3 && isSeq(kids[1]) && kids[2].Tag == der.TagOctetString:
 		if k, ok := parsePKCS8(data); ok {
-			return Item{Kind: "private-key", Format: "pkcs8", Key: &k}, true
+			return []Item{Item{Kind: "private-key", Format: "pkcs8", Key: &k}}, true
 		}
 	case isSeq(kids[0]) && len(kids) == 2 && kids[1].Tag == der.TagOctetString && kids[1].Class == der.ClassUniversal:
 		if k, ok := parseEncryptedPKCS8(data); ok {
-			return Item{Kind: "private-key", Format: "pkcs8-encrypted", Key: &k}, true
+			return []Item{Item{Kind: "private-key", Format: "pkcs8-encrypted", Key: &k}}, true
 		}
 	case isSeq(kids[0]) && len(kids) == 2 && kids[1].Tag == der.TagBitString && kids[1].Class == der.ClassUniversal:
 		if k, ok := parseSPKIBytes(data); ok {
-			return Item{Kind: "public-key", Format: "spki", Key: &k}, true
+			return []Item{Item{Kind: "public-key", Format: "spki", Key: &k}}, true
 		}
 	case isSeq(kids[0]) && len(kids) == 3 && isSeq(kids[1]) && kids[2].Tag == der.TagBitString:
 		if r, ok := parseCSR(data); ok {
-			return Item{Kind: "csr", Format: "pkcs10", CSR: &r}, true
+			return []Item{Item{Kind: "csr", Format: "pkcs10", CSR: &r}}, true
 		}
 	case isInt(kids[0]) && len(kids) >= 9:
 		if k, ok := parsePKCS1(data); ok {
-			return Item{Kind: "private-key", Format: "pkcs1", Key: &k}, true
+			return []Item{Item{Kind: "private-key", Format: "pkcs1", Key: &k}}, true
 		}
 	case isInt(kids[0]) && kids[1].Tag == der.TagOctetString:
 		if k, ok := parseSEC1(data, ""); ok {
-			return Item{Kind: "private-key", Format: "sec1", Key: &k}, true
+			return []Item{Item{Kind: "private-key", Format: "sec1", Key: &k}}, true
 		}
 	}
-	return Item{}, false
+	return nil, false
 }
 
 // ---- SSH ----
@@ -609,4 +659,3 @@ func parseSSHLines(data []byte) (items []Item, failed int) {
 	}
 	return items, failed
 }
-

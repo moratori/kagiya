@@ -30,6 +30,7 @@ const (
 	TagBMPString       = 30
 
 	maxChildren = 100_000
+	maxDepth    = 64
 	maxOIDBytes = 64
 )
 
@@ -45,9 +46,14 @@ type Element struct {
 }
 
 // Read は b の先頭から要素を1つ読み、残りを返す。
+// DER に加え、BER の不定長形式（構造型のみ）も読む。その場合 Content は終端（00 00）の手前まで。
 func Read(b []byte) (Element, []byte, error) {
+	return read(b, 0)
+}
+
+func read(b []byte, depth int) (Element, []byte, error) {
 	var e Element
-	if len(b) < 2 {
+	if len(b) < 2 || depth > maxDepth {
 		return e, nil, errMalformed
 	}
 	e.Class = int(b[0] >> 6)
@@ -73,9 +79,31 @@ func Read(b []byte) (Element, []byte, error) {
 	}
 	length := int(b[i])
 	i++
+	if length == 0x80 { // 不定長: 子要素を終端まで読み進める
+		if !e.Constructed {
+			return e, nil, errMalformed
+		}
+		pos := i
+		for {
+			if pos+2 > len(b) {
+				return e, nil, errMalformed
+			}
+			if b[pos] == 0 && b[pos+1] == 0 {
+				break
+			}
+			child, _, err := read(b[pos:], depth+1)
+			if err != nil {
+				return e, nil, err
+			}
+			pos += len(child.Raw)
+		}
+		e.Content = b[i:pos]
+		e.Raw = b[:pos+2]
+		return e, b[pos+2:], nil
+	}
 	if length&0x80 != 0 {
 		n := length & 0x7f
-		if n == 0 || n > 4 || i+n > len(b) { // 不定長、または長すぎる長さ指定
+		if n > 4 || i+n > len(b) {
 			return e, nil, errMalformed
 		}
 		length = 0
@@ -90,6 +118,33 @@ func Read(b []byte) (Element, []byte, error) {
 	e.Content = b[i : i+length]
 	e.Raw = b[:i+length]
 	return e, b[i+length:], nil
+}
+
+// OctetString は OCTET STRING の内容を返す。BER の分割された（構造型の）形式は連結する。
+func OctetString(e Element) ([]byte, error) {
+	return octetString(e, 0)
+}
+
+func octetString(e Element, depth int) ([]byte, error) {
+	if e.Class != ClassUniversal || e.Tag != TagOctetString || depth > maxDepth {
+		return nil, errMalformed
+	}
+	if !e.Constructed {
+		return e.Content, nil
+	}
+	parts, err := Children(e.Content)
+	if err != nil {
+		return nil, err
+	}
+	var out []byte
+	for _, p := range parts {
+		b, err := octetString(p, depth+1)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, b...)
+	}
+	return out, nil
 }
 
 // Children は構造型の内容を要素の並びとして読む。余りがあればエラー。
