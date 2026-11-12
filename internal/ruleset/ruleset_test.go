@@ -276,3 +276,99 @@ func TestLoadPackageRolesRequireSources(t *testing.T) {
 		}
 	}
 }
+
+func TestBuiltinAppsAndLibraries(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	apps := map[string]AppRule{}
+	for _, a := range rs.Apps {
+		apps[a.ID] = a
+		if len(a.Sources) == 0 || len(a.Binaries) == 0 {
+			t.Errorf("app %s lacks sources or binaries", a.ID)
+		}
+	}
+	for _, id := range []string{"openssh", "nginx", "httpd"} {
+		if _, ok := apps[id]; !ok {
+			t.Errorf("app %s missing", id)
+		}
+	}
+	// 版文字列のパターン: 実物のバイナリに埋め込まれていた文字列で確認
+	for id, c := range map[string][2]string{
+		"openssh": {"OpenSSH_8.0p1", "8.0p1"},
+		"nginx":   {"nginx/1.14.1", "1.14.1"},
+		"httpd":   {"Apache/2.4.37 (Red Hat Enterprise Linux)", "2.4.37"},
+	} {
+		if got := apps[id].MatchVersion([]byte("xx\x00" + c[0] + "\x00yy")); len(got) != 1 || got[0] != c[1] {
+			t.Errorf("%s: MatchVersion(%q) = %v, want %q", id, c[0], got, c[1])
+		}
+	}
+	if got := apps["openssh"].MatchVersion([]byte("OpenSSH_2\x00OpenSSH_3.0\x00OpenSSH_2.5.0p1*\x00")); len(got) != 0 {
+		t.Errorf("compatibility strings must not match: %v", got)
+	}
+	lib, ok := rs.LibraryForSOName("libcrypto.so.1.1")
+	if !ok || lib.ID != "openssl" {
+		t.Fatalf("LibraryForSOName(libcrypto.so.1.1) = %+v, %v", lib, ok)
+	}
+	if _, ok := rs.LibraryForSOName("libc.so.6"); ok {
+		t.Error("libc must not match a crypto library rule")
+	}
+	for in, want := range map[string]string{
+		"OpenSSL 1.1.1k  FIPS 25 Mar 2021": "1.1.1k",
+		"OpenSSL 3.5.9 29 Sep 2026":        "3.5.9",
+		"OpenSSL 1.0.2g  1 Mar 2016":       "1.0.2g",
+		"OpenSSL 3.0.13 30 Jan 2024":       "3.0.13",
+	} {
+		if got := lib.MatchVersion([]byte(in)); len(got) != 1 || got[0] != want {
+			t.Errorf("openssl MatchVersion(%q) = %v, want %q", in, got, want)
+		}
+	}
+}
+
+func TestLoadAppRules(t *testing.T) {
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	with := func(path, y string) map[string]string {
+		m := map[string]string{path: y}
+		for k, v := range base {
+			m[k] = v
+		}
+		return m
+	}
+	src := "  sources:\n    - image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n      os: \"X\"\n"
+	ok := "app:\n  id: myapp\n  binaries: [\"/opt/myapp/bin/myapp\"]\n  version_pattern: 'myapp/(\\d+\\.\\d+)'\n  packages: [\"myapp\"]\n" + src
+	rs, err := Load(mapFS(with("apps/myapp.yaml", ok)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rs.Apps) != 1 || rs.Apps[0].ID != "myapp" {
+		t.Fatalf("apps = %+v", rs.Apps)
+	}
+	if got := rs.Apps[0].MatchVersion([]byte("myapp/1.2 myapp/1.2 myapp/3.4")); len(got) != 2 {
+		t.Errorf("distinct versions = %v", got)
+	}
+	for name, y := range map[string]string{
+		"no sources":         "app:\n  id: a\n  binaries: [\"/a\"]\n",
+		"no binaries":        "app:\n  id: a\n" + src,
+		"relative binary":    "app:\n  id: a\n  binaries: [\"bin/a\"]\n" + src,
+		"bad pattern":        "app:\n  id: a\n  binaries: [\"/a\"]\n  version_pattern: '(('\n" + src,
+		"no capture group":   "app:\n  id: a\n  binaries: [\"/a\"]\n  version_pattern: 'a/\\d+'\n" + src,
+		"two capture groups": "app:\n  id: a\n  binaries: [\"/a\"]\n  version_pattern: '(a)/(\\d+)'\n" + src,
+		"unknown key":        "app:\n  id: a\n  binaries: [\"/a\"]\n  command: \"a -V\"\n" + src,
+	} {
+		if _, err := Load(mapFS(with("apps/a.yaml", y))); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+	libOK := "library:\n  id: mylib\n  sonames: [\"libmy.so*\"]\n  version_pattern: 'MyLib (\\d+)'\n" + src
+	rs, err = Load(mapFS(with("libraries/mylib.yaml", libOK)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l, ok := rs.LibraryForSOName("libmy.so.2"); !ok || l.ID != "mylib" {
+		t.Error("library rule lookup failed")
+	}
+	if _, err := Load(mapFS(with("libraries/x.yaml", "library:\n  id: x\n  sonames: [\"libx.so\"]\n"))); err == nil {
+		t.Error("library without sources must be rejected")
+	}
+}
