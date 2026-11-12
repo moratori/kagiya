@@ -18,6 +18,14 @@ type tlsScope struct {
 	cipherFile string // その記載の場所（接頭辞なし）
 	cipherLine int
 
+	// 鍵交換のグループの指定（アプリの設定に書かれたもの）。なければ空
+	groups      string
+	groupsFile  string
+	groupsLine  int
+	groupsParam string // その記載を記録した設定項目の名前（空なら tls.groups）
+	// 空でなければ、鍵交換のグループは求めない（理由）
+	groupsBlocker string
+
 	tls13     string // アプリの設定が指定した TLS 1.3 のスイート（「:」区切り）。なければ空
 	tls13File string
 	tls13Line int
@@ -40,9 +48,10 @@ const (
 	cipherSystemDefault = "@system"
 )
 
-// cipherTable は、導入されている暗号ライブラリのパッケージ版に対応する暗号スイートの対応表を返す。
-// 見つからない、または複数の版が導入されていてどれを使うか決められない場合は、t は nil で、reason に理由が入る。
-func (c *Collector) cipherTable(library string) (t *ruleset.CipherTable, prov *model.Provenance, note, reason string) {
+// libraryTable は、導入されている暗号ライブラリのパッケージ版に対応する、実測の表を探す。
+// find は、パッケージ名と版から表を引く（暗号スイートの対応表か、鍵交換のグループの対応表か）。what は、理由の文に入れる表の呼び名。
+// 見つからない、または複数の版が導入されていてどれを使うか決められない場合は、ok = false で、reason に理由が入る。
+func (c *Collector) libraryTable(library, what string, find func(pkg, version string) (key any, build ruleset.CipherBuild, exact, ok bool)) (key any, prov *model.Provenance, note, reason string) {
 	var patterns []string
 	for _, l := range c.Rules.Libraries {
 		if l.ID == library {
@@ -59,27 +68,39 @@ func (c *Collector) cipherTable(library string) (t *ruleset.CipherTable, prov *m
 		if first == "" {
 			first = p.Name + " " + version
 		}
-		tb, build, exact, ok := c.Rules.CipherTableFor(library, p.Name, version)
+		k, build, exact, ok := find(p.Name, version)
 		if !ok {
 			continue
 		}
-		if t != nil && (tb != t || installed != p.Name+" "+version) {
+		if key != nil && (k != key || installed != p.Name+" "+version) {
 			return nil, nil, "", "more than one version of the " + library + " library is installed; which one this server uses is not determined"
 		}
-		t, installed = tb, p.Name+" "+version
+		key, installed = k, p.Name+" "+version
 		prov = &model.Provenance{Image: build.Source.Image, OS: build.Source.OS, Package: build.Package, Version: build.Version}
 		note = ""
 		if !exact {
-			note = "the cipher table measured on " + build.Package + " " + build.Version + " is used for the installed " + installed + " (same upstream version and distribution, different release)"
+			note = "the " + what + " measured on " + build.Package + " " + build.Version + " is used for the installed " + installed + " (same upstream version and distribution, different release)"
 		}
 	}
 	switch {
-	case t != nil:
-		return t, prov, note, ""
+	case key != nil:
+		return key, prov, note, ""
 	case first == "":
-		return nil, nil, "", "no package information for the " + library + " library; the cipher table to use is unknown"
+		return nil, nil, "", "no package information for the " + library + " library; the " + what + " to use is unknown"
 	}
-	return nil, nil, "", "no cipher table is recorded for " + first
+	return nil, nil, "", "no " + what + " is recorded for " + first
+}
+
+// cipherTable は、導入されている暗号ライブラリのパッケージ版に対応する、暗号スイートの対応表を返す。
+func (c *Collector) cipherTable(library string) (t *ruleset.CipherTable, prov *model.Provenance, note, reason string) {
+	key, prov, note, reason := c.libraryTable(library, "cipher table", func(pkg, version string) (any, ruleset.CipherBuild, bool, bool) {
+		tb, build, exact, ok := c.Rules.CipherTableFor(library, pkg, version)
+		return tb, build, exact, ok
+	})
+	if key == nil {
+		return nil, nil, "", reason
+	}
+	return key.(*ruleset.CipherTable), prov, note, ""
 }
 
 // profileString は、「PROFILE=SYSTEM」が指す暗号文字列を、ライブラリが読むファイルから取り出す。
@@ -203,177 +224,188 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 		}
 	}
 
+	// システムの設定がセキュリティレベルを決めている場合の、求め方の段
+	sysStep := model.ResolutionStep{}
+	if sysLevel >= 0 {
+		sysStep = model.ResolutionStep{Layer: "os-policy", Op: "security-level"}
+	}
+	groups := c.newGroupResolver(app, svc, appProv, appNote, defs)
 	for _, sc := range scopes {
-		e := model.EffectiveValue{Service: svc.ID, Parameter: paramCiphers, Direction: app.Direction, Scope: sc.name, Status: model.StatusResolved, Confidence: model.ConfidenceHigh}
-		e13 := e
-		e13.Parameter = paramTLS13
-		fail := func(reason string) {
-			e.Status, e.Confidence, e.Reason = model.StatusUnresolved, "", reason
-			c.Builder.AddEffective(e)
-			if table == nil || len(table.TLS13) > 0 {
-				e13.Status, e13.Confidence, e13.Reason = model.StatusUnresolved, "", reason
-				c.Builder.AddEffective(e13)
-			}
-		}
-		if table == nil {
-			fail(noTable)
-			continue
-		}
-		if sc.blocker != "" {
-			fail(sc.blocker)
-			continue
-		}
-		in := tlseffective.Input{Table: table, Profile: profile, SystemLevel: sysLevel}
-		if sysTLS13 != "" {
-			in.SystemTLS13 = strings.Split(sysTLS13, ":")
-		}
-
-		usedAppDefault := false // アプリの既定値表の値を使ったか（補間した表なら、確度を下げる）
-
-		// 1. 暗号文字列: 設定の記載、なければアプリの既定
-		first := model.ResolutionStep{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, paramCiphers, sc.cipherFile, sc.cipherLine)}
-		in.CipherString = sc.cipher
-		if sc.cipher == "" {
-			def := defs[paramCiphers]
-			if def == nil {
-				reason := noDefaults
-				if defs != nil {
-					reason = "the default cipher string of this application version is not recorded"
+		// 暗号スイート（TLS 1.2 以下と TLS 1.3）。適用されたセキュリティレベルを返す（鍵交換のグループの絞り込みにも使う）
+		level, levelStep := func() (int, model.ResolutionStep) {
+			e := model.EffectiveValue{Service: svc.ID, Parameter: paramCiphers, Direction: app.Direction, Scope: sc.name, Status: model.StatusResolved, Confidence: model.ConfidenceHigh}
+			e13 := e
+			e13.Parameter = paramTLS13
+			fail := func(reason string) {
+				e.Status, e.Confidence, e.Reason = model.StatusUnresolved, "", reason
+				c.Builder.AddEffective(e)
+				if table == nil || len(table.TLS13) > 0 {
+					e13.Status, e13.Confidence, e13.Reason = model.StatusUnresolved, "", reason
+					c.Builder.AddEffective(e13)
 				}
-				fail(reason)
-				continue
 			}
-			in.CipherString = strings.Join(def, ",")
-			first = model.ResolutionStep{Layer: "app-default", Op: "default", Source: appProv}
-			usedAppDefault = true
-		}
-		e.Steps = []model.ResolutionStep{first}
-		levelFrom := first // 暗号文字列にセキュリティレベルの指定が含まれるとき、それがどの層のものか
-		if in.CipherString == cipherSystemDefault {
-			// アプリは何も設定しない。システムの openssl.cnf の暗号文字列があればそれ、なければライブラリの既定（DEFAULT）
-			if sysCipher != "" {
-				in.CipherString = sysCipher
-				levelFrom = model.ResolutionStep{Layer: "os-policy", Op: "override"}
-			} else {
-				in.CipherString = "DEFAULT"
-				levelFrom = model.ResolutionStep{Layer: "library", Op: "default", Source: libProv}
+			if table == nil {
+				fail(noTable)
+				return sysLevel, sysStep
 			}
-			e.Steps = append(e.Steps, levelFrom)
-		}
-		if table.ProfileSystem != "" && strings.HasPrefix(in.CipherString, "PROFILE=SYSTEM") {
-			e.Steps = append(e.Steps, model.ResolutionStep{Layer: "os-policy", Op: "profile"})
-		}
+			if sc.blocker != "" {
+				fail(sc.blocker)
+				return sysLevel, sysStep
+			}
+			in := tlseffective.Input{Table: table, Profile: profile, SystemLevel: sysLevel}
+			if sysTLS13 != "" {
+				in.SystemTLS13 = strings.Split(sysTLS13, ":")
+			}
 
-		// 2. サーバーの持ち物: 証明書の種類と、DH パラメータ
-		var notes []string
-		if sc.certsOK {
-			certs := sc.certs
-			if strings.Join(defs[paramCertSel], ",") == "first" && len(certs) > 1 {
-				certs = certs[:1] // この版は、同じ名前の証明書を複数指定しても最初の1つしか使わない
+			usedAppDefault := false // アプリの既定値表の値を使ったか（補間した表なら、確度を下げる）
+
+			// 1. 暗号文字列: 設定の記載、なければアプリの既定
+			first := model.ResolutionStep{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, paramCiphers, sc.cipherFile, sc.cipherLine)}
+			in.CipherString = sc.cipher
+			if sc.cipher == "" {
+				def := defs[paramCiphers]
+				if def == nil {
+					reason := noDefaults
+					if defs != nil {
+						reason = "the default cipher string of this application version is not recorded"
+					}
+					fail(reason)
+					return sysLevel, sysStep
+				}
+				in.CipherString = strings.Join(def, ",")
+				first = model.ResolutionStep{Layer: "app-default", Op: "default", Source: appProv}
 				usedAppDefault = true
 			}
-			in.Certs, in.CertsKnown = c.certKinds(certs)
-		}
-		tls13Default := false // TLS 1.3 のスイートを、アプリの既定が決めている
-		if sc.tls13 != "" {
-			in.AppTLS13 = strings.Split(sc.tls13, ":")
-		} else if def := defs[paramTLS13]; len(def) > 0 {
-			// アプリ自身が TLS 1.3 のスイートの既定を持つ（システムの openssl.cnf の指定より優先される）
-			in.AppTLS13, tls13Default = strings.Split(strings.Join(def, ","), ":"), true
-		}
-		dheLayer := "app-config"
-		var dheSource *model.Provenance
-		switch v := strings.Join(defs[paramDHE], ","); {
-		case sc.dhParam:
-			in.DHE, in.DHEKnown = true, true
-		case v == "builtin":
-			in.DHE, in.DHEKnown, dheLayer, dheSource = true, true, "app-default", appProv
-			usedAppDefault = true
-		case v == "disabled":
-			in.DHE, in.DHEKnown, dheLayer, dheSource = false, true, "app-default", appProv
-			usedAppDefault = true
-		}
-
-		out, err := tlseffective.Resolve(in)
-		if err != nil {
-			fail("the cipher string cannot be expanded: " + err.Error())
-			continue
-		}
-		e.Steps = append(e.Steps, model.ResolutionStep{Layer: "library", Op: "expand", Source: libProv})
-		levelStep := model.ResolutionStep{Op: "security-level"}
-		switch out.LevelSource {
-		case "cipher-string":
-			levelStep.Layer, levelStep.Setting, levelStep.Source = levelFrom.Layer, levelFrom.Setting, levelFrom.Source
-		case "system":
-			levelStep.Layer = "os-policy"
-		case "library-default":
-			levelStep.Layer, levelStep.Source = "library", libProv
-		}
-		if levelStep.Layer != "" {
-			e.Steps = append(e.Steps, levelStep)
-		}
-		if in.CertsKnown {
-			e.Steps = append(e.Steps, model.ResolutionStep{Layer: "app-config", Op: "filter-certificates"})
-		}
-		if in.DHEKnown {
-			e.Steps = append(e.Steps, model.ResolutionStep{Layer: dheLayer, Op: "filter-dh-parameters", Source: dheSource})
-		}
-		if libNote != "" {
-			notes = append(notes, libNote)
-		}
-		if appNote != "" && usedAppDefault {
-			notes = append(notes, appNote)
-		}
-		for _, u := range out.Unfiltered {
-			switch u {
-			case "certificates":
-				notes = append(notes, "the server certificate could not be read, so suites are not narrowed down by the certificate type")
-			case "dh-parameters":
-				notes = append(notes, "whether this application version can use DHE without DH parameters is not recorded, so DHE suites are kept")
+			e.Steps = []model.ResolutionStep{first}
+			levelFrom := first // 暗号文字列にセキュリティレベルの指定が含まれるとき、それがどの層のものか
+			if in.CipherString == cipherSystemDefault {
+				// アプリは何も設定しない。システムの openssl.cnf の暗号文字列があればそれ、なければライブラリの既定（DEFAULT）
+				if sysCipher != "" {
+					in.CipherString = sysCipher
+					levelFrom = model.ResolutionStep{Layer: "os-policy", Op: "override"}
+				} else {
+					in.CipherString = "DEFAULT"
+					levelFrom = model.ResolutionStep{Layer: "library", Op: "default", Source: libProv}
+				}
+				e.Steps = append(e.Steps, levelFrom)
 			}
-		}
-		if len(out.Suites) == 0 {
-			notes = append(notes, "no suite is usable with this configuration")
-		}
-		e.Values, e.Notes = out.Suites, notes
-		if len(notes) > 0 {
-			e.Confidence = model.ConfidenceMedium
-		}
-		c.Builder.AddEffective(e)
+			if table.ProfileSystem != "" && strings.HasPrefix(in.CipherString, "PROFILE=SYSTEM") {
+				e.Steps = append(e.Steps, model.ResolutionStep{Layer: "os-policy", Op: "profile"})
+			}
 
-		// TLS 1.3 のスイート（暗号文字列とは別に決まる）
-		if len(table.TLS13) == 0 {
-			continue
-		}
-		if sc.tls13Blocker != "" {
-			e13.Status, e13.Confidence, e13.Reason = model.StatusUnresolved, "", sc.tls13Blocker
+			// 2. サーバーの持ち物: 証明書の種類と、DH パラメータ
+			var notes []string
+			if sc.certsOK {
+				certs := sc.certs
+				if strings.Join(defs[paramCertSel], ",") == "first" && len(certs) > 1 {
+					certs = certs[:1] // この版は、同じ名前の証明書を複数指定しても最初の1つしか使わない
+					usedAppDefault = true
+				}
+				in.Certs, in.CertsKnown = c.certKinds(certs)
+			}
+			tls13Default := false // TLS 1.3 のスイートを、アプリの既定が決めている
+			if sc.tls13 != "" {
+				in.AppTLS13 = strings.Split(sc.tls13, ":")
+			} else if def := defs[paramTLS13]; len(def) > 0 {
+				// アプリ自身が TLS 1.3 のスイートの既定を持つ（システムの openssl.cnf の指定より優先される）
+				in.AppTLS13, tls13Default = strings.Split(strings.Join(def, ","), ":"), true
+			}
+			dheLayer := "app-config"
+			var dheSource *model.Provenance
+			switch v := strings.Join(defs[paramDHE], ","); {
+			case sc.dhParam:
+				in.DHE, in.DHEKnown = true, true
+			case v == "builtin":
+				in.DHE, in.DHEKnown, dheLayer, dheSource = true, true, "app-default", appProv
+				usedAppDefault = true
+			case v == "disabled":
+				in.DHE, in.DHEKnown, dheLayer, dheSource = false, true, "app-default", appProv
+				usedAppDefault = true
+			}
+
+			out, err := tlseffective.Resolve(in)
+			if err != nil {
+				fail("the cipher string cannot be expanded: " + err.Error())
+				return sysLevel, sysStep
+			}
+			e.Steps = append(e.Steps, model.ResolutionStep{Layer: "library", Op: "expand", Source: libProv})
+			levelStep := model.ResolutionStep{Op: "security-level"}
+			switch out.LevelSource {
+			case "cipher-string":
+				levelStep.Layer, levelStep.Setting, levelStep.Source = levelFrom.Layer, levelFrom.Setting, levelFrom.Source
+			case "system":
+				levelStep.Layer = "os-policy"
+			case "library-default":
+				levelStep.Layer, levelStep.Source = "library", libProv
+			}
+			if levelStep.Layer != "" {
+				e.Steps = append(e.Steps, levelStep)
+			}
+			if in.CertsKnown {
+				e.Steps = append(e.Steps, model.ResolutionStep{Layer: "app-config", Op: "filter-certificates"})
+			}
+			if in.DHEKnown {
+				e.Steps = append(e.Steps, model.ResolutionStep{Layer: dheLayer, Op: "filter-dh-parameters", Source: dheSource})
+			}
+			if libNote != "" {
+				notes = append(notes, libNote)
+			}
+			if appNote != "" && usedAppDefault {
+				notes = append(notes, appNote)
+			}
+			for _, u := range out.Unfiltered {
+				switch u {
+				case "certificates":
+					notes = append(notes, "the server certificate could not be read, so suites are not narrowed down by the certificate type")
+				case "dh-parameters":
+					notes = append(notes, "whether this application version can use DHE without DH parameters is not recorded, so DHE suites are kept")
+				}
+			}
+			if len(out.Suites) == 0 {
+				notes = append(notes, "no suite is usable with this configuration")
+			}
+			e.Values, e.Notes = out.Suites, notes
+			if len(notes) > 0 {
+				e.Confidence = model.ConfidenceMedium
+			}
+			c.Builder.AddEffective(e)
+
+			// TLS 1.3 のスイート（暗号文字列とは別に決まる）
+			if len(table.TLS13) == 0 {
+				return out.Level, levelStep
+			}
+			if sc.tls13Blocker != "" {
+				e13.Status, e13.Confidence, e13.Reason = model.StatusUnresolved, "", sc.tls13Blocker
+				c.Builder.AddEffective(e13)
+				return out.Level, levelStep
+			}
+			switch out.TLS13Source {
+			case "app":
+				e13.Steps = []model.ResolutionStep{{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, paramTLS13, sc.tls13File, sc.tls13Line)}}
+				if tls13Default {
+					e13.Steps = []model.ResolutionStep{{Layer: "app-default", Op: "default", Source: appProv}}
+				}
+			case "system":
+				e13.Steps = []model.ResolutionStep{{Layer: "os-policy", Op: "override"}}
+			default:
+				e13.Steps = []model.ResolutionStep{{Layer: "library", Op: "default", Source: libProv}}
+			}
+			if levelStep.Layer != "" {
+				e13.Steps = append(e13.Steps, levelStep)
+			}
+			e13.Values = out.TLS13
+			e13.Notes = []string{"used only when TLS 1.3 is enabled"}
+			if libNote != "" {
+				e13.Notes = append(e13.Notes, libNote)
+				e13.Confidence = model.ConfidenceMedium
+			}
+			if appNote != "" && tls13Default {
+				e13.Notes = append(e13.Notes, appNote)
+				e13.Confidence = model.ConfidenceMedium
+			}
 			c.Builder.AddEffective(e13)
-			continue
-		}
-		switch out.TLS13Source {
-		case "app":
-			e13.Steps = []model.ResolutionStep{{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, paramTLS13, sc.tls13File, sc.tls13Line)}}
-			if tls13Default {
-				e13.Steps = []model.ResolutionStep{{Layer: "app-default", Op: "default", Source: appProv}}
-			}
-		case "system":
-			e13.Steps = []model.ResolutionStep{{Layer: "os-policy", Op: "override"}}
-		default:
-			e13.Steps = []model.ResolutionStep{{Layer: "library", Op: "default", Source: libProv}}
-		}
-		if levelStep.Layer != "" {
-			e13.Steps = append(e13.Steps, levelStep)
-		}
-		e13.Values = out.TLS13
-		e13.Notes = []string{"used only when TLS 1.3 is enabled"}
-		if libNote != "" {
-			e13.Notes = append(e13.Notes, libNote)
-			e13.Confidence = model.ConfidenceMedium
-		}
-		if appNote != "" && tls13Default {
-			e13.Notes = append(e13.Notes, appNote)
-			e13.Confidence = model.ConfidenceMedium
-		}
-		c.Builder.AddEffective(e13)
+			return out.Level, levelStep
+		}()
+		groups.resolve(sc, level, levelStep)
 	}
 }

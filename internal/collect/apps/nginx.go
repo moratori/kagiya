@@ -140,7 +140,14 @@ func nginxScopes(ds []nginxconf.Directive, names map[string]string, base string)
 			sc.certs = append(sc.certs, p)
 		}
 		sc.dhParam = len(lookup("ssl_dhparam")) > 0
+		// 鍵交換のグループ。「auto」は指定なしと同じ（ライブラリやシステムの設定に従う）
+		if gs := lookup("ssl_ecdh_curve"); len(gs) > 0 {
+			if v := strings.Join(gs[0].Args, " "); v != "auto" {
+				sc.setGroups(v, gs[0].File, gs[0].Line, "ssl_ecdh_curve")
+			}
+		}
 		if len(lookup("ssl_conf_command")) > 0 {
+			sc.groupsBlocker = "ssl_conf_command is used; it changes the OpenSSL settings directly, so ssl_ecdh_curve alone does not determine the result"
 			sc.blocker = "ssl_conf_command is used; it changes the OpenSSL settings directly, so the cipher string alone does not determine the result"
 		}
 		scopes = append(scopes, sc)

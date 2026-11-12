@@ -167,7 +167,29 @@ func apacheScopes(r *apacheconf.Result, vhost func([]string) string) []tlsScope 
 			}
 			sc.certs = append(sc.certs, p)
 		}
-		if len(lookup(vh, "sslopensslconfcmd")) > 0 {
+		// SSLOpenSSLConfCmd: 全体の記載、VirtualHost の中の記載の順に適用され、後のものが効く。
+		// Groups（古い名前は Curves）は鍵交換のグループの指定として読む。それ以外の指定は、暗号スイートの結果を変えうるので、求めない。
+		var cmds []apacheconf.Directive
+		for _, where := range []string{"", vh} {
+			for _, d := range r.Directives {
+				if d.Name == "sslopensslconfcmd" && !perDir(d.Sections) && vhost(d.Sections) == where {
+					cmds = append(cmds, d)
+				}
+			}
+			if vh == "" {
+				break
+			}
+		}
+		for _, d := range cmds {
+			f := strings.Fields(unquoteArg(d.Args))
+			for i := range f {
+				f[i] = unquoteArg(f[i])
+			}
+			if len(f) == 2 && (strings.EqualFold(f[0], "Groups") || strings.EqualFold(f[0], "Curves")) {
+				sc.setGroups(f[1], d.File, d.Line, "SSLOpenSSLConfCmd "+f[0])
+				sc.groupsParam = "tls.openssl-conf-cmd"
+				continue
+			}
 			sc.blocker = "SSLOpenSSLConfCmd is used; it changes the OpenSSL settings directly, so the cipher string alone does not determine the result"
 		}
 		scopes = append(scopes, sc)

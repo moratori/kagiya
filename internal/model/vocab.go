@@ -31,6 +31,7 @@ const (
 	ParamTLSCiphers       = "tls.ciphers"            // 暗号スイート（TLS 1.2 以下）
 	ParamTLSCiphersuites  = "tls.ciphersuites-tls13" // 暗号スイート（TLS 1.3）
 	ParamTLSProtocols     = "tls.protocols"
+	ParamTLSGroups        = "tls.groups"                // 鍵交換のグループ（楕円曲線、有限体 DH、耐量子のハイブリッド）
 	ParamTLSDHEWithout    = "tls.dhe-without-params"    // 既定の表: DH パラメータなしで DHE を使えるか
 	ParamTLSCertSelection = "tls.certificate-selection" // 既定の表: 同じ名前の証明書を複数使えるか
 )

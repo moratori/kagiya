@@ -122,6 +122,18 @@ func (c *Collector) haproxy(app ruleset.AppRule, svc model.Service, config strin
 		if sc.tls13 != "" && !cipherString.MatchString(sc.tls13) {
 			sc.tls13, sc.tls13Blocker = "", "the configured TLS 1.3 suites are not interpreted"
 		}
+		// 鍵交換のグループ: bind の行の curves、なければ全体の ssl-default-bind-curves
+		if v := opts["curves"]; len(v) > 0 {
+			sc.setGroups(v[len(v)-1], d.File, d.Line, "curves")
+		} else if g, ok := global["ssl-default-bind-curves"]; ok {
+			sc.setGroups(g.Args[0], g.File, g.Line, "ssl-default-bind-curves")
+			if g.HasVariable {
+				sc.groups, sc.groupsBlocker = "", "the configured group list (ssl-default-bind-curves) contains a variable and is not interpreted"
+			}
+		}
+		if d.HasVariable && len(opts["curves"]) > 0 {
+			sc.groups, sc.groupsBlocker = "", "the configured group list (curves) contains a variable and is not interpreted"
+		}
 		// 証明書: crt に指定されたファイル。ディレクトリや一覧ファイル（crt-list）は、どの証明書が使われるかを追わない
 		if len(opts["crt"]) == 0 || len(opts["crt-list"]) > 0 {
 			sc.certsOK = false

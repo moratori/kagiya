@@ -110,6 +110,9 @@ func (c *Collector) stunnel(app ruleset.AppRule, svc model.Service) {
 					sc.tls13Blocker = "the configured TLS 1.3 suites are not interpreted"
 				}
 			}
+			if d, ok := lookup("curves"); ok {
+				sc.setGroups(d.Value, d.File, d.Line, "curves")
+			}
 			// 証明書は1つのサービスに1つ。絶対パスで指定されたものだけを読む
 			if d, ok := lookup("cert"); ok && strings.HasPrefix(d.Value, "/") && !strings.ContainsAny(d.Value, "$*?[") {
 				sc.certs, sc.certsOK = []string{d.Value}, true
