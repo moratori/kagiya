@@ -63,24 +63,8 @@ func (rs *RuleSet) addCipherTable(t *CipherTable, ids map[string]bool) error {
 		return errors.New("cipher table needs a library and an upstream version")
 	}
 	where := "cipher table for " + t.Library + " " + t.Upstream
-	if len(t.Builds) == 0 {
-		return fmt.Errorf("%s: at least one build (package version with its source) is required", where)
-	}
-	for _, b := range t.Builds {
-		if !pkgNamePattern.MatchString(b.Package) || strings.HasSuffix(b.Package, "*") || !pkgVersionPattern.MatchString(b.Version) {
-			return fmt.Errorf("%s: invalid build (package %q, version %q)", where, b.Package, b.Version)
-		}
-		if upstreamOf(b.Version) != t.Upstream {
-			return fmt.Errorf("%s: build %s %s does not belong to this upstream version", where, b.Package, b.Version)
-		}
-		key := "cipher\x00" + t.Library + "\x00" + b.Package + "\x00" + b.Version
-		if ids[key] {
-			return fmt.Errorf("%s: duplicate build %s %s", where, b.Package, b.Version)
-		}
-		ids[key] = true
-		if err := checkSources([]Source{b.Source}); err != nil {
-			return fmt.Errorf("%s: build %s %s: %w", where, b.Package, b.Version, err)
-		}
+	if err := checkBuilds("cipher", t.Library, t.Upstream, t.Builds, ids); err != nil {
+		return fmt.Errorf("%s: %w", where, err)
 	}
 	if !t.SecurityLevels && t.DefaultLevel != nil {
 		return fmt.Errorf("%s: default_level needs security_levels", where)
@@ -175,32 +159,71 @@ func distroTag(version string) string {
 //     リリース番号だけが違う版（エラータ）を想定している。呼び出し側は、補間であることを結果に残し、確度を下げること。
 //   - それ以外は返さない（上流の版やディストリが違う表では代用しない）。
 func (rs *RuleSet) CipherTableFor(library, pkg, version string) (t *CipherTable, build CipherBuild, exact, ok bool) {
-	if version == "" {
+	i, build, exact, ok := findBuild(library, pkg, version, len(rs.CipherTables), func(i int) (string, string, []CipherBuild) {
+		tb := rs.CipherTables[i]
+		return tb.Library, tb.Upstream, tb.Builds
+	})
+	if !ok {
 		return nil, CipherBuild{}, false, false
 	}
-	for _, tb := range rs.CipherTables {
-		if tb.Library != library {
+	return rs.CipherTables[i], build, exact, true
+}
+
+// findBuild は、パッケージ版ごとの実測の表（暗号スイート、鍵交換のグループ）から、導入されている版に対応するものを探す。
+// 実測した版そのものがあれば exact = true。なければ、パッケージ名・上流の版・ディストリの系列が同じ実測版で補間する。
+func findBuild(library, pkg, version string, n int, at func(i int) (library, upstream string, builds []CipherBuild)) (index int, build CipherBuild, exact, ok bool) {
+	if version == "" {
+		return 0, CipherBuild{}, false, false
+	}
+	for i := 0; i < n; i++ {
+		lib, _, builds := at(i)
+		if lib != library {
 			continue
 		}
-		for _, b := range tb.Builds {
+		for _, b := range builds {
 			if b.Package == pkg && b.Version == version {
-				return tb, b, true, true
+				return i, b, true, true
 			}
 		}
 	}
 	up, tag := upstreamOf(version), distroTag(version)
 	if tag == "" {
-		return nil, CipherBuild{}, false, false
+		return 0, CipherBuild{}, false, false
 	}
-	for _, tb := range rs.CipherTables {
-		if tb.Library != library || tb.Upstream != up {
+	for i := 0; i < n; i++ {
+		lib, upstream, builds := at(i)
+		if lib != library || upstream != up {
 			continue
 		}
-		for _, b := range tb.Builds {
+		for _, b := range builds {
 			if b.Package == pkg && distroTag(b.Version) == tag {
-				return tb, b, false, true
+				return i, b, false, true
 			}
 		}
 	}
-	return nil, CipherBuild{}, false, false
+	return 0, CipherBuild{}, false, false
+}
+
+// checkBuilds は、表を実測したパッケージ版の一覧を検証する（出典が必須。同じ版を2つの表に載せない）。
+func checkBuilds(kind, library, upstream string, builds []CipherBuild, ids map[string]bool) error {
+	if len(builds) == 0 {
+		return errors.New("at least one build (package version with its source) is required")
+	}
+	for _, b := range builds {
+		if !pkgNamePattern.MatchString(b.Package) || strings.HasSuffix(b.Package, "*") || !pkgVersionPattern.MatchString(b.Version) {
+			return fmt.Errorf("invalid build (package %q, version %q)", b.Package, b.Version)
+		}
+		if upstreamOf(b.Version) != upstream {
+			return fmt.Errorf("build %s %s does not belong to this upstream version", b.Package, b.Version)
+		}
+		key := kind + "\x00" + library + "\x00" + b.Package + "\x00" + b.Version
+		if ids[key] {
+			return fmt.Errorf("duplicate build %s %s", b.Package, b.Version)
+		}
+		ids[key] = true
+		if err := checkSources([]Source{b.Source}); err != nil {
+			return fmt.Errorf("build %s %s: %w", b.Package, b.Version, err)
+		}
+	}
+	return nil
 }

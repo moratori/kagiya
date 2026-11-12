@@ -42,6 +42,7 @@ type RuleSet struct {
 
 	CipherTables []*CipherTable
 	Policies     []*Policy
+	GroupTables  []*GroupTable
 
 	byAlias     map[string]int
 	storePaths  map[string]string // パス → ストア ID
@@ -208,6 +209,16 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 			}
 			for _, t := range cf.CipherTables {
 				if err := rs.addCipherTable(t, ids); err != nil {
+					return nil, fmt.Errorf("%s: %w", f.Path, err)
+				}
+			}
+		case strings.HasPrefix(f.Path, "groups/") && strings.HasSuffix(f.Path, ".yaml") && strings.Count(f.Path, "/") == 1:
+			var gf groupFile
+			if err := decodeStrict(f.Data, &gf); err != nil {
+				return nil, fmt.Errorf("%s: %w", f.Path, err)
+			}
+			for _, t := range gf.GroupTables {
+				if err := rs.addGroupTable(t, ids); err != nil {
 					return nil, fmt.Errorf("%s: %w", f.Path, err)
 				}
 			}
