@@ -787,3 +787,66 @@ func TestScanAddsAssessment(t *testing.T) {
 		t.Fatal("no certificate in the result")
 	}
 }
+
+// report は、結果 JSON から 1 ホスト分の HTML レポートを作る。
+func TestReport(t *testing.T) {
+	fx := setup(t)
+	if code, _, stderr := run(fx.scanArgs()...); code != 0 {
+		t.Fatalf("scan: exit %d: %s", code, stderr)
+	}
+	result := singleFile(t, fx.out, ".json")
+	dir := filepath.Dir(fx.root) + "/report"
+	code, stdout, stderr := run("report", "--output-dir", dir, result)
+	if code != 0 {
+		t.Fatalf("report: exit %d: %s", code, stderr)
+	}
+	out := singleFile(t, dir, ".html")
+	if !strings.Contains(stdout, out) {
+		t.Errorf("stdout must name the written file: %q", stdout)
+	}
+	if filepath.Base(out) != strings.TrimSuffix(filepath.Base(result), ".json")+".html" {
+		t.Errorf("report file name = %s", filepath.Base(out))
+	}
+	if fi, _ := os.Stat(out); fi.Mode().Perm() != 0o600 {
+		t.Errorf("report mode = %o, want 600", fi.Mode().Perm())
+	}
+	data, _ := os.ReadFile(out)
+	for _, want := range []string{"<!DOCTYPE html>", "Content-Security-Policy", "CN=rsa.example.jp", "/etc/ssl/ec.cer", "量子計算機に弱い", "判定の基準と出典"} {
+		if !bytes.Contains(data, []byte(want)) {
+			t.Errorf("the report does not contain %q", want)
+		}
+	}
+	// 同じ名前のレポートがすでにあれば、上書きしない
+	if code, _, _ := run("report", "--output-dir", dir, result); code == 0 {
+		t.Error("an existing report must not be overwritten")
+	}
+}
+
+func TestReportRejectsBadInput(t *testing.T) {
+	fx := setup(t)
+	if code, _, stderr := run(fx.scanArgs()...); code != 0 {
+		t.Fatalf("scan: exit %d: %s", code, stderr)
+	}
+	result := singleFile(t, fx.out, ".json")
+	dir := filepath.Dir(fx.root) + "/report"
+	// 評価ポリシーが見つからない
+	if code, _, stderr := run("report", "--output-dir", dir, "--policy", "nosuch", result); code != exitFatal || !strings.Contains(stderr, "nosuch") {
+		t.Errorf("unknown policy: exit %d: %s", code, stderr)
+	}
+	// 入力なし、入力が複数（複数ホストのまとめは、まだ対応していない）
+	if code, _, _ := run("report", "--output-dir", dir); code != exitUsage {
+		t.Errorf("no input: exit %d", code)
+	}
+	if code, _, stderr := run("report", "--output-dir", dir, result, result); code != exitUsage || !strings.Contains(stderr, "one result file") {
+		t.Errorf("two inputs: exit %d: %s", code, stderr)
+	}
+	// このツールの結果ではないファイル
+	other := filepath.Dir(fx.root) + "/other.json"
+	os.WriteFile(other, []byte(`{"schema":"something-else"}`), 0o600)
+	if code, _, _ := run("report", "--output-dir", dir, other); code != exitFatal {
+		t.Errorf("foreign file: exit %d", code)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Errorf("no report must be written on errors, found %d files", len(entries))
+	}
+}
