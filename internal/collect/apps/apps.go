@@ -10,6 +10,7 @@
 package apps
 
 import (
+	"sort"
 	"strings"
 
 	"kagiya/internal/inventory"
@@ -59,6 +60,15 @@ func (f confFS) Glob(pattern string) ([]string, error) {
 func (c *Collector) application(app ruleset.AppRule) {
 	config := ""
 	for _, p := range app.ConfigFiles {
+		if strings.Contains(p, "*") {
+			// 名前が決まっていない設定ファイル（「/etc/stunnel/*.conf」など）。当てはまるもののうち、名前の順で最初のもの
+			if files, _ := (confFS{c}).Glob(p); len(files) > 0 {
+				sort.Strings(files)
+				config = files[0]
+				break
+			}
+			continue
+		}
 		if _, err := c.read(p); err == nil {
 			config = p
 			break
@@ -88,5 +98,7 @@ func (c *Collector) application(app ruleset.AppRule) {
 		c.apache(app, svc, config)
 	case "haproxy":
 		c.haproxy(app, svc, config, units)
+	case "stunnel":
+		c.stunnel(app, svc)
 	}
 }

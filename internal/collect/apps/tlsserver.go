@@ -274,8 +274,12 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			}
 			in.Certs, in.CertsKnown = c.certKinds(certs)
 		}
+		tls13Default := false // TLS 1.3 のスイートを、アプリの既定が決めている
 		if sc.tls13 != "" {
 			in.AppTLS13 = strings.Split(sc.tls13, ":")
+		} else if def := defs[paramTLS13]; len(def) > 0 {
+			// アプリ自身が TLS 1.3 のスイートの既定を持つ（システムの openssl.cnf の指定より優先される）
+			in.AppTLS13, tls13Default = strings.Split(strings.Join(def, ","), ":"), true
 		}
 		dheLayer := "app-config"
 		var dheSource *model.Provenance
@@ -349,6 +353,9 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 		switch out.TLS13Source {
 		case "app":
 			e13.Steps = []model.ResolutionStep{{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, paramTLS13, sc.tls13File, sc.tls13Line)}}
+			if tls13Default {
+				e13.Steps = []model.ResolutionStep{{Layer: "app-default", Op: "default", Source: appProv}}
+			}
 		case "system":
 			e13.Steps = []model.ResolutionStep{{Layer: "os-policy", Op: "override"}}
 		default:
@@ -361,6 +368,10 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 		e13.Notes = []string{"used only when TLS 1.3 is enabled"}
 		if libNote != "" {
 			e13.Notes = append(e13.Notes, libNote)
+			e13.Confidence = model.ConfidenceMedium
+		}
+		if appNote != "" && tls13Default {
+			e13.Notes = append(e13.Notes, appNote)
 			e13.Confidence = model.ConfidenceMedium
 		}
 		c.Builder.AddEffective(e13)

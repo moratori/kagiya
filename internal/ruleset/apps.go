@@ -18,7 +18,7 @@ type AppRule struct {
 	Packages       []string `yaml:"packages"` // このアプリを含むパッケージ名（優先順）
 
 	// 設定の読み取り
-	Grammar     string          `yaml:"grammar"`      // 設定ファイルの文法（sshd | nginx | apache | haproxy）
+	Grammar     string          `yaml:"grammar"`      // 設定ファイルの文法（sshd | nginx | apache | haproxy | stunnel）
 	ConfigFiles []string        `yaml:"config_files"` // 設定ファイルの候補（先に見つかったものを使う）
 	Units       []string        `yaml:"units"`        // systemd のユニット名（有効化状態と起動引数を読む）
 	Direction   string          `yaml:"direction"`    // 通信の方向: inbound（受信）| outbound（送信）
@@ -182,7 +182,7 @@ func (rs *RuleSet) addApp(a AppRule, ids map[string]bool) error {
 			return fmt.Errorf("app %q: path %q must be a clean absolute path", a.ID, p)
 		}
 	}
-	if a.Grammar != "" && a.Grammar != "sshd" && a.Grammar != "nginx" && a.Grammar != "apache" && a.Grammar != "haproxy" {
+	if a.Grammar != "" && a.Grammar != "sshd" && a.Grammar != "nginx" && a.Grammar != "apache" && a.Grammar != "haproxy" && a.Grammar != "stunnel" {
 		return fmt.Errorf("app %q: unknown grammar %q", a.ID, a.Grammar)
 	}
 	if a.Direction != "" && a.Direction != "inbound" && a.Direction != "outbound" {

@@ -45,14 +45,14 @@ packages:
         note: "nginx, apache2, apache2-bin（Ubuntu 16.04 では nginx-core もある）"
 
   - role: proxy
-    names: ["haproxy"]
+    names: ["haproxy", "stunnel", "stunnel4"]
     sources:
       - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
         os: "Red Hat Enterprise Linux 9.9 (Plow)"
         note: "haproxy（/usr/sbin/haproxy を含む）"
       - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
         os: "Ubuntu 24.04.5 LTS"
-        note: "haproxy（/usr/sbin/haproxy を含む）"
+        note: "haproxy（/usr/sbin/haproxy を含む）、stunnel4（/usr/bin/stunnel4 を含む）。RHEL 系のパッケージ名は stunnel"
 
   - role: crypto-policy
     names: ["crypto-policies", "crypto-policies-scripts"]
