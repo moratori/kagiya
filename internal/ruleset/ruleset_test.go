@@ -804,3 +804,34 @@ func TestRulePackagesAreRecorded(t *testing.T) {
 		}
 	}
 }
+
+// stunnel のルールと既定の表。
+func TestBuiltinStunnel(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var app *AppRule
+	for i := range rs.Apps {
+		if rs.Apps[i].ID == "stunnel" {
+			app = &rs.Apps[i]
+		}
+	}
+	if app == nil || app.Grammar != "stunnel" || len(app.Sources) == 0 {
+		t.Fatalf("stunnel app rule = %+v", app)
+	}
+	if d, ok := app.Directive("sslVersionMin"); !ok || d.Parameter == "" {
+		t.Errorf("sslVersionMin = %+v %v", d, ok)
+	}
+	v, _, ok := rs.AppDefaults("stunnel", "stunnel", "5.71-2.el9")
+	if !ok || strings.Join(v["tls.ciphers"], "|") != "PROFILE=SYSTEM" || strings.Join(v["tls.dhe-without-params"], "|") != "builtin" ||
+		strings.Join(v["tls.ciphersuites-tls13"], "|") != "TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256" {
+		t.Errorf("stunnel on RHEL 9 = %v %v", v, ok)
+	}
+	if v, _, ok := rs.AppDefaults("stunnel", "stunnel4", "3:5.72-1build2"); !ok || strings.Join(v["tls.ciphers"], "|") != "HIGH:!aNULL:!SSLv2:!DH:!kDHEPSK" {
+		t.Errorf("stunnel4 on Ubuntu 24.04 = %v %v", v, ok)
+	}
+	if v, _, ok := rs.AppDefaults("stunnel", "stunnel4", "3:5.30-1ubuntu0.1"); !ok || strings.Join(v["tls.ciphers"], "|") != "@system" || v["tls.ciphersuites-tls13"] != nil {
+		t.Errorf("stunnel4 on Ubuntu 16.04 = %v %v", v, ok)
+	}
+}
