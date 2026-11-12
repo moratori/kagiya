@@ -35,14 +35,17 @@ type tlsScope struct {
 	dhParam bool     // DH パラメータの指定がある
 
 	blocker      string // 空でなければ、この範囲の実効値は求めない（理由）
+	cipherParam  string // 暗号文字列の根拠として示す設定項目の名前（空なら tls.ciphers）
+	noCert       bool   // 証明書を持たないサービス（認証なしのスイートだけを使える。TLS 1.3 は使えない）
 	tls13Blocker string // 空でなければ、TLS 1.3 のスイートだけ求めない（理由）
 }
 
 const (
-	paramCiphers = model.ParamTLSCiphers
-	paramTLS13   = model.ParamTLSCiphersuites
-	paramDHE     = model.ParamTLSDHEWithout
-	paramCertSel = model.ParamTLSCertSelection
+	paramCiphers  = model.ParamTLSCiphers
+	paramTLS13    = model.ParamTLSCiphersuites
+	paramDHE      = model.ParamTLSDHEWithout
+	paramAppLevel = "tls.security-level" // 既定の表: アプリが OpenSSL に設定するセキュリティレベル
+	paramCertSel  = model.ParamTLSCertSelection
 
 	// 既定の表での特別な値: アプリが暗号文字列を設定せず、OpenSSL のシステム既定のままになる
 	cipherSystemDefault = "@system"
@@ -234,6 +237,12 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 	if sysLevel >= 0 {
 		sysStep = model.ResolutionStep{Layer: "os-policy", Op: "security-level"}
 	}
+	// アプリが自分でセキュリティレベルを決める場合（システムの設定によるレベルは効かない）
+	appLevel := false
+	if v := strings.Join(defs[paramAppLevel], ","); len(v) == 1 && v[0] >= '0' && v[0] <= '5' && table != nil && table.SecurityLevels {
+		sysLevel, appLevel = int(v[0]-'0'), true
+		sysStep = model.ResolutionStep{Layer: "app-default", Op: "security-level", Source: appProv}
+	}
 	groups := c.newGroupResolver(app, svc, appProv, appNote, defs)
 	groups.levelUnknown = sysUnread == "CipherString"
 	for _, sc := range scopes {
@@ -270,7 +279,11 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			usedAppDefault := false // アプリの既定値表の値を使ったか（補間した表なら、確度を下げる）
 
 			// 1. 暗号文字列: 設定の記載、なければアプリの既定
-			first := model.ResolutionStep{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, paramCiphers, sc.cipherFile, sc.cipherLine)}
+			cipherParam := paramCiphers
+			if sc.cipherParam != "" {
+				cipherParam = sc.cipherParam
+			}
+			first := model.ResolutionStep{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, cipherParam, sc.cipherFile, sc.cipherLine)}
 			in.CipherString = sc.cipher
 			if sc.cipher == "" {
 				def := defs[paramCiphers]
@@ -313,6 +326,9 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 				}
 				in.Certs, in.CertsKnown = c.certKinds(certs)
 			}
+			if sc.noCert {
+				in.Certs, in.CertsKnown = nil, true
+			}
 			tls13Default := false // TLS 1.3 のスイートを、アプリの既定が決めている
 			if sc.tls13 != "" {
 				in.AppTLS13 = strings.Split(sc.tls13, ":")
@@ -345,6 +361,10 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 				levelStep.Layer, levelStep.Setting, levelStep.Source = levelFrom.Layer, levelFrom.Setting, levelFrom.Source
 			case "system":
 				levelStep.Layer = "os-policy"
+				if appLevel {
+					levelStep.Layer, levelStep.Source = "app-default", appProv
+					usedAppDefault = true
+				}
 			case "library-default":
 				levelStep.Layer, levelStep.Source = "library", libProv
 			}
@@ -405,6 +425,9 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			}
 			e13.Values = out.TLS13
 			e13.Notes = []string{"used only when TLS 1.3 is enabled"}
+			if sc.noCert {
+				e13.Values, e13.Notes = nil, []string{"TLS 1.3 needs a certificate, and this service has none"}
+			}
 			if libNote != "" {
 				e13.Notes = append(e13.Notes, libNote)
 				e13.Confidence = model.ConfidenceMedium

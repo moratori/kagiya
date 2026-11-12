@@ -54,6 +54,16 @@ packages:
         os: "Ubuntu 24.04.5 LTS"
         note: "haproxy（/usr/sbin/haproxy を含む）、stunnel4（/usr/bin/stunnel4 を含む）。RHEL 系のパッケージ名は stunnel"
 
+  - role: mail-server
+    names: ["postfix"]
+    sources:
+      - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
+        os: "Red Hat Enterprise Linux 9.9 (Plow)"
+        note: "postfix（/usr/sbin/postfix、/usr/libexec/postfix/smtpd を含む）"
+      - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+        os: "Debian GNU/Linux 13 (trixie)"
+        note: "postfix（/usr/sbin/postfix、/usr/lib/postfix/sbin/smtpd を含む）"
+
   - role: crypto-policy
     names: ["crypto-policies", "crypto-policies-scripts"]
     sources:

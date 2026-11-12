@@ -3,13 +3,15 @@
 #   tls.security-level         : Postfix が OpenSSL に設定するセキュリティレベル。どの版も 0 にする（システムの openssl.cnf の指定は効かない）。
 #                                セキュリティレベルの仕組みがない OpenSSL（1.0.2）の版には、この項目はない。
 #   tls.ciphers                : 暗号の等級の指定がないときの暗号文字列（等級 medium の tls_medium_cipherlist）。
+#   tls.cipher-grade / tls.mandatory-cipher-grade : 等級の既定（smtpd_tls_ciphers、smtpd_tls_mandatory_ciphers）。
 #   tls.cipherlist.<等級>      : 等級（high / medium / low / export / null）に対応する暗号文字列（tls_<等級>_cipherlist）。
 #                                新しい版では low と export は空で、この表にはない。
 #   tls.groups                 : グループの指定がないときの鍵交換のグループ（tls_eecdh_auto_curves と tls_ffdhe_auto_groups）。
 #                                システムの openssl.cnf やライブラリの既定より優先される（耐量子のハイブリッドを含まない）。
 #   tls.eecdh-curves           : tls_eecdh_auto_curves の既定。
 #   tls.ffdhe-groups           : tls_ffdhe_auto_groups の既定（この項目を持つ版だけ）。
-#   tls.eecdh-grade            : smtpd_tls_eecdh_grade（古い書き方）の strong / ultra の指定が効くか（honored / ignored）。
+#   tls.eecdh-grade-default    : smtpd_tls_eecdh_grade（古い書き方）の既定。
+#   tls.eecdh-grade            : smtpd_tls_eecdh_grade の strong / ultra の指定が効くか（honored / ignored）。
 #   tls.eecdh-strong-curve / tls.eecdh-ultra-curve : その指定が効く版での、等級に対応する曲線。
 #   tls.dhe-without-params     : DH パラメータの指定がないときに DHE のスイートを使えるか（builtin = 組み込みのパラメータで使える）。
 #
@@ -29,6 +31,8 @@ defaults:
     values:
       tls.security-level: "0"
       tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipher-grade: "medium"
+      tls.mandatory-cipher-grade: "medium"
       tls.cipherlist.high: "aNULL:-aNULL:HIGH:@STRENGTH"
       tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
       tls.cipherlist.low: "aNULL:-aNULL:HIGH:MEDIUM:LOW:+RC4:@STRENGTH"
@@ -36,6 +40,7 @@ defaults:
       tls.cipherlist.null: "eNULL:!aNULL"
       tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1"
       tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-grade-default: "auto"
       tls.eecdh-grade: "honored"
       tls.eecdh-strong-curve: "prime256v1"
       tls.eecdh-ultra-curve: "secp384r1"
@@ -50,6 +55,8 @@ defaults:
     values:
       tls.security-level: "0"
       tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipher-grade: "medium"
+      tls.mandatory-cipher-grade: "medium"
       tls.cipherlist.high: "aNULL:-aNULL:HIGH:@STRENGTH"
       tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
       tls.cipherlist.low: "aNULL:-aNULL:HIGH:MEDIUM:LOW:+RC4:@STRENGTH"
@@ -57,6 +64,7 @@ defaults:
       tls.cipherlist.null: "eNULL:!aNULL"
       tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1"
       tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-grade-default: "auto"
       tls.eecdh-grade: "honored"
       tls.eecdh-strong-curve: "prime256v1"
       tls.eecdh-ultra-curve: "secp384r1"
@@ -71,12 +79,15 @@ defaults:
     values:
       tls.security-level: "0"
       tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
+      tls.cipher-grade: "medium"
+      tls.mandatory-cipher-grade: "medium"
       tls.cipherlist.high: "aNULL:-aNULL:HIGH:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:@STRENGTH"
       tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
       tls.cipherlist.null: "eNULL:!kDH:!kECDH:!aDSS:!MD5:!aNULL"
       tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1:ffdhe2048:ffdhe3072"
       tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
       tls.ffdhe-groups: "ffdhe2048:ffdhe3072"
+      tls.eecdh-grade-default: "auto"
       tls.eecdh-grade: "ignored"
       tls.dhe-without-params: "builtin"
   - app: postfix
@@ -88,11 +99,14 @@ defaults:
       note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
     values:
       tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipher-grade: "medium"
+      tls.mandatory-cipher-grade: "medium"
       tls.cipherlist.high: "aNULL:-aNULL:HIGH:@STRENGTH"
       tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
       tls.cipherlist.low: "aNULL:-aNULL:HIGH:MEDIUM:LOW:+RC4:@STRENGTH"
       tls.cipherlist.export: "aNULL:-aNULL:HIGH:MEDIUM:LOW:EXPORT:+RC4:@STRENGTH"
       tls.cipherlist.null: "eNULL:!aNULL"
+      tls.eecdh-grade-default: "strong"
       tls.dhe-without-params: "builtin"
   - app: postfix
     package: postfix
@@ -104,6 +118,8 @@ defaults:
     values:
       tls.security-level: "0"
       tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipher-grade: "medium"
+      tls.mandatory-cipher-grade: "medium"
       tls.cipherlist.high: "aNULL:-aNULL:HIGH:@STRENGTH"
       tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
       tls.cipherlist.low: "aNULL:-aNULL:HIGH:MEDIUM:LOW:+RC4:@STRENGTH"
@@ -111,6 +127,7 @@ defaults:
       tls.cipherlist.null: "eNULL:!aNULL"
       tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1"
       tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-grade-default: "auto"
       tls.eecdh-grade: "honored"
       tls.eecdh-strong-curve: "prime256v1"
       tls.eecdh-ultra-curve: "secp384r1"
@@ -125,6 +142,8 @@ defaults:
     values:
       tls.security-level: "0"
       tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipher-grade: "medium"
+      tls.mandatory-cipher-grade: "medium"
       tls.cipherlist.high: "aNULL:-aNULL:HIGH:@STRENGTH"
       tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
       tls.cipherlist.low: "aNULL:-aNULL:HIGH:MEDIUM:LOW:+RC4:@STRENGTH"
@@ -132,6 +151,7 @@ defaults:
       tls.cipherlist.null: "eNULL:!aNULL"
       tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1"
       tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-grade-default: "auto"
       tls.eecdh-grade: "ignored"
       tls.dhe-without-params: "builtin"
   - app: postfix
@@ -144,12 +164,15 @@ defaults:
     values:
       tls.security-level: "0"
       tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
+      tls.cipher-grade: "medium"
+      tls.mandatory-cipher-grade: "medium"
       tls.cipherlist.high: "aNULL:-aNULL:HIGH:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:@STRENGTH"
       tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
       tls.cipherlist.null: "eNULL:!kDH:!kECDH:!aDSS:!MD5:!aNULL"
       tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1:ffdhe2048:ffdhe3072"
       tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
       tls.ffdhe-groups: "ffdhe2048:ffdhe3072"
+      tls.eecdh-grade-default: "auto"
       tls.eecdh-grade: "ignored"
       tls.dhe-without-params: "builtin"
   - app: postfix
@@ -162,11 +185,14 @@ defaults:
     values:
       tls.security-level: "0"
       tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
+      tls.cipher-grade: "medium"
+      tls.mandatory-cipher-grade: "medium"
       tls.cipherlist.high: "aNULL:-aNULL:HIGH:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:@STRENGTH"
       tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
       tls.cipherlist.null: "eNULL:!kDH:!kECDH:!aDSS:!MD5:!aNULL"
       tls.groups: "X25519:X448:prime256v1:secp384r1:secp521r1:ffdhe2048:ffdhe3072"
       tls.eecdh-curves: "X25519:X448:prime256v1:secp384r1:secp521r1"
       tls.ffdhe-groups: "ffdhe2048:ffdhe3072"
+      tls.eecdh-grade-default: "auto"
       tls.eecdh-grade: "ignored"
       tls.dhe-without-params: "builtin"

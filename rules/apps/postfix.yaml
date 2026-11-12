@@ -1,0 +1,60 @@
+# Postfix（メールサーバー）。受信側（smtpd）の TLS の設定を読む。
+app:
+  id: postfix
+  binaries: ["/usr/sbin/postfix"]
+  # 本体に「mail_version=3.5.25」の形で版が埋め込まれている
+  version_pattern: 'mail_version=(\d+\.\d+\.\d+)'
+  packages: ["postfix"]
+  grammar: postfix
+  # 全体の設定は main.cf。サービスごとの上書き（-o）は、同じディレクトリの master.cf（収集側で読む）
+  config_files: ["/etc/postfix/main.cf"]
+  units: ["postfix.service"]
+  direction: inbound
+  directives:
+    - { name: smtpd_tls_security_level, parameter: tls.starttls-level, type: words }
+    - { name: smtpd_use_tls, parameter: tls.enabled-legacy, type: words }
+    - { name: smtpd_enforce_tls, parameter: tls.required-legacy, type: words }
+    - { name: smtpd_tls_wrappermode, parameter: tls.wrapper-mode, type: words }
+    - { name: smtpd_tls_ciphers, parameter: tls.cipher-grade, type: words }
+    - { name: smtpd_tls_mandatory_ciphers, parameter: tls.mandatory-cipher-grade, type: words }
+    - { name: smtpd_tls_exclude_ciphers, parameter: tls.exclude-ciphers, type: words }
+    - { name: smtpd_tls_mandatory_exclude_ciphers, parameter: tls.mandatory-exclude-ciphers, type: words }
+    - { name: tls_high_cipherlist, parameter: tls.ciphers, type: cipher-string }
+    - { name: tls_medium_cipherlist, parameter: tls.ciphers, type: cipher-string }
+    - { name: tls_low_cipherlist, parameter: tls.ciphers, type: cipher-string }
+    - { name: tls_export_cipherlist, parameter: tls.ciphers, type: cipher-string }
+    - { name: tls_null_cipherlist, parameter: tls.ciphers, type: cipher-string }
+    - { name: smtpd_tls_protocols, parameter: tls.protocols, type: words }
+    - { name: smtpd_tls_mandatory_protocols, parameter: tls.mandatory-protocols, type: words }
+    - { name: smtpd_tls_cert_file, parameter: tls.certificate, type: path, multi: true }
+    - { name: smtpd_tls_eccert_file, parameter: tls.certificate, type: path, multi: true }
+    - { name: smtpd_tls_dcert_file, parameter: tls.certificate, type: path, multi: true }
+    - { name: smtpd_tls_key_file, parameter: tls.private-key, type: path, multi: true }
+    - { name: smtpd_tls_eckey_file, parameter: tls.private-key, type: path, multi: true }
+    - { name: smtpd_tls_dkey_file, parameter: tls.private-key, type: path, multi: true }
+    - { name: smtpd_tls_chain_files, parameter: tls.certificate-chain, type: words }
+    - { name: smtpd_tls_dh1024_param_file, parameter: tls.dh-params, type: path }
+    - { name: smtpd_tls_CAfile, parameter: tls.client-ca, type: path }
+    - { name: tls_eecdh_auto_curves, parameter: tls.groups, type: words }
+    - { name: tls_ffdhe_auto_groups, parameter: tls.ffdhe-groups, type: words }
+    - { name: smtpd_tls_eecdh_grade, parameter: tls.eecdh-grade, type: words }
+    # 送信側（ほかのメールサーバーへの接続）。設定に書かれた値を記録するだけで、実効値は求めない
+    - { name: smtp_tls_security_level, parameter: tls.starttls-level, type: words, direction: outbound }
+    - { name: smtp_tls_ciphers, parameter: tls.cipher-grade, type: words, direction: outbound }
+    - { name: smtp_tls_mandatory_ciphers, parameter: tls.mandatory-cipher-grade, type: words, direction: outbound }
+    - { name: smtp_tls_exclude_ciphers, parameter: tls.exclude-ciphers, type: words, direction: outbound }
+    - { name: smtp_tls_protocols, parameter: tls.protocols, type: words, direction: outbound }
+    - { name: smtp_tls_mandatory_protocols, parameter: tls.mandatory-protocols, type: words, direction: outbound }
+    - { name: smtp_tls_cert_file, parameter: tls.certificate, type: path, direction: outbound }
+    - { name: smtp_tls_key_file, parameter: tls.private-key, type: path, direction: outbound }
+    - { name: smtp_tls_CAfile, parameter: tls.trusted-certificates, type: path, direction: outbound }
+  sources:
+    - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
+      os: "Red Hat Enterprise Linux 9.9 (Plow)"
+      note: "postfix 3.5.25-3.el9_8。/usr/sbin/postfix に 'mail_version=3.5.25'。smtpd は /usr/libexec/postfix/smtpd。ユニットは postfix.service（ExecStart=/usr/sbin/postfix start）。配られる main.cf は smtpd_tls_security_level = may と証明書の指定を持つ"
+    - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+      os: "Debian GNU/Linux 13 (trixie)"
+      note: "postfix 3.10.13-0+deb13u1。/usr/sbin/postfix に 'mail_version=3.10.13'。smtpd は /usr/lib/postfix/sbin/smtpd。ユニットは postfix.service と postfix@.service。配られる main.cf に TLS の指定はない"
+    - image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
+      os: "Ubuntu 16.04.7 LTS"
+      note: "postfix 3.1.0-3ubuntu0.4。/usr/sbin/postfix に 'mail_version=3.1.0'。配られる main.cf は smtpd_use_tls=yes（古い書き方）と証明書の指定を持つ"

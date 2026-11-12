@@ -208,7 +208,7 @@ func TestPostfixTLSDisabledAndLegacySwitch(t *testing.T) {
 		}
 	}
 	// 設定に書かれた値は記録する
-	if len(byParam(inv, "svc:postfix")["tls.certificate"]) == 0 {
+	if len(byParam(inv, "svc:postfix")["inbound:tls.certificate"]) == 0 {
 		t.Errorf("settings = %+v", byParam(inv, "svc:postfix"))
 	}
 	_, inv = collect(t, "rhel9", postfixRHEL9(t, postfixFiles(noTLS+"smtpd_use_tls = yes\n", postfixSMTP)))

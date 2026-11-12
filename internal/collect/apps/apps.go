@@ -100,5 +100,7 @@ func (c *Collector) application(app ruleset.AppRule) {
 		c.haproxy(app, svc, config, units)
 	case "stunnel":
 		c.stunnel(app, svc)
+	case "postfix":
+		c.postfix(app, svc, config)
 	}
 }
