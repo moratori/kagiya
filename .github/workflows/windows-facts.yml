@@ -17,7 +17,7 @@ jobs:
       matrix:
         os: [windows-2022, windows-2025]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
       - name: 事実を採取
@@ -26,7 +26,7 @@ jobs:
       - name: 採取物の一覧
         shell: powershell
         run: Get-Content "$env:RUNNER_TEMP\windows-facts\MANIFEST.txt"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: windows-facts-${{ matrix.os }}
           path: ${{ runner.temp }}/windows-facts

@@ -3,3 +3,5 @@
 package platform
 
 const sysSeccomp = 0
+
+const sysRenameat2 = 0

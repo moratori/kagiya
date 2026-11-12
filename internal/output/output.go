@@ -3,12 +3,16 @@
 package output
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"kagiya/internal/platform"
 )
 
 // EnsureDir は出力先ディレクトリを検証し、無ければ所有者専用の権限で作成する（親は作らない）。
@@ -32,8 +36,12 @@ func EnsureDir(dir string) error {
 	if !fi.IsDir() {
 		return fmt.Errorf("%s is not a directory", dir)
 	}
-	if fi.Mode().Perm()&0o002 != 0 {
-		return fmt.Errorf("%s is writable by other users; use a private directory", dir)
+	// 出力は機密扱い。他のユーザーやグループが書き込める場所では、ファイルの差し替えや削除ができてしまう。
+	if fi.Mode().Perm()&0o022 != 0 {
+		return fmt.Errorf("%s is writable by other users; use a private directory (for example: chmod 700)", dir)
+	}
+	if !platform.OwnedBySelfOrRoot(fi) {
+		return fmt.Errorf("%s is owned by another user; use a directory you own", dir)
 	}
 	return nil
 }
@@ -78,7 +86,17 @@ func (w *Writer) Write(p []byte) (int, error) { return w.f.Write(p) }
 // Path は確定後のファイルパス。
 func (w *Writer) Path() string { return w.final }
 
-// Commit は内容をディスクに書き出し、最終名で確定する。最終名が既にあれば失敗する。
+// 確定に使う操作（テストで差し替える）。
+var (
+	linkFile        = os.Link
+	renameNoReplace = platform.RenameNoReplace
+)
+
+// Commit は内容をディスクに書き出し、最終名で確定する。最終名が既にあれば失敗する（上書きしない）。
+//
+// まずハードリンクで確定する（既存の名前を置き換えないので、上書きの競合が起きない）。
+// ハードリンクを作れないファイルシステム（vfat、exfat など）では、上書きしない改名で確定する。
+// どちらもできない場合は、書いた内容を捨てずに一時ファイル（.partial）を残し、その場所をエラーで知らせる。
 func (w *Writer) Commit() error {
 	if w.done {
 		return errors.New("writer already closed")
@@ -88,14 +106,49 @@ func (w *Writer) Commit() error {
 	if cerr := w.f.Close(); err == nil {
 		err = cerr
 	}
-	if err == nil {
-		// ハードリンクは既存の名前を置き換えないので、上書きの競合が起きない。
-		err = os.Link(w.partial, w.final)
+	if err != nil {
+		os.Remove(w.partial) // 書き込み自体が不完全
+		return err
 	}
-	if rerr := os.Remove(w.partial); err == nil && rerr != nil {
-		err = rerr
+	err = linkFile(w.partial, w.final)
+	switch {
+	case err == nil:
+		return os.Remove(w.partial)
+	case errors.Is(err, fs.ErrExist):
+		os.Remove(w.partial)
+		return err
 	}
-	return err
+	switch rerr := renameNoReplace(w.partial, w.final); {
+	case rerr == nil:
+		return nil
+	case errors.Is(rerr, fs.ErrExist):
+		os.Remove(w.partial)
+		return rerr
+	}
+	return fmt.Errorf("could not finalize %s on this filesystem (%v); the content was kept at %s", w.final, err, w.partial)
+}
+
+// Probe は、dir でファイルを確定できるか（ハードリンクまたは上書きしない改名が使えるか）を、小さな試験ファイルで確かめる。
+// スキャンを終えてから結果を書けないと分かるのを避けるため、最初に呼ぶ。試験ファイルは残さない。
+func Probe(dir string) error {
+	var r [8]byte
+	if _, err := rand.Read(r[:]); err != nil {
+		return err
+	}
+	name := ".kagiya-probe-" + hex.EncodeToString(r[:])
+	w, err := Create(dir, name)
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write([]byte("probe\n")); err != nil {
+		w.Abort()
+		return err
+	}
+	if err := w.Commit(); err != nil {
+		os.Remove(w.partial)
+		return fmt.Errorf("%s does not support creating files without overwriting (hard link or exclusive rename): %v", dir, errors.Unwrap(err))
+	}
+	return os.Remove(w.final)
 }
 
 // Abort は書きかけのファイルを破棄する。

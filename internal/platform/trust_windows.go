@@ -4,6 +4,7 @@ package platform
 
 import (
 	"errors"
+	"io/fs"
 	"os"
 )
 
@@ -17,3 +18,6 @@ func TerminationSignals() []os.Signal { return []os.Signal{os.Interrupt} }
 func CheckTrustedDir(dir string) error {
 	return errors.New("external rule directories are not yet supported on Windows")
 }
+
+// OwnedBySelfOrRoot は Windows では未実装。
+func OwnedBySelfOrRoot(fi fs.FileInfo) bool { return true }

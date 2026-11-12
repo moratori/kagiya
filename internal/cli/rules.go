@@ -25,6 +25,7 @@ func runRules(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "usage: kagiya rules export --output-dir DIR")
 			return exitUsage
 		}
+		platform.Harden()
 		return rulesExport(*dir, stdout, stderr)
 	case "validate":
 		fs := newFlagSet("rules validate", stderr)
@@ -33,6 +34,7 @@ func runRules(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "usage: kagiya rules validate --rules DIR")
 			return exitUsage
 		}
+		platform.Harden()
 		rs, _, err := loadExternalRules(*dir, nil)
 		if err != nil {
 			fmt.Fprintln(stderr, "kagiya: rules are invalid:", err)
@@ -61,6 +63,10 @@ func rulesExport(dir string, stdout, stderr io.Writer) int {
 		return exitFatal
 	}
 	if err := output.EnsureDir(abs); err != nil {
+		fmt.Fprintln(stderr, "kagiya:", err)
+		return exitFatal
+	}
+	if err := output.Probe(abs); err != nil {
 		fmt.Fprintln(stderr, "kagiya:", err)
 		return exitFatal
 	}

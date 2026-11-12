@@ -166,7 +166,11 @@ func runScan(args []string, stderr io.Writer) int {
 
 	// 起点が明示されていなければ、ルールにある証明書ストアの場所のうち既定の起点に含まれないものも探す。
 	if !opts.rootsExplicit {
-		opts.roots = append(opts.roots, extraStoreRoots(opts.roots, rs.StorePaths(), mounts)...)
+		probe := &safefs.Opener{}
+		if mounts.table != nil {
+			probe.Mounts = mounts.table
+		}
+		opts.roots = append(opts.roots, extraStoreRoots(opts.roots, rs.StorePaths(), probe)...)
 	}
 
 	if err := output.EnsureDir(opts.outputDir); err != nil {
@@ -174,6 +178,12 @@ func runScan(args []string, stderr io.Writer) int {
 	}
 	if err := output.EnsureDir(opts.logDir); err != nil {
 		return fatal(fmt.Errorf("log directory: %w", err))
+	}
+	// スキャンを終えてから結果を書けないと分かるのを避けるため、先に確かめる。
+	for _, d := range []string{opts.outputDir, opts.logDir} {
+		if err := output.Probe(d); err != nil {
+			return fatal(err)
+		}
 	}
 
 	scanID := newScanID()
@@ -351,7 +361,8 @@ func sanitizeHostname() string {
 }
 
 // extraStoreRoots は、ストアの場所のうち既存の起点の配下になく、ローカルに実在するディレクトリを返す。
-func extraStoreRoots(roots, storePaths []string, mounts *mountState) []string {
+// 実在の確認は safefs を通す（触れる前にマウント表で判定し、リンクは辿らない）。
+func extraStoreRoots(roots, storePaths []string, opener *safefs.Opener) []string {
 	var extra []string
 	for _, p := range storePaths {
 		covered := false
@@ -361,10 +372,10 @@ func extraStoreRoots(roots, storePaths []string, mounts *mountState) []string {
 				break
 			}
 		}
-		if covered || mounts.requireLocal(p, "store") != nil {
+		if covered {
 			continue
 		}
-		if fi, err := os.Lstat(p); err == nil && fi.IsDir() {
+		if _, err := opener.ListNames(p); err == nil {
 			extra = append(extra, p)
 		}
 	}

@@ -54,7 +54,8 @@ func buildFilter(arch uint32, denied []uint32, x32guard bool) []sockFilter {
 	return prog
 }
 
-// deniedSyscalls は拒否するシステムコール番号（通信、プロセス起動、他プロセス操作、io_uring）。
+// deniedSyscalls は拒否するシステムコール番号（通信、プロセス起動、他プロセス操作、io_uring、マウント操作、カーネルの鍵保管庫）。
+// 番号は、カーネルのヘッダ（Debian 13 の linux-libc-dev 6.12.116-1。amd64 と arm64）で確認した。
 // 未対応のアーキテクチャでは nil（フィルタを適用しない）。
 func deniedSyscalls(goarch string) []uint32 {
 	switch goarch {
@@ -86,6 +87,18 @@ func deniedSyscalls(goarch string) []uint32 {
 			425, // io_uring_setup
 			426, // io_uring_enter
 			427, // io_uring_register
+			// マウント操作（ネットワークファイルシステムのマウントを含む）
+			165, // mount
+			166, // umount2
+			428, // open_tree
+			429, // move_mount
+			430, // fsopen
+			431, // fsconfig
+			432, // fsmount
+			// カーネルの鍵保管庫
+			248, // add_key
+			249, // request_key
+			250, // keyctl
 		}
 	case "arm64":
 		return []uint32{
@@ -115,6 +128,16 @@ func deniedSyscalls(goarch string) []uint32 {
 			425, // io_uring_setup
 			426, // io_uring_enter
 			427, // io_uring_register
+			40,  // mount
+			39,  // umount2
+			428, // open_tree
+			429, // move_mount
+			430, // fsopen
+			431, // fsconfig
+			432, // fsmount
+			217, // add_key
+			218, // request_key
+			219, // keyctl
 		}
 	}
 	return nil

@@ -66,3 +66,12 @@ func CheckTrustedDir(dir string) error {
 		return nil
 	})
 }
+
+// OwnedBySelfOrRoot は、ファイルの所有者が実行ユーザーまたは root かを返す。
+func OwnedBySelfOrRoot(fi fs.FileInfo) bool {
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return true
+	}
+	return st.Uid == uint32(os.Geteuid()) || st.Uid == 0
+}
