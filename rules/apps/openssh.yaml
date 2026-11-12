@@ -6,6 +6,31 @@ app:
   binaries: ["/usr/sbin/sshd"]
   version_pattern: 'OpenSSH_(\d+\.\d+p\d+)'
   packages: ["openssh-server"]
+  grammar: sshd
+  config_files: ["/etc/ssh/sshd_config"]
+  # サービス名は RHEL 系が sshd、Debian / Ubuntu が ssh。Ubuntu 24.04 はソケット（ssh.socket）で起動する。
+  units: ["sshd.service", "ssh.service", "sshd.socket", "ssh.socket"]
+  direction: inbound
+  # 記録する設定項目。名前は `sshd -T` の出力と、暗号ポリシーが生成する設定（RHEL 8.10 / 9.9）で確認した。
+  # PubkeyAcceptedKeyTypes は PubkeyAcceptedAlgorithms の古い名前（RHEL 8.10 のポリシーが使っている）。
+  directives:
+    - { name: Ciphers, parameter: ssh.ciphers, type: algorithm-list }
+    - { name: MACs, parameter: ssh.macs, type: algorithm-list }
+    - { name: KexAlgorithms, parameter: ssh.kex-algorithms, type: algorithm-list }
+    - { name: GSSAPIKexAlgorithms, parameter: ssh.gssapi-kex-algorithms, type: algorithm-list }
+    - { name: HostKeyAlgorithms, parameter: ssh.host-key-algorithms, type: algorithm-list }
+    - { name: PubkeyAcceptedAlgorithms, parameter: ssh.pubkey-accepted-algorithms, type: algorithm-list }
+    - { name: PubkeyAcceptedKeyTypes, parameter: ssh.pubkey-accepted-algorithms, type: algorithm-list }
+    - { name: HostbasedAcceptedAlgorithms, parameter: ssh.hostbased-accepted-algorithms, type: algorithm-list }
+    - { name: CASignatureAlgorithms, parameter: ssh.ca-signature-algorithms, type: algorithm-list }
+    - { name: RequiredRSASize, parameter: ssh.required-rsa-size, type: int }
+    - { name: Protocol, parameter: ssh.protocol, type: int-list }
+    - { name: HostKey, parameter: ssh.host-key, type: path, multi: true }
+  # HostKey の記載がないときに sshd が使うホスト鍵。`sshd -T` の hostkey 行で確認
+  # （RHEL 9.9 の 9.9p1、Ubuntu 24.04 の 9.6p1 とも、この3つ）。
+  default_references:
+    - parameter: ssh.host-key
+      paths: ["/etc/ssh/ssh_host_rsa_key", "/etc/ssh/ssh_host_ecdsa_key", "/etc/ssh/ssh_host_ed25519_key"]
   sources:
     - image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
       os: "Red Hat Enterprise Linux 8.10 (Ootpa)"

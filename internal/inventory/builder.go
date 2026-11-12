@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 
 	"kagiya/internal/logx"
 	"kagiya/internal/model"
@@ -29,6 +30,8 @@ type Builder struct {
 	packages     []model.Package
 	components   []*model.Component
 	osSettings   []model.OSSetting
+	services     []model.Service
+	settings     []model.Setting
 	skipped      []model.Skipped
 	skipByReason map[string]int
 	skipTotal    int
@@ -137,6 +140,67 @@ func (b *Builder) AddPackageDatabase(db model.PackageDatabase) { b.pkgDBs = appe
 // AddPackage は導入済みパッケージを記録する。
 func (b *Builder) AddPackage(p model.Package) { b.packages = append(b.packages, p) }
 
+// AddService はサービスを記録する。
+func (b *Builder) AddService(s model.Service) { b.services = append(b.services, s) }
+
+// AddSetting は設定値を記録する。ID はサービス・項目・場所から決まる。
+func (b *Builder) AddSetting(s model.Setting) {
+	h := sha256.Sum256([]byte(s.Service + "\x00" + s.Parameter + "\x00" + s.Scope + "\x00" + s.Source + "\x00" + s.Location.Path + "\x00" + strconv.Itoa(s.Location.Line) + "\x00" + strconv.Itoa(len(b.settings))))
+	s.ID = "set:" + hex.EncodeToString(h[:12])
+	b.settings = append(b.settings, s)
+}
+
+// FindComponent は、ID が指定の接頭辞で始まる最初のコンポーネントを返す。
+func (b *Builder) FindComponent(prefix string) (model.Component, bool) {
+	for _, c := range b.components {
+		if strings.HasPrefix(c.ID, prefix) {
+			return *c, true
+		}
+	}
+	return model.Component{}, false
+}
+
+// assignActivity は、出現ごとに「利用の確からしさ」を決める。
+// 有効なサービスの設定から参照されているファイルは、そのサービスと同じ段階になる。
+func (b *Builder) assignActivity() {
+	level := map[string]string{}
+	for _, s := range b.services {
+		level[s.ID] = s.Activity.Level
+	}
+	type ref struct {
+		lvl string
+		ev  model.Evidence
+	}
+	refs := map[string]ref{}
+	rank := map[string]int{"running": 4, "enabled": 3, "referenced": 2, "installed": 1, "unknown": 0}
+	for _, s := range b.settings {
+		if !s.Effective {
+			continue
+		}
+		lvl := "referenced"
+		if l := level[s.Service]; l == "enabled" || l == "running" {
+			lvl = l
+		}
+		for _, p := range s.ReferencedPaths {
+			if cur, ok := refs[p]; ok && rank[cur.lvl] >= rank[lvl] {
+				continue
+			}
+			refs[p] = ref{lvl, model.Evidence{Kind: "config-reference", Path: s.Location.Path, Line: s.Location.Line, Detail: s.Parameter, Service: s.Service}}
+		}
+	}
+	for i := range b.occurrences {
+		o := &b.occurrences[i]
+		switch r, ok := refs[o.Location.Path]; {
+		case ok:
+			o.Activity = &model.Activity{Level: r.lvl, Evidence: []model.Evidence{r.ev}}
+		case o.Store != "":
+			o.Activity = &model.Activity{Level: "installed"}
+		default:
+			o.Activity = &model.Activity{Level: "unknown"}
+		}
+	}
+}
+
 // AddOSSetting は OS 全体の暗号設定の1項目を記録する。
 func (b *Builder) AddOSSetting(s model.OSSetting) { b.osSettings = append(b.osSettings, s) }
 
@@ -158,7 +222,15 @@ func (b *Builder) Component(id string, make func() model.Component) *model.Compo
 
 // Inventory は集めた内容を結果の形にする（Meta と走査統計は呼び出し側が埋める）。
 func (b *Builder) Inventory() *model.Inventory {
+	b.assignActivity()
 	inv := &model.Inventory{Schema: model.Schema, Assets: []model.Asset{}, Occurrences: b.occurrences, Skipped: b.skipped}
+	inv.Services, inv.Settings = b.services, b.settings
+	if inv.Services == nil {
+		inv.Services = []model.Service{}
+	}
+	if inv.Settings == nil {
+		inv.Settings = []model.Setting{}
+	}
 	for _, a := range b.assets {
 		inv.Assets = append(inv.Assets, *a)
 	}

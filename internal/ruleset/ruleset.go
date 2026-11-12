@@ -494,9 +494,43 @@ type AppRule struct {
 	Modules        []string `yaml:"modules"` // 実行時に読み込まれ、暗号ライブラリにリンクしているモジュール
 	VersionPattern string   `yaml:"version_pattern"`
 	Packages       []string `yaml:"packages"` // このアプリを含むパッケージ名（優先順）
-	Sources        []Source `yaml:"sources"`
+
+	// 設定の読み取り
+	Grammar     string          `yaml:"grammar"`      // 設定ファイルの文法（sshd）
+	ConfigFiles []string        `yaml:"config_files"` // 設定ファイルの候補（先に見つかったものを使う）
+	Units       []string        `yaml:"units"`        // systemd のユニット名（有効化状態と起動引数を読む）
+	Direction   string          `yaml:"direction"`    // 通信の方向: inbound（受信）| outbound（送信）
+	Directives  []DirectiveRule `yaml:"directives"`   // 結果に記録してよい設定項目（許可リスト）
+	// DefaultReferences は、設定に記載がないときにアプリが使う既定のファイル（鍵など）。
+	DefaultReferences []DefaultReference `yaml:"default_references"`
+	Sources           []Source           `yaml:"sources"`
 
 	re *regexp.Regexp
+}
+
+// DirectiveRule は、設定ファイルから記録する項目の定義。
+type DirectiveRule struct {
+	Name      string `yaml:"name"`
+	Parameter string `yaml:"parameter"` // 結果での項目名（アプリをまたいで揃える）
+	Type      string `yaml:"type"`      // algorithm-list | path | int | int-list
+	Multi     bool   `yaml:"multi"`     // 複数回書けて、すべてが有効になる項目
+}
+
+type DefaultReference struct {
+	Parameter string   `yaml:"parameter"`
+	Paths     []string `yaml:"paths"`
+}
+
+var directiveTypes = map[string]bool{"algorithm-list": true, "path": true, "int": true, "int-list": true}
+
+// Directive は、キーワード（大文字小文字を区別しない）に対応する項目の定義を返す。
+func (a AppRule) Directive(keyword string) (DirectiveRule, bool) {
+	for _, d := range a.Directives {
+		if strings.EqualFold(d.Name, keyword) {
+			return d, true
+		}
+	}
+	return DirectiveRule{}, false
 }
 
 // LibraryRule は暗号ライブラリの定義。出典が必須。
@@ -610,6 +644,35 @@ func (rs *RuleSet) addApp(a AppRule, ids map[string]bool) error {
 	}
 	if err := checkNames(a.Packages); err != nil {
 		return fmt.Errorf("app %q: %w", a.ID, err)
+	}
+	for _, p := range a.ConfigFiles {
+		if !cleanAbsPath(p) {
+			return fmt.Errorf("app %q: path %q must be a clean absolute path", a.ID, p)
+		}
+	}
+	if a.Grammar != "" && a.Grammar != "sshd" {
+		return fmt.Errorf("app %q: unknown grammar %q", a.ID, a.Grammar)
+	}
+	if a.Direction != "" && a.Direction != "inbound" && a.Direction != "outbound" {
+		return fmt.Errorf("app %q: direction must be inbound or outbound", a.ID)
+	}
+	if err := checkNames(a.Units); err != nil {
+		return fmt.Errorf("app %q: %w", a.ID, err)
+	}
+	for _, d := range a.Directives {
+		if !settingKeyPattern.MatchString(d.Name) || !idPattern.MatchString(d.Parameter) || !directiveTypes[d.Type] {
+			return fmt.Errorf("app %q: invalid directive definition %q", a.ID, d.Name)
+		}
+	}
+	for _, r := range a.DefaultReferences {
+		if !idPattern.MatchString(r.Parameter) || len(r.Paths) == 0 {
+			return fmt.Errorf("app %q: invalid default reference", a.ID)
+		}
+		for _, p := range r.Paths {
+			if !cleanAbsPath(p) {
+				return fmt.Errorf("app %q: path %q must be a clean absolute path", a.ID, p)
+			}
+		}
 	}
 	re, err := compileVersionPattern(a.VersionPattern)
 	if err != nil {

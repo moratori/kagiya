@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"kagiya/internal/collect/apps"
 	"kagiya/internal/collect/bins"
 	"kagiya/internal/collect/fscrawl"
 	"kagiya/internal/collect/osconf"
@@ -220,6 +221,9 @@ func runScan(args []string, stderr io.Writer) int {
 
 	// アプリケーションのバイナリと、リンクしている暗号ライブラリ
 	(&bins.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect()
+
+	// アプリケーションの設定値と、サービスの有効化状態
+	(&apps.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect()
 
 	excludes, _ := safefs.NewExcludes(opts.excludes)
 	walker := &safefs.Walker{

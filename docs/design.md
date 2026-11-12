@@ -1022,7 +1022,8 @@ OS ビルド別の既定値は、Microsoft の公式文書を出典とし、調�
 | 決まった場所のファイルを安全に開く仕組み | 済 | `safefs.Opener`。走査と同じ規則（触れる前のマウント表判定、リンクを辿らない、通常ファイルのみ）。大きなデータベースを全部読み込まずに必要な部分だけ読む |
 | リンクしている暗号ライブラリの特定（`DT_NEEDED`、版文字列） | 済 | ELF の動的セクションと `/etc/ld.so.cache` を直接読み、動的リンカと同じ順序（RPATH、RUNPATH、キャッシュ、既定のディレクトリ）で実体を特定する。版はライブラリ本体の版文字列から読む。アプリとライブラリの定義は `rules/apps/`、`rules/libraries/`（出典必須）。結果 JSON の `components` に記録 |
 | OS 暗号設定（暗号ポリシー、OpenSSL 設定など） | 済（一部） | システム全体の暗号ポリシー（選択されたポリシー名と適用済みのポリシー名）、カーネルの FIPS モード、OpenSSL のシステム既定の TLS 設定（設定ファイルの `.include` を辿って読む）。結果 JSON の `os_settings` に、値とその出どころ（ファイルと行）を記録する。GnuTLS、NSS、Kerberos、Java などは未対応 |
-| アプリプロファイル機構、OpenSSH / nginx / Apache httpd の設定値 | 未 | |
+| アプリの設定値と利用の確からしさ（OpenSSH） | 済 | sshd の設定ファイル（Include、Match を含む）と、systemd のユニット・環境ファイルから渡される起動引数を読み、明記された暗号関連の値を出どころとともに記録する。サービスの有効化状態（systemd の `*.wants` のリンク、マスク）から利用の確からしさを決め、設定から参照されている鍵にも付ける。通信の方向（受信／送信）を記録する。結果 JSON の `services`、`settings`、出現の `activity` |
+| nginx / Apache httpd の設定値 | 未 | |
 
 パッケージ読み取りの実物確認（検証ラボ、arm64）: 各コンテナに OpenSSL・OpenSSH・nginx・Apache httpd を導入し、kagiya の結果を `rpm -qa` / `dpkg-query` の出力と突き合わせた。
 
@@ -1173,3 +1174,23 @@ ELF の読み取りは実物のバイナリ 30 個で `readelf -d` の出力と�
 - **Ubuntu の `openssl.cnf` には、システム既定の TLS 設定を読み込む経路がない**（16.04 は `openssl_conf` 自体がなく、24.04 はプロバイダの設定だけ）。Ubuntu での既定値は、OpenSSL のビルド時の設定で決まる。
 - **RHEL 8.10 の `opensslcnf.config` は末尾に改行がない。** 確認用スクリプトがこれで次の行とつながり、一時的に「不一致」と表示された（kagiya の読み取りは正しかった）。
 - **コンテナ内には `/proc/sys/crypto/fips_enabled` がなかった。** FIPS モードの読み取りは実物では未確認。
+
+### sshd の設定値の実物確認（2026-11-12、検証ラボ、arm64）
+
+各コンテナで、kagiya が「有効」と判定した設定値を、同じ環境の sshd 自身が報告した実効値（`sshd -T`。RHEL 8.10 は systemd と同じ起動引数を付けて実行）と突き合わせた。
+
+| イメージ | サービスの有効化 | 突き合わせた項目 | 不一致 |
+|---|---|---|---|
+| RHEL 8.10（`redhat/ubi8@sha256:44f19e30…`） | 有効（`multi-user.target.wants/sshd.service`） | Ciphers、MACs、KexAlgorithms、GSSAPIKexAlgorithms、HostKeyAlgorithms、CASignatureAlgorithms（いずれも起動引数で渡るポリシー）、HostKey | 0 |
+| RHEL 9.9（`redhat/ubi9@sha256:8b212f75…`） | 有効（同上） | 上記6項目と RequiredRSASize（設定ファイルとして取り込まれるポリシー）、HostKey（既定） | 0 |
+| Ubuntu 16.04.7（`ubuntu@sha256:1f1a2d56…`） | 有効（`multi-user.target.wants/ssh.service`） | HostKey（4つ明記。DSA を含む） | 0 |
+| Ubuntu 24.04.5（`ubuntu@sha256:2198e4c6…`） | 有効（`sockets.target.wants/ssh.socket`。サービスではなくソケットで起動する） | HostKey（既定） | 0 |
+
+設定から参照されているホスト鍵（秘密鍵）には、4環境とも「有効」が付いた。RHEL 8.10 では、ホスト鍵の一括生成で作られた DSA の鍵が設定から参照されておらず、「不明」となった（使われていない鍵の実例）。
+
+分かったこと・決めたこと:
+
+- **RHEL 8.10 では、`sshd_config` に Ciphers などを書いても効かない。** ポリシーが起動引数（`-oCiphers=...`）として渡され、sshd は「同じ項目は最初に得た値を使う」ため。kagiya は両方を記録し、設定ファイル側を「効いていない」と示す。`/etc/sysconfig/sshd` で `CRYPTO_POLICY=` と空にするとポリシーから外れる（実物のコメントにある手順）ことも反映した。
+- **Ubuntu 24.04 の sshd はソケット起動。** 有効化のリンクは `ssh.service` ではなく `ssh.socket` にある。待ち受けるポートもソケットのユニット側に書かれている。
+- **Ubuntu 16.04 には、互換用の別名 `/etc/systemd/system/sshd.service`（`ssh.service` へのリンク）がある。**
+- 設定に書かれた SSH のアルゴリズム名は、現時点では文字列として記録するだけで、暗号カタログの資産とは結び付けていない。

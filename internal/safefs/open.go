@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -236,4 +237,137 @@ func (o *Opener) ReadDir(path string) ([]string, error) {
 	}
 	sort.Strings(names)
 	return names, nil
+}
+
+// DirEntry はディレクトリ内の1項目。
+type DirEntry struct {
+	Name   string
+	IsDir  bool
+	IsLink bool
+}
+
+// ListNames は、ディレクトリ直下の項目（ファイル、リンク、サブディレクトリ）を名前順に返す。
+// path はリンクを含まない実際のパスであること。
+func (o *Opener) ListNames(path string) ([]DirEntry, error) {
+	if !isCleanAbs(path) {
+		return nil, fmt.Errorf("%q: %w", path, errNotPlain)
+	}
+	prefix := ""
+	for _, seg := range strings.Split(strings.TrimPrefix(path, "/"), "/") {
+		if seg == "" {
+			continue
+		}
+		prefix += "/" + seg
+		if v, m := o.check(prefix); v != Allow {
+			return nil, o.skip(path, v.Reason(), m.FSType)
+		}
+		fi, err := os.Lstat(prefix)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			return nil, fs.ErrNotExist
+		case errors.Is(err, fs.ErrPermission):
+			return nil, o.skip(path, "permission-denied", "")
+		case err != nil:
+			return nil, err
+		}
+		if fi.Mode()&fs.ModeSymlink != 0 || !fi.IsDir() {
+			return nil, fmt.Errorf("%q: %w", path, errNotPlain)
+		}
+	}
+	d, err := os.Open(path)
+	if errors.Is(err, fs.ErrPermission) {
+		return nil, o.skip(path, "permission-denied", "")
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer d.Close()
+	ents, err := d.ReadDir(maxDirEntries)
+	if err != nil && len(ents) == 0 && !errors.Is(err, io.EOF) {
+		return nil, err
+	}
+	out := make([]DirEntry, 0, len(ents))
+	for _, e := range ents {
+		out = append(out, DirEntry{Name: e.Name(), IsDir: e.IsDir(), IsLink: e.Type()&fs.ModeSymlink != 0})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
+// Glob は、最後の要素にだけワイルドカードを含むパターンに合うファイル（リンクを含む。ディレクトリは除く）を返す。
+// ディレクトリ部分のリンクは安全に辿る。ディレクトリが存在しなければ空を返す。
+func (o *Opener) Glob(pattern string) ([]string, error) {
+	i := strings.LastIndexByte(pattern, '/')
+	if i <= 0 || strings.ContainsAny(pattern[:i], "*?[") {
+		return nil, fmt.Errorf("%q: unsupported pattern", pattern)
+	}
+	dir, base := pattern[:i], pattern[i+1:]
+	real, err := o.Resolve(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	ents, err := o.ListNames(real)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, e := range ents {
+		if e.IsDir {
+			continue
+		}
+		if ok, _ := filepath.Match(base, e.Name); ok {
+			out = append(out, dir+"/"+e.Name)
+		}
+	}
+	return out, nil
+}
+
+// LinkTarget は、path がシンボリックリンクならその行き先を返す（行き先には触れない）。
+func (o *Opener) LinkTarget(path string) (string, bool) {
+	i := strings.LastIndexByte(path, '/')
+	if i <= 0 {
+		return "", false
+	}
+	dir, err := o.Resolve(path[:i])
+	if err != nil {
+		return "", false
+	}
+	p := dir + "/" + path[i+1:]
+	if v, _ := o.check(p); v != Allow {
+		return "", false
+	}
+	target, err := os.Readlink(p)
+	if err != nil {
+		return "", false
+	}
+	return target, true
+}
+
+// ReadFile は、リンクを安全に辿って実体を開き、limit バイトまで読む。大きさが 0 と報告される擬似ファイルも読める。
+func (o *Opener) ReadFile(path string, limit int) ([]byte, error) {
+	real, err := o.Resolve(path)
+	if err != nil {
+		return nil, err
+	}
+	f, err := o.Open(real)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	buf := make([]byte, 0, 4096)
+	chunk := make([]byte, 4096)
+	for len(buf) <= limit {
+		n, err := f.ReadAt(chunk, int64(len(buf)))
+		buf = append(buf, chunk[:n]...)
+		if err != nil || n == 0 {
+			break
+		}
+	}
+	if len(buf) > limit {
+		return nil, fmt.Errorf("%q: file is too large", path)
+	}
+	return buf, nil
 }

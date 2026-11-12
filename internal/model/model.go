@@ -16,6 +16,9 @@ type Inventory struct {
 	Packages         []Package         `json:"packages"`
 	// OS 全体の暗号設定（暗号ポリシー、ライブラリのシステム既定の設定など）
 	OSSettings []OSSetting `json:"os_settings"`
+	// サービス（アプリケーションのインスタンス）と、その設定値
+	Services []Service `json:"services"`
+	Settings []Setting `json:"settings"`
 	// 見つかったアプリケーションと暗号ライブラリ、およびそのリンク関係
 	Components []Component `json:"components"`
 	Skipped    []Skipped   `json:"skipped"`
@@ -208,14 +211,15 @@ type PublicKey struct {
 }
 
 type Occurrence struct {
-	ID         string   `json:"id"`
-	Asset      string   `json:"asset"`
-	Collector  string   `json:"collector"`
-	State      string   `json:"state"` // present: ファイルとして存在（用途は未特定）
-	Confidence string   `json:"confidence"`
-	Location   Location `json:"location"`
-	Store      string   `json:"store,omitempty"` // 属する証明書ストア（ルールの os/stores.yaml の ID）
-	Detail     *Detail  `json:"detail,omitempty"`
+	ID         string    `json:"id"`
+	Asset      string    `json:"asset"`
+	Collector  string    `json:"collector"`
+	State      string    `json:"state"` // present: ファイルとして存在（用途は未特定）
+	Confidence string    `json:"confidence"`
+	Location   Location  `json:"location"`
+	Store      string    `json:"store,omitempty"`    // 属する証明書ストア（ルールの os/stores.yaml の ID）
+	Activity   *Activity `json:"activity,omitempty"` // 利用の確からしさ
+	Detail     *Detail   `json:"detail,omitempty"`
 }
 
 type Location struct {
@@ -248,4 +252,56 @@ type OSSetting struct {
 	Value string `json:"value"`
 	Path  string `json:"path,omitempty"` // その値が書かれていたファイル
 	Line  int    `json:"line,omitempty"`
+}
+
+// Activity は「利用の確からしさ」。値の根拠（basis / state）とは別の軸。
+//
+//	running: 稼働中のプロセスが使っている / enabled: 起動するよう設定されたサービスが使う /
+//	referenced: 設定から参照されている / installed: 導入されているだけ / unknown: 判断材料がない
+type Activity struct {
+	Level    string     `json:"level"`
+	Evidence []Evidence `json:"evidence,omitempty"`
+}
+
+// Evidence は、利用の確からしさを判断した根拠。
+type Evidence struct {
+	Kind    string `json:"kind"`           // unit-enabled | unit-masked | unit-present | binary-present | config-reference
+	Path    string `json:"path,omitempty"` // 根拠となったファイル
+	Line    int    `json:"line,omitempty"`
+	Detail  string `json:"detail,omitempty"`  // ユニット名、設定項目名など
+	Service string `json:"service,omitempty"` // 参照元のサービス
+}
+
+// Service はアプリケーションのインスタンス。
+type Service struct {
+	ID          string   `json:"id"`
+	App         string   `json:"app"`
+	Component   string   `json:"component,omitempty"` // バイナリのコンポーネント ID
+	ConfigFiles []string `json:"config_files,omitempty"`
+	Activity    Activity `json:"activity"`
+	Notes       []string `json:"notes,omitempty"`
+}
+
+// Setting は設定値の1件。同じ項目が複数の場所にある場合は、それぞれを記録し、どれが有効かを示す。
+type Setting struct {
+	ID        string          `json:"id"`
+	Service   string          `json:"service"`
+	Parameter string          `json:"parameter"`
+	Direction string          `json:"direction,omitempty"` // inbound（受信）| outbound（送信）
+	Scope     string          `json:"scope,omitempty"`     // 条件付きの設定（sshd の Match など）。全体なら空
+	Basis     string          `json:"basis"`               // configured: 明記されている / default: 記載がなくアプリの既定
+	Layer     string          `json:"layer"`               // app-config | os-policy | app-default
+	Source    string          `json:"source"`              // config-file | command-line | default
+	Modifier  string          `json:"modifier,omitempty"`  // 既定の一覧への操作（+ 追加、- 削除、^ 先頭へ）
+	Values    []string        `json:"values"`
+	Effective bool            `json:"effective"` // 同じ項目の記載のうち、実際に効くもの
+	Location  SettingLocation `json:"location"`
+
+	// ReferencedPaths は、値がファイルを指す場合の実際のパス（利用の確からしさの判定に使う）。
+	ReferencedPaths []string `json:"-"`
+}
+
+type SettingLocation struct {
+	Path string `json:"path,omitempty"`
+	Line int    `json:"line,omitempty"`
 }
