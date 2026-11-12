@@ -628,3 +628,113 @@ func TestAppDefaultsInterpolation(t *testing.T) {
 		t.Error("AppDefaults must stay exact")
 	}
 }
+
+// 内包している評価ポリシーが読め、すべての規則が出典を持つ。
+func TestBuiltinPolicy(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, ok := rs.Policy("default")
+	if !ok || p.Version == "" || len(p.Rules) < 30 {
+		t.Fatalf("default policy: ok=%v %+v", ok, p)
+	}
+	refs := map[string]PolicyRef{}
+	for _, r := range p.References {
+		refs[r.ID] = r
+	}
+	if r := refs["nist-ir-8547"]; r.URL != "https://doi.org/10.6028/NIST.IR.8547" || !strings.Contains(r.Title, "8547") {
+		t.Errorf("nist-ir-8547 = %+v", r)
+	}
+	if r := refs["cryptrec-ls-0001"]; !strings.HasPrefix(r.URL, "https://www.cryptrec.go.jp/") {
+		t.Errorf("cryptrec-ls-0001 = %+v", r)
+	}
+	for _, r := range p.Rules {
+		if len(r.Refs) == 0 || r.Summary == "" || (r.Quantum == "" && r.Classical == "") {
+			t.Errorf("rule %s is incomplete: %+v", r.ID, r)
+		}
+		for _, id := range r.Refs {
+			if _, ok := refs[id]; !ok {
+				t.Errorf("rule %s refers to an unknown reference %q", r.ID, id)
+			}
+		}
+	}
+	if _, ok := rs.Policy("nosuch"); ok {
+		t.Error("unknown policy must not be found")
+	}
+	// 暗号スイートの属性は、名前から引ける（どの版の対応表でも同じ）
+	if s, ok := rs.SuiteAttributes("ECDHE-RSA-AES256-GCM-SHA384"); !ok || s.Kx != "ECDH" || s.Au != "RSA" || s.Enc != "AESGCM(256)" || s.Mac != "AEAD" {
+		t.Errorf("suite attributes = %+v %v", s, ok)
+	}
+	if s, ok := rs.SuiteAttributes("TLS_AES_128_GCM_SHA256"); !ok || s.Kx != "any" || s.Protocol != "TLSv1.3" {
+		t.Errorf("TLS 1.3 suite attributes = %+v %v", s, ok)
+	}
+	if _, ok := rs.SuiteAttributes("NO-SUCH-SUITE"); ok {
+		t.Error("unknown suite must not be found")
+	}
+}
+
+// 同じ名前の暗号スイートは、どの版の対応表でも同じ属性を持つ（名前から属性を引いてよいことの確認）。
+func TestSuiteAttributesAreConsistentAcrossTables(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]string{}
+	for _, tb := range rs.CipherTables {
+		for _, list := range [][]CipherSuite{tb.Suites, tb.TLS13} {
+			for _, s := range list {
+				a := s.Kx + "|" + s.Au + "|" + s.Enc + "|" + s.Mac
+				if old, ok := seen[s.Name]; ok && old != a {
+					t.Errorf("%s: %s in one table, %s in another", s.Name, old, a)
+				}
+				seen[s.Name] = a
+			}
+		}
+	}
+}
+
+// 評価ポリシーにも出典が必須。壊れたポリシーは読み込み時に拒否する。
+func TestLoadPolicy(t *testing.T) {
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	with := func(y string) map[string]string {
+		m := map[string]string{"policies/p.yaml": y}
+		for k, v := range base {
+			m[k] = v
+		}
+		return m
+	}
+	head := "policy:\n  id: mine\n  title: \"My policy\"\n  version: \"1\"\n"
+	refs := "  references:\n    - id: doc-a\n      title: \"Document A\"\n      url: \"https://example.org/a\"\n"
+	rule := func(body string) string { return "  rules:\n    - id: r1\n" + body }
+	good := "      scheme: tls-kx\n      match: { names: [RSA, \"EC*\"] }\n      role: key-establishment\n      quantum: vulnerable\n      classical: legacy\n      tags: [no-forward-secrecy]\n      summary: \"text\"\n      refs: [doc-a]\n"
+	rs, err := Load(mapFS(with(head + refs + rule(good))))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p, ok := rs.Policy("mine"); !ok || len(p.Rules) != 1 || p.Rules[0].Quantum != "vulnerable" || p.Rules[0].Match.Names[1] != "EC*" {
+		t.Errorf("policy = %+v %v", p, ok)
+	}
+	for name, y := range map[string]string{
+		"no references":          head + rule(good),
+		"rule without refs":      head + refs + rule("      scheme: tls-kx\n      match: { names: [RSA] }\n      quantum: vulnerable\n      summary: \"text\"\n"),
+		"unknown reference":      head + refs + rule(strings.Replace(good, "[doc-a]", "[doc-b]", 1)),
+		"reference not https":    head + strings.Replace(refs, "https://", "http://", 1) + rule(good),
+		"no verdict":             head + refs + rule("      scheme: tls-kx\n      match: { names: [RSA] }\n      summary: \"text\"\n      refs: [doc-a]\n"),
+		"bad quantum value":      head + refs + rule(strings.Replace(good, "quantum: vulnerable", "quantum: broken", 1)),
+		"bad classical value":    head + refs + rule(strings.Replace(good, "classical: legacy", "classical: bad", 1)),
+		"bad scheme":             head + refs + rule(strings.Replace(good, "scheme: tls-kx", "scheme: nosuch", 1)),
+		"bad role":               head + refs + rule(strings.Replace(good, "role: key-establishment", "role: nosuch", 1)),
+		"no summary":             head + refs + rule(strings.Replace(good, "      summary: \"text\"\n", "", 1)),
+		"empty match":            head + refs + rule(strings.Replace(good, "match: { names: [RSA, \"EC*\"] }", "match: {}", 1)),
+		"bad pattern":            head + refs + rule(strings.Replace(good, "\"EC*\"", "\"EC[\"", 1)),
+		"family outside catalog": head + refs + rule(strings.Replace(good, "match: { names: [RSA, \"EC*\"] }", "match: { family: [RSA] }", 1)),
+		"duplicate rule":         head + refs + rule(good) + "    - id: r1\n" + good,
+		"duplicate policy":       head + refs + rule(good) + "---\n",
+		"unknown key":            head + refs + rule(good) + "      surprise: 1\n",
+	} {
+		if _, err := Load(mapFS(with(y))); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+}

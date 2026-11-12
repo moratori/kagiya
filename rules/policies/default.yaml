@@ -1,0 +1,500 @@
+# 既定の評価ポリシー。見つかった暗号（アルゴリズム、証明書、鍵、暗号スイート、SSH の方式）を、2つの軸で判定する。
+#
+#   quantum   : 量子計算機に対する評価
+#               vulnerable   = 現行の公開鍵暗号。暗号解読に使える水準の量子計算機で破られる（移行の対象）
+#               hybrid       = 現行の方式と耐量子の方式の組み合わせ
+#               resistant    = 耐量子の方式（耐量子の公開鍵暗号。共通鍵暗号・ハッシュ関数は、CRYPTREC の
+#                              耐量子計算機暗号リストに載っている強度のもの）
+#               reduced      = 共通鍵暗号・ハッシュ関数のうち、量子計算機で強度が下がり、CRYPTREC の
+#                              耐量子計算機暗号リストに載っていない強度のもの（AES-128、SHA-256 など）
+#               not-targeted = 上のどれにも当たらない共通鍵暗号・MAC など。参照した文書に、耐量子の観点での記載がない
+#               unknown      = この情報だけでは判定できない
+#   classical : 現在の計算機に対する評価
+#               weak    = 危殆化している、または必要な強度（112 ビット）に満たない
+#               legacy  = 推奨されない状態、または強度が 112 ビットで、移行の期限が示されている
+#               ok      = 上のどちらにも当たらない
+#               unknown = 参照した文書に記載がなく、判定できない
+#
+# 1つの対象に複数の規則が当たった場合は、軸ごとに最も厳しい判定を採る。
+# 規則は判定の根拠（references の文書）を必ず持つ。根拠のない規則は読み込み時に拒否される。
+# 判定はあくまで下記の文書に照らした目安で、個々のシステムでの要否は利用者が判断する。
+#
+#   scheme : 規則が当たる名前の種類
+#     catalog      暗号カタログ（rules/catalog）のアルゴリズム。family / primitive / 鍵長、または ID（names）で指定する
+#     tls-kx / tls-au / tls-enc / tls-mac   TLS の暗号スイートの鍵交換・認証・暗号化・MAC（OpenSSL の表示名）
+#     tls-protocol TLS のプロトコルの版
+#     ssh-kex / ssh-key / ssh-cipher / ssh-mac   SSH の鍵交換・鍵と署名・暗号・MAC の方式名
+#   names  : 名前。「*」は任意の文字列に当たる
+#   role   : その方式の役割。鍵共有（key-establishment）が量子計算機に弱い場合、いま記録された通信が
+#            将来解読され得る（harvest now, decrypt later）ため、署名より優先して扱う
+policy:
+  id: default
+  title: "既定の評価ポリシー（NIST IR 8547、CRYPTREC 暗号リスト）"
+  version: "2026.11.0"
+  references:
+    - id: nist-ir-8547
+      title: "NIST IR 8547, Transition to Post-Quantum Cryptography Standards (October 2026)"
+      url: "https://doi.org/10.6028/NIST.IR.8547"
+      note: "表2・表4: 量子計算機に弱い署名・鍵共有（ECDSA、EdDSA、RSA、DH、ECDH）は 2030 年より後は非推奨、2035 年より後は不可。表3・表5: 耐量子の署名（ML-DSA、SLH-DSA など）と鍵共有（ML-KEM）。4.1.3: 共通鍵暗号・ハッシュ関数は 128 ビット以上なら耐量子のカテゴリ 1 以上、112 ビットのものは 2030 年に不可。表8: SHA-1 の衝突困難性は 80 ビット未満、SHA-224 は 112 ビット"
+    - id: cryptrec-ls-0001
+      title: "CRYPTREC LS-0001-2022R2 電子政府における調達のために参照すべき暗号のリスト（CRYPTREC 暗号リスト）（最終更新 令和8年3月30日）"
+      url: "https://www.cryptrec.go.jp/list/cryptrec-ls-0001-2022r2.pdf"
+      note: "電子政府推奨暗号リスト（表1 現行暗号、表2 耐量子計算機暗号: ML-KEM-768 / 1024 など）、運用監視暗号リスト（RSAES-PKCS1-v1_5、3-key Triple DES、SHA-1、RIPEMD-160、CBC-MAC）"
+    - id: cryptrec-ls-0003
+      title: "CRYPTREC LS-0003-2022R1 暗号強度要件（アルゴリズム及び鍵長選択）に関する設定基準"
+      url: "https://www.cryptrec.go.jp/list/cryptrec-ls-0003-2022r1.pdf"
+      note: "表2: 112 ビットの強度に RSA・DSA・DH は 2048 ビット、楕円曲線は P-224 が対応。128 ビットには 3072 ビット、P-256。表3: 3-key Triple DES は 112 ビット。表4: SHA-1 は署名と組み合わせる用途では 112 ビットに達しない。表5: 112 ビットの強度は 2030 年までが移行完遂期間、2031 年以降の新規生成は利用不可"
+    - id: rfc-8996
+      title: "RFC 8996 (BCP 195), Deprecating TLS 1.0 and TLS 1.1 (March 2021)"
+      url: "https://www.rfc-editor.org/rfc/rfc8996"
+      note: "TLS 1.0 と TLS 1.1 は使ってはならない（MUST NOT）"
+    - id: rfc-9142
+      title: "RFC 9142, Key Exchange (KEX) Method Updates and Recommendations for Secure Shell (SSH) (January 2022)"
+      url: "https://www.rfc-editor.org/rfc/rfc9142"
+      note: "diffie-hellman-group1-sha1（1024 ビット、約 80 ビットの強度）と diffie-hellman-group-exchange-sha1 は SHOULD NOT。SHA-1 を使う鍵交換は段階的に廃止すべき"
+
+  rules:
+    # ===== 暗号カタログのアルゴリズム（証明書・鍵・キーストアで見つかるもの） =====
+    - id: pk-signature-quantum
+      scheme: catalog
+      match: { family: [RSA, DSA, ECDSA, EdDSA], primitive: [signature] }
+      role: signature
+      quantum: vulnerable
+      summary: "現行の公開鍵による署名。量子計算機で破られる。NIST は 2030 年より後を非推奨、2035 年より後を不可としている"
+      refs: [nist-ir-8547]
+    - id: pk-key-quantum
+      scheme: catalog
+      match: { family: [RSA, DSA, EC, X25519, X448], primitive: [public-key, key-exchange, curve] }
+      role: public-key
+      quantum: vulnerable
+      summary: "現行の公開鍵暗号の鍵（素因数分解・離散対数に基づく）。量子計算機で破られる。NIST は 2030 年より後を非推奨、2035 年より後を不可としている"
+      refs: [nist-ir-8547]
+    - id: pqc-kem
+      scheme: catalog
+      match: { family: [ML-KEM] }
+      role: key-establishment
+      quantum: resistant
+      classical: ok
+      summary: "耐量子の鍵共有（FIPS 203）。CRYPTREC の耐量子計算機暗号リストに載っているのは ML-KEM-768 と ML-KEM-1024"
+      refs: [nist-ir-8547, cryptrec-ls-0001]
+    - id: pqc-signature
+      scheme: catalog
+      match: { family: [ML-DSA] }
+      role: signature
+      quantum: resistant
+      classical: ok
+      summary: "耐量子の署名（FIPS 204）"
+      refs: [nist-ir-8547]
+    - id: rsa-dsa-below-2048
+      scheme: catalog
+      match: { family: [RSA, DSA], max_bits: 2047 }
+      classical: weak
+      summary: "鍵長が 2048 ビット未満。112 ビットの強度に満たない"
+      refs: [cryptrec-ls-0003]
+    - id: rsa-dsa-112bit
+      scheme: catalog
+      match: { family: [RSA, DSA], min_bits: 2048, max_bits: 3071 }
+      classical: legacy
+      summary: "鍵長が 2048 ビット以上 3072 ビット未満。強度は 112 ビットで、CRYPTREC は 2030 年までを移行完遂期間としている"
+      refs: [cryptrec-ls-0003]
+    - id: rsa-dsa-128bit
+      scheme: catalog
+      match: { family: [RSA, DSA], min_bits: 3072 }
+      classical: ok
+      summary: "鍵長が 3072 ビット以上（強度 128 ビット以上）"
+      refs: [cryptrec-ls-0003]
+    - id: ec-p224
+      scheme: catalog
+      match: { names: [ec-p224] }
+      classical: legacy
+      summary: "P-224 は強度 112 ビットで、CRYPTREC は 2030 年までを移行完遂期間としている"
+      refs: [cryptrec-ls-0003]
+    - id: ec-128bit
+      scheme: catalog
+      match: { names: [ec-p256, ec-p384, ec-p521, x25519, x448, ed25519, ed448] }
+      classical: ok
+      summary: "強度 128 ビット以上の楕円曲線"
+      refs: [cryptrec-ls-0003]
+    - id: signature-md5
+      scheme: catalog
+      match: { names: [md2-with-rsa, md5-with-rsa] }
+      classical: weak
+      summary: "MD2 / MD5 を使う署名。これらのハッシュ関数は CRYPTREC 暗号リストに載っていない"
+      refs: [cryptrec-ls-0001]
+    - id: signature-sha1
+      scheme: catalog
+      match: { names: [sha1-with-rsa, dsa-with-sha1, ecdsa-with-sha1] }
+      classical: weak
+      summary: "SHA-1 を使う署名。SHA-1 の衝突困難性は 80 ビット未満で、署名と組み合わせる用途では 112 ビットに達しない"
+      refs: [nist-ir-8547, cryptrec-ls-0003]
+    - id: signature-sha224
+      scheme: catalog
+      match: { names: [sha224-with-rsa, ecdsa-with-sha224] }
+      classical: legacy
+      summary: "SHA-224 を使う署名。衝突困難性は 112 ビットで、NIST は 112 ビットのものを 2030 年に不可としている"
+      refs: [nist-ir-8547]
+    - id: signature-sha2
+      scheme: catalog
+      match: { names: [sha256-with-rsa, sha384-with-rsa, sha512-with-rsa, rsassa-pss, dsa-with-sha256, ecdsa-with-sha256, ecdsa-with-sha384, ecdsa-with-sha512] }
+      classical: ok
+      summary: "SHA-256 以上を使う署名（署名に使う鍵の長さは別に判定する）"
+      refs: [cryptrec-ls-0001]
+    - id: hash-md5
+      scheme: catalog
+      match: { names: [md5] }
+      role: hash
+      quantum: not-targeted
+      classical: weak
+      summary: "MD5 は CRYPTREC 暗号リストに載っていない"
+      refs: [cryptrec-ls-0001]
+    - id: hash-sha1
+      scheme: catalog
+      match: { names: [sha1, hmac-sha1] }
+      role: hash
+      quantum: not-targeted
+      classical: legacy
+      summary: "SHA-1 は CRYPTREC の運用監視暗号リスト（互換性維持以外の利用は推奨しない）。NIST は 2030 年より後を不可としている"
+      refs: [cryptrec-ls-0001, nist-ir-8547]
+    - id: hash-sha224
+      scheme: catalog
+      match: { names: [sha224] }
+      role: hash
+      quantum: not-targeted
+      classical: legacy
+      summary: "SHA-224 の衝突困難性は 112 ビットで、NIST は 112 ビットのものを 2030 年に不可としている"
+      refs: [nist-ir-8547]
+    - id: hash-sha256
+      scheme: catalog
+      match: { names: [sha256] }
+      role: hash
+      quantum: reduced
+      classical: ok
+      summary: "SHA-256。CRYPTREC の耐量子計算機暗号リストに載っているハッシュ関数は SHA-384 以上で、SHA-256 は載っていない（NIST は SHA-256 を耐量子のカテゴリ 2 とし、置き換えは求めていない）"
+      refs: [cryptrec-ls-0001, nist-ir-8547]
+    - id: hash-sha384
+      scheme: catalog
+      match: { names: [sha384, sha512] }
+      role: hash
+      quantum: resistant
+      classical: ok
+      summary: "SHA-384 / SHA-512。CRYPTREC の耐量子計算機暗号リストに掲載"
+      refs: [cryptrec-ls-0001, nist-ir-8547]
+    - id: hmac-sha2
+      scheme: catalog
+      match: { names: [hmac-sha256, hmac-sha384, hmac-sha512] }
+      role: mac
+      quantum: not-targeted
+      classical: ok
+      summary: "SHA-256 以上による HMAC"
+      refs: [cryptrec-ls-0001]
+    - id: cipher-aes-128
+      scheme: catalog
+      match: { family: [AES], max_bits: 191 }
+      role: encryption
+      quantum: reduced
+      classical: ok
+      summary: "鍵長 128 ビットの AES。CRYPTREC の耐量子計算機暗号リストに載っている AES は 192 ビットと 256 ビットで、128 ビットは載っていない（NIST は AES-128 を耐量子のカテゴリ 1 とし、置き換えは求めていない）"
+      refs: [cryptrec-ls-0001, nist-ir-8547]
+    - id: cipher-aes-192
+      scheme: catalog
+      match: { family: [AES], min_bits: 192 }
+      role: encryption
+      quantum: resistant
+      classical: ok
+      summary: "鍵長 192 ビット以上の AES。CRYPTREC の耐量子計算機暗号リストに掲載"
+      refs: [cryptrec-ls-0001, nist-ir-8547]
+    - id: cipher-3des
+      scheme: catalog
+      match: { names: [des-ede3-cbc, pkcs12-pbe-sha1-3des] }
+      role: encryption
+      quantum: not-targeted
+      classical: legacy
+      summary: "3-key Triple DES は強度 112 ビットで、CRYPTREC の運用監視暗号リスト（互換性維持以外の利用は推奨しない）"
+      refs: [cryptrec-ls-0001, cryptrec-ls-0003]
+    - id: cipher-rc2-40
+      scheme: catalog
+      match: { names: [pkcs12-pbe-sha1-rc2-40] }
+      role: encryption
+      quantum: not-targeted
+      classical: weak
+      summary: "40 ビット鍵の RC2。112 ビットの強度に満たず、CRYPTREC 暗号リストにも載っていない"
+      refs: [cryptrec-ls-0001, cryptrec-ls-0003]
+    - id: java-keystore-proprietary
+      scheme: catalog
+      match: { names: [jks-key-protector, jks-sha1-keyed-digest, jceks-pbe-md5-3des] }
+      quantum: not-targeted
+      classical: legacy
+      summary: "Java のキーストア独自の保護方式（SHA-1 や MD5、3-key Triple DES に基づく）。CRYPTREC 暗号リストに載っている方式ではない"
+      refs: [cryptrec-ls-0001]
+
+    # ===== TLS の暗号スイート =====
+    - id: tls-kx-ephemeral
+      scheme: tls-kx
+      match: { names: [ECDH, DH] }
+      role: key-establishment
+      quantum: vulnerable
+      classical: ok
+      summary: "一時鍵による DH / ECDH の鍵共有。量子計算機で破られ、いま記録された通信が将来解読され得る"
+      refs: [nist-ir-8547]
+    - id: tls-kx-rsa
+      scheme: tls-kx
+      match: { names: [RSA] }
+      role: key-establishment
+      quantum: vulnerable
+      classical: legacy
+      tags: [no-forward-secrecy]
+      summary: "RSA による鍵輸送（RSAES-PKCS1-v1_5）。量子計算機で破られるうえ、前方秘匿性がなく、サーバーの秘密鍵が漏れると過去の通信も解読される。CRYPTREC の運用監視暗号リスト"
+      refs: [nist-ir-8547, cryptrec-ls-0001]
+    - id: tls-kx-static-ecdh
+      scheme: tls-kx
+      match: { names: [ECDH/RSA, ECDH/ECDSA] }
+      role: key-establishment
+      quantum: vulnerable
+      tags: [no-forward-secrecy]
+      summary: "固定鍵による ECDH の鍵共有。量子計算機で破られるうえ、前方秘匿性がない"
+      refs: [nist-ir-8547]
+    - id: tls-kx-tls13
+      scheme: tls-kx
+      match: { names: [any] }
+      role: key-establishment
+      quantum: unknown
+      classical: ok
+      summary: "TLS 1.3 の鍵共有はスイートではなく、鍵交換のグループの設定で決まる（このツールはまだその実効値を求めていない）"
+      refs: [nist-ir-8547]
+    - id: tls-au-signature
+      scheme: tls-au
+      match: { names: [RSA, ECDSA, DSS, ECDH] }
+      role: signature
+      quantum: vulnerable
+      summary: "現行の公開鍵によるサーバー認証。量子計算機で破られる（認証は、その時点で量子計算機が存在しなければ破られない）"
+      refs: [nist-ir-8547]
+    - id: tls-au-tls13
+      scheme: tls-au
+      match: { names: [any] }
+      role: signature
+      quantum: unknown
+      summary: "TLS 1.3 の認証はスイートではなく、証明書と署名アルゴリズムの設定で決まる"
+      refs: [nist-ir-8547]
+    - id: tls-au-none
+      scheme: tls-au
+      match: { names: [None] }
+      role: signature
+      classical: weak
+      summary: "サーバーを認証しない（匿名の）スイート。CRYPTREC 暗号リストのエンティティ認証・署名のいずれにも当たらない"
+      refs: [cryptrec-ls-0001]
+    - id: tls-enc-aes-128
+      scheme: tls-enc
+      match: { names: ["AES(128)", "AESGCM(128)", "AESCCM(128)", "AESCCM8(128)"] }
+      role: encryption
+      quantum: reduced
+      classical: ok
+      summary: "鍵長 128 ビットの AES。CRYPTREC の耐量子計算機暗号リストに載っている AES は 192 ビットと 256 ビットで、128 ビットは載っていない（NIST は AES-128 を耐量子のカテゴリ 1 とし、置き換えは求めていない）"
+      refs: [cryptrec-ls-0001, nist-ir-8547]
+    - id: tls-enc-aes-256
+      scheme: tls-enc
+      match: { names: ["AES(256)", "AESGCM(256)", "AESCCM(256)", "AESCCM8(256)"] }
+      role: encryption
+      quantum: resistant
+      classical: ok
+      summary: "鍵長 256 ビットの AES。CRYPTREC の耐量子計算機暗号リストに掲載"
+      refs: [cryptrec-ls-0001, nist-ir-8547]
+    - id: tls-enc-listed
+      scheme: tls-enc
+      match: { names: ["Camellia(*)", "CHACHA20/POLY1305(256)"] }
+      role: encryption
+      quantum: not-targeted
+      classical: ok
+      summary: "Camellia、ChaCha20-Poly1305（CRYPTREC の電子政府推奨暗号リストの現行暗号に掲載。耐量子計算機暗号リストには載っていない）"
+      refs: [cryptrec-ls-0001]
+    - id: tls-enc-3des
+      scheme: tls-enc
+      match: { names: ["3DES(*)"] }
+      role: encryption
+      quantum: not-targeted
+      classical: legacy
+      summary: "3-key Triple DES は強度 112 ビットで、CRYPTREC の運用監視暗号リスト"
+      refs: [cryptrec-ls-0001, cryptrec-ls-0003]
+    - id: tls-enc-unlisted
+      scheme: tls-enc
+      match: { names: ["ARIAGCM(*)", "SEED(*)", "IDEA(*)"] }
+      role: encryption
+      quantum: not-targeted
+      classical: unknown
+      summary: "CRYPTREC 暗号リストに載っていない共通鍵暗号（ARIA、SEED、IDEA）"
+      refs: [cryptrec-ls-0001]
+    - id: tls-enc-broken
+      scheme: tls-enc
+      match: { names: ["RC4(*)", "RC2(*)", "DES(*)", "None"] }
+      role: encryption
+      quantum: not-targeted
+      classical: weak
+      summary: "RC4、RC2、DES、または暗号化なし。CRYPTREC 暗号リストに載っておらず、112 ビットの強度の方式でもない"
+      refs: [cryptrec-ls-0001, cryptrec-ls-0003]
+    - id: tls-mac-sha2
+      scheme: tls-mac
+      match: { names: [AEAD, SHA256, SHA384] }
+      role: mac
+      quantum: not-targeted
+      classical: ok
+      summary: "認証付き暗号、または SHA-256 以上による HMAC"
+      refs: [cryptrec-ls-0001]
+    - id: tls-mac-sha1
+      scheme: tls-mac
+      match: { names: [SHA1] }
+      role: mac
+      quantum: not-targeted
+      classical: legacy
+      summary: "SHA-1 による HMAC。SHA-1 は CRYPTREC の運用監視暗号リスト"
+      refs: [cryptrec-ls-0001]
+    - id: tls-mac-md5
+      scheme: tls-mac
+      match: { names: [MD5] }
+      role: mac
+      quantum: not-targeted
+      classical: weak
+      summary: "MD5 による HMAC。MD5 は CRYPTREC 暗号リストに載っていない"
+      refs: [cryptrec-ls-0001]
+    - id: tls-protocol-deprecated
+      scheme: tls-protocol
+      match: { names: [SSLv2, SSLv3, TLSv1, TLSv1.0, TLSv1.1] }
+      role: protocol
+      classical: weak
+      summary: "TLS 1.1 以前のプロトコル。TLS 1.0 と TLS 1.1 は使ってはならないとされている（SSL はそれより古い）"
+      refs: [rfc-8996]
+    - id: tls-protocol-current
+      scheme: tls-protocol
+      match: { names: [TLSv1.2, TLSv1.3] }
+      role: protocol
+      classical: ok
+      summary: "TLS 1.2 / TLS 1.3"
+      refs: [rfc-8996]
+
+    # ===== SSH =====
+    - id: ssh-kex-classical
+      scheme: ssh-kex
+      match: { names: [curve25519-sha256, "curve25519-sha256@libssh.org", curve448-sha512, "ecdh-sha2-nistp*", diffie-hellman-group14-sha256, diffie-hellman-group16-sha512, diffie-hellman-group18-sha512, diffie-hellman-group-exchange-sha256] }
+      role: key-establishment
+      quantum: vulnerable
+      classical: ok
+      summary: "DH / ECDH による鍵共有。量子計算機で破られ、いま記録された通信が将来解読され得る"
+      refs: [nist-ir-8547, rfc-9142]
+    - id: ssh-kex-sha1
+      scheme: ssh-kex
+      match: { names: [diffie-hellman-group14-sha1, diffie-hellman-group-exchange-sha1] }
+      role: key-establishment
+      quantum: vulnerable
+      classical: legacy
+      summary: "SHA-1 を使う DH の鍵共有。SHA-1 を使う鍵交換は段階的に廃止すべきとされている"
+      refs: [nist-ir-8547, rfc-9142]
+    - id: ssh-kex-group1
+      scheme: ssh-kex
+      match: { names: [diffie-hellman-group1-sha1] }
+      role: key-establishment
+      quantum: vulnerable
+      classical: weak
+      summary: "1024 ビットの群と SHA-1 による DH の鍵共有。強度は約 80 ビットで、使うべきでないとされている"
+      refs: [rfc-9142, cryptrec-ls-0003]
+    - id: ssh-kex-hybrid-mlkem
+      scheme: ssh-kex
+      match: { names: [mlkem768x25519-sha256, mlkem768nistp256-sha256, mlkem1024nistp384-sha384] }
+      role: key-establishment
+      quantum: hybrid
+      classical: ok
+      summary: "ML-KEM（FIPS 203）と ECDH を組み合わせた鍵共有。ML-KEM-768 / 1024 は CRYPTREC の耐量子計算機暗号リストに掲載"
+      refs: [nist-ir-8547, cryptrec-ls-0001]
+    - id: ssh-kex-hybrid-sntrup
+      scheme: ssh-kex
+      match: { names: [sntrup761x25519-sha512, "sntrup761x25519-sha512@openssh.com"] }
+      role: key-establishment
+      quantum: hybrid
+      classical: ok
+      summary: "Streamlined NTRU Prime（sntrup761）と X25519 を組み合わせた鍵共有。sntrup761 は、NIST の耐量子の鍵共有の標準（ML-KEM）にも CRYPTREC の耐量子計算機暗号リストにも含まれていない"
+      refs: [nist-ir-8547, cryptrec-ls-0001]
+    - id: ssh-key-signature
+      scheme: ssh-key
+      match: { names: ["rsa-sha2-*", "ecdsa-sha2-*", "ssh-ed25519*", "sk-*", "webauthn-sk-*"] }
+      role: signature
+      quantum: vulnerable
+      classical: ok
+      summary: "現行の公開鍵による署名（RSA は SHA-256 以上、ECDSA、Ed25519）。量子計算機で破られる"
+      refs: [nist-ir-8547]
+    - id: ssh-key-rsa-sha1
+      scheme: ssh-key
+      match: { names: ["ssh-rsa", "ssh-rsa-cert-*"] }
+      role: signature
+      quantum: vulnerable
+      classical: weak
+      summary: "RSA と SHA-1 による署名（ssh-rsa）。SHA-1 は署名と組み合わせる用途では 112 ビットに達しない"
+      refs: [nist-ir-8547, cryptrec-ls-0003]
+    - id: ssh-key-dss
+      scheme: ssh-key
+      match: { names: ["ssh-dss", "ssh-dss-cert-*"] }
+      role: signature
+      quantum: vulnerable
+      classical: weak
+      summary: "DSA と SHA-1 による署名（ssh-dss）。SHA-1 は署名と組み合わせる用途では 112 ビットに達しない"
+      refs: [nist-ir-8547, cryptrec-ls-0003]
+    - id: ssh-cipher-aes-128
+      scheme: ssh-cipher
+      match: { names: ["aes128-*"] }
+      role: encryption
+      quantum: reduced
+      classical: ok
+      summary: "鍵長 128 ビットの AES。CRYPTREC の耐量子計算機暗号リストに載っている AES は 192 ビットと 256 ビットで、128 ビットは載っていない（NIST は AES-128 を耐量子のカテゴリ 1 とし、置き換えは求めていない）"
+      refs: [cryptrec-ls-0001, nist-ir-8547]
+    - id: ssh-cipher-aes-192
+      scheme: ssh-cipher
+      match: { names: ["aes192-*", "aes256-*", "rijndael-cbc@lysator.liu.se"] }
+      role: encryption
+      quantum: resistant
+      classical: ok
+      summary: "鍵長 192 ビット以上の AES。CRYPTREC の耐量子計算機暗号リストに掲載"
+      refs: [cryptrec-ls-0001, nist-ir-8547]
+    - id: ssh-cipher-chacha20
+      scheme: ssh-cipher
+      match: { names: ["chacha20-poly1305@openssh.com"] }
+      role: encryption
+      quantum: not-targeted
+      classical: ok
+      summary: "ChaCha20-Poly1305（CRYPTREC の電子政府推奨暗号リストの現行暗号に掲載。耐量子計算機暗号リストには載っていない）"
+      refs: [cryptrec-ls-0001]
+    - id: ssh-cipher-3des
+      scheme: ssh-cipher
+      match: { names: [3des-cbc] }
+      role: encryption
+      quantum: not-targeted
+      classical: legacy
+      summary: "3-key Triple DES は強度 112 ビットで、CRYPTREC の運用監視暗号リスト"
+      refs: [cryptrec-ls-0001, cryptrec-ls-0003]
+    - id: ssh-cipher-rc4
+      scheme: ssh-cipher
+      match: { names: ["arcfour*"] }
+      role: encryption
+      quantum: not-targeted
+      classical: weak
+      summary: "RC4。CRYPTREC 暗号リストに載っていない"
+      refs: [cryptrec-ls-0001]
+    - id: ssh-mac-sha2
+      scheme: ssh-mac
+      match: { names: ["hmac-sha2-*"] }
+      role: mac
+      quantum: not-targeted
+      classical: ok
+      summary: "SHA-256 以上による HMAC"
+      refs: [cryptrec-ls-0001]
+    - id: ssh-mac-sha1
+      scheme: ssh-mac
+      match: { names: ["hmac-sha1*"] }
+      role: mac
+      quantum: not-targeted
+      classical: legacy
+      summary: "SHA-1 による HMAC。SHA-1 は CRYPTREC の運用監視暗号リスト"
+      refs: [cryptrec-ls-0001]
+    - id: ssh-mac-md5
+      scheme: ssh-mac
+      match: { names: ["hmac-md5*"] }
+      role: mac
+      quantum: not-targeted
+      classical: weak
+      summary: "MD5 による HMAC。MD5 は CRYPTREC 暗号リストに載っていない"
+      refs: [cryptrec-ls-0001]
