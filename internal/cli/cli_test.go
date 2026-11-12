@@ -740,3 +740,50 @@ func TestScanLabelsCertificateStores(t *testing.T) {
 		t.Errorf("occurrences = %d", len(inv.Occurrences))
 	}
 }
+
+// スキャン結果には、既定の評価ポリシーによる判定（スキャン時点の参考値）が付く。
+func TestScanAddsAssessment(t *testing.T) {
+	fx := setup(t)
+	if code, _, stderr := run(fx.scanArgs()...); code != 0 {
+		t.Fatalf("exit code %d, stderr: %s", code, stderr)
+	}
+	raw, _ := os.ReadFile(singleFile(t, fx.out, ".json"))
+	var inv struct {
+		Assets     []struct{ ID, Type string }
+		Assessment *struct {
+			Policy        string
+			PolicyVersion string `json:"policy_version"`
+			Assets        map[string]struct {
+				Quantum, Classical string
+				Rules              []string
+			}
+			Values map[string]any
+		}
+	}
+	if err := json.Unmarshal(raw, &inv); err != nil {
+		t.Fatal(err)
+	}
+	if inv.Assessment == nil || inv.Assessment.Policy != "default" || inv.Assessment.PolicyVersion == "" || inv.Assessment.Values == nil {
+		t.Fatalf("assessment = %+v", inv.Assessment)
+	}
+	certs := 0
+	for _, a := range inv.Assets {
+		if a.Type != "certificate" && a.Type != "algorithm" {
+			continue
+		}
+		v, ok := inv.Assessment.Assets[a.ID]
+		if !ok || v.Quantum == "" || v.Classical == "" {
+			t.Errorf("%s has no verdict: %+v", a.ID, v)
+		}
+		if a.Type == "certificate" {
+			certs++
+			// テストデータの証明書はすべて RSA か楕円曲線（現行の公開鍵暗号）
+			if v.Quantum != "vulnerable" || len(v.Rules) == 0 {
+				t.Errorf("%s: %+v", a.ID, v)
+			}
+		}
+	}
+	if certs == 0 {
+		t.Fatal("no certificate in the result")
+	}
+}
