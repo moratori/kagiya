@@ -23,6 +23,7 @@
 #     catalog      暗号カタログ（rules/catalog）のアルゴリズム。family / primitive / 鍵長、または ID（names）で指定する
 #     tls-kx / tls-au / tls-enc / tls-mac   TLS の暗号スイートの鍵交換・認証・暗号化・MAC（OpenSSL の表示名）
 #     tls-protocol TLS のプロトコルの版
+#     tls-group    TLS の鍵交換のグループ（rules/groups の対応表での正式な名前）
 #     ssh-kex / ssh-key / ssh-cipher / ssh-mac   SSH の鍵交換・鍵と署名・暗号・MAC の方式名
 #   names  : 名前。「*」は任意の文字列に当たる
 #   role   : その方式の役割。鍵共有（key-establishment）が量子計算機に弱い場合、いま記録された通信が
@@ -259,7 +260,7 @@ policy:
       role: key-establishment
       quantum: unknown
       classical: ok
-      summary: "TLS 1.3 の鍵共有はスイートではなく、鍵交換のグループの設定で決まる（このツールはまだその実効値を求めていない）"
+      summary: "TLS 1.3 の鍵共有はスイートではなく、鍵交換のグループで決まる（同じ範囲の「鍵交換のグループ」の欄を参照）"
       refs: [nist-ir-8547]
     - id: tls-au-signature
       scheme: tls-au
@@ -368,6 +369,64 @@ policy:
       classical: ok
       summary: "TLS 1.2 / TLS 1.3"
       refs: [rfc-8996]
+
+    # ===== TLS の鍵交換のグループ =====
+    - id: tls-group-classical
+      scheme: tls-group
+      match: { names: [X25519, X448, P-256, P-384, P-521, ffdhe3072, ffdhe4096, ffdhe6144, ffdhe8192] }
+      role: key-establishment
+      quantum: vulnerable
+      classical: ok
+      summary: "ECDH / DH による鍵交換のグループ。量子計算機で破られ、いま記録された通信が将来解読され得る"
+      refs: [nist-ir-8547, cryptrec-ls-0003]
+    - id: tls-group-ffdhe2048
+      scheme: tls-group
+      match: { names: [ffdhe2048] }
+      role: key-establishment
+      quantum: vulnerable
+      classical: legacy
+      summary: "2048 ビットの有限体 DH のグループ。量子計算機で破られるうえ、強度は 112 ビットで、CRYPTREC は 2030 年までを移行完遂期間としている"
+      refs: [nist-ir-8547, cryptrec-ls-0003]
+    - id: tls-group-p224
+      scheme: tls-group
+      match: { names: [P-224] }
+      role: key-establishment
+      quantum: vulnerable
+      classical: legacy
+      summary: "P-224 による ECDH のグループ。量子計算機で破られるうえ、強度は 112 ビットで、CRYPTREC は 2030 年までを移行完遂期間としている"
+      refs: [nist-ir-8547, cryptrec-ls-0003]
+    - id: tls-group-other-curves
+      scheme: tls-group
+      match: { names: ["brainpoolP*", secp256k1, "K-*", "B-*", "sect*"] }
+      role: key-establishment
+      quantum: vulnerable
+      classical: ok
+      summary: "Brainpool、secp256k1、標数 2 の体の上の曲線による ECDH のグループ（強度 128 ビット以上）。量子計算機で破られ、いま記録された通信が将来解読され得る"
+      refs: [nist-ir-8547]
+    - id: tls-group-hybrid-mlkem
+      scheme: tls-group
+      match: { names: [X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024] }
+      role: key-establishment
+      quantum: hybrid
+      classical: ok
+      summary: "ML-KEM（FIPS 203）と ECDH を組み合わせた鍵交換のグループ。ML-KEM-768 / 1024 は CRYPTREC の耐量子計算機暗号リストに掲載"
+      refs: [nist-ir-8547, cryptrec-ls-0001]
+    - id: tls-group-mlkem
+      scheme: tls-group
+      match: { names: [MLKEM768, MLKEM1024] }
+      role: key-establishment
+      quantum: resistant
+      classical: ok
+      summary: "ML-KEM（FIPS 203）だけによる鍵交換のグループ。ML-KEM-768 / 1024 は CRYPTREC の耐量子計算機暗号リストに掲載"
+      refs: [nist-ir-8547, cryptrec-ls-0001]
+    - id: tls-group-mlkem512
+      scheme: tls-group
+      match: { names: [MLKEM512] }
+      role: key-establishment
+      quantum: resistant
+      classical: ok
+      summary: "ML-KEM-512（FIPS 203、耐量子のカテゴリ 1）だけによる鍵交換のグループ。CRYPTREC の耐量子計算機暗号リストに掲載されているのは ML-KEM-768 / 1024"
+      refs: [nist-ir-8547, cryptrec-ls-0001]
 
     # ===== SSH =====
     - id: ssh-kex-classical

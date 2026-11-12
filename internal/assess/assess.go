@@ -190,6 +190,7 @@ var parameterScheme = map[string]string{
 	model.ParamTLSCiphers:               SchemeTLSSuite,
 	model.ParamTLSCiphersuites:          SchemeTLSSuite,
 	model.ParamTLSProtocols:             SchemeTLSProtocol,
+	model.ParamTLSGroups:                "tls-group",
 	"ssh.kex-algorithms":                "ssh-kex",
 	"ssh.host-key-algorithms":           "ssh-key",
 	"ssh.pubkey-accepted-algorithms":    "ssh-key",

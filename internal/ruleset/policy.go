@@ -56,7 +56,7 @@ var (
 	ClassicalRank = map[string]int{"weak": 4, "legacy": 3, "unknown": 2, "ok": 1}
 
 	policySchemes = map[string]bool{"catalog": true, "tls-kx": true, "tls-au": true, "tls-enc": true, "tls-mac": true,
-		"tls-protocol": true, "ssh-kex": true, "ssh-key": true, "ssh-cipher": true, "ssh-mac": true}
+		"tls-protocol": true, "tls-group": true, "ssh-kex": true, "ssh-key": true, "ssh-cipher": true, "ssh-mac": true}
 	policyRoles = map[string]bool{"": true, "key-establishment": true, "signature": true, "public-key": true,
 		"encryption": true, "hash": true, "mac": true, "kdf": true, "protocol": true}
 )
