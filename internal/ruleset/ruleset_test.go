@@ -540,8 +540,8 @@ func TestLoadCipherTables(t *testing.T) {
 	}
 }
 
-// 対応表には、TLS 1.3 のスイートの全体（既定に入っていないものも含む）と、実際に接続できたプロトコルも入っている。
-func TestBuiltinCipherTableProtocolsAndTLS13(t *testing.T) {
+// 対応表には、TLS 1.3 のスイートの全体（既定に入っていないものも含む）が入っている。
+func TestBuiltinCipherTableTLS13(t *testing.T) {
 	rs, err := Builtin()
 	if err != nil {
 		t.Fatal(err)
@@ -559,14 +559,6 @@ func TestBuiltinCipherTableProtocolsAndTLS13(t *testing.T) {
 	}
 	if c := names["TLS_AES_256_GCM_SHA384"]; !c.Default || c.Level == nil || *c.Level != 5 {
 		t.Errorf("TLS_AES_256_GCM_SHA384 = %+v", c)
-	}
-	// RHEL 9 の OpenSSL は、どのレベルでも TLS 1.0 / 1.1 を受け付けない
-	if _, ok := tb.Protocols["TLSv1"]; ok || tb.Protocols["TLSv1.2"] != 5 || tb.Protocols["TLSv1.3"] != 5 {
-		t.Errorf("RHEL 9 protocols = %v", tb.Protocols)
-	}
-	// RHEL 8 の OpenSSL 1.1.1 は、レベル 2 まで TLS 1.0 を受け付ける
-	if tb8, _, _, _ := rs.CipherTableFor("openssl", "openssl-libs", "1.1.1k-18.el8_6"); tb8.Protocols["TLSv1"] != 2 {
-		t.Errorf("RHEL 8 protocols = %v", tb8.Protocols)
 	}
 }
 

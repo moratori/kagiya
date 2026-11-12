@@ -42,10 +42,8 @@ type CipherTable struct {
 	SecurityLevels bool          `yaml:"security_levels"` // セキュリティレベルの仕組みがあるか
 	DefaultLevel   *int          `yaml:"default_level"`   // 指定がないときのレベル
 	ProfileSystem  string        `yaml:"profile_system"`  // 「PROFILE=SYSTEM」で読まれるファイル（RHEL 系のみ）
-	// 実際に接続できたプロトコルと、それが通る最大のセキュリティレベル（レベルのない版は 0）。載っていないプロトコルは使えない。
-	Protocols map[string]int `yaml:"protocols"`
-	TLS13     []CipherSuite  `yaml:"tls13"`  // TLS 1.3 のスイート（暗号文字列の対象外）。既定に入っていないものも含む
-	Suites    []CipherSuite  `yaml:"suites"` // TLS 1.2 以下のスイート。並びはライブラリ内部の並び
+	TLS13          []CipherSuite `yaml:"tls13"`           // TLS 1.3 のスイート（暗号文字列の対象外）。既定に入っていないものも含む
+	Suites         []CipherSuite `yaml:"suites"`          // TLS 1.2 以下のスイート。並びはライブラリ内部の並び
 }
 
 type cipherFile struct {
@@ -98,11 +96,6 @@ func (rs *RuleSet) addCipherTable(t *CipherTable, ids map[string]bool) error {
 	}
 	if len(t.Suites) == 0 || len(t.Suites) > 2000 || len(t.TLS13) > 100 {
 		return fmt.Errorf("%s: invalid number of suites", where)
-	}
-	for name, level := range t.Protocols {
-		if !suiteAttrPattern.MatchString(name) || level < 0 || level > 5 {
-			return fmt.Errorf("%s: invalid protocol entry %q", where, name)
-		}
 	}
 	names := map[string]bool{}
 	keywords := map[string]bool{}

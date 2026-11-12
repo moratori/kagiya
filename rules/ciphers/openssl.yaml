@@ -12,7 +12,6 @@
 #     default   : 既定（DEFAULT）に含まれる。
 #     keywords  : このスイートを指す語。
 #   tls13       : TLS 1.3 のスイート。暗号文字列の対象外で、別の設定（Ciphersuites）で決まる。
-#   protocols   : 実際に接続できたプロトコルと、それが通る最大のセキュリティレベル（同じコンテナ内でサーバーを起動して確かめた）。
 #   standard_names : 暗号文字列に標準名（TLS_ECDHE_RSA_WITH_...）を書けるか。
 #   default_level  : 指定がないときのセキュリティレベル（使えるスイートが同じになる最小のレベル）。
 #   profile_system : 「PROFILE=SYSTEM」と書かれたときにライブラリが読むファイル（RHEL 系のみ）。
@@ -32,7 +31,6 @@ cipher_tables:
     security_levels: true
     default_level: 2
     profile_system: "/etc/crypto-policies/back-ends/openssl.config"
-    protocols: {"TLSv1": 2, "TLSv1.1": 2, "TLSv1.2": 5, "TLSv1.3": 5}
     tls13:
       - {name: TLS_AES_256_GCM_SHA384, standard: TLS_AES_256_GCM_SHA384, id: "0x13,0x02", protocol: TLSv1.3, kx: any, au: any, enc: "AESGCM(256)", mac: AEAD, level: 5, default: true}
       - {name: TLS_CHACHA20_POLY1305_SHA256, standard: TLS_CHACHA20_POLY1305_SHA256, id: "0x13,0x03", protocol: TLSv1.3, kx: any, au: any, enc: "CHACHA20/POLY1305(256)", mac: AEAD, level: 5, default: true}
@@ -241,7 +239,6 @@ cipher_tables:
     security_levels: true
     default_level: 1
     profile_system: "/etc/crypto-policies/back-ends/opensslcnf.config"
-    protocols: {"TLSv1.2": 5, "TLSv1.3": 5}
     tls13:
       - {name: TLS_AES_256_GCM_SHA384, standard: TLS_AES_256_GCM_SHA384, id: "0x13,0x02", protocol: TLSv1.3, kx: any, au: any, enc: "AESGCM(256)", mac: AEAD, level: 5, default: true}
       - {name: TLS_CHACHA20_POLY1305_SHA256, standard: TLS_CHACHA20_POLY1305_SHA256, id: "0x13,0x03", protocol: TLSv1.3, kx: any, au: any, enc: "CHACHA20/POLY1305(256)", mac: AEAD, level: 5, default: true}
@@ -417,7 +414,6 @@ cipher_tables:
           note: "package installed from the distribution repository in the image; values reported by the openssl command (openssl ciphers -V) with an empty openssl.cnf"
     standard_names: false
     security_levels: false
-    protocols: {"TLSv1": 0, "TLSv1.1": 0, "TLSv1.2": 0}
     suites:
       - {name: ECDHE-RSA-AES256-GCM-SHA384, id: "0xC0,0x30", protocol: TLSv1.2, kx: ECDH, au: RSA, enc: "AESGCM(256)", mac: AEAD, strength: 256, default: true, keywords: "AES AES256 AESGCM ALL ECDH ECDHE EECDH FIPS HIGH TLSv1.2 aRSA kEECDH"}
       - {name: ECDHE-ECDSA-AES256-GCM-SHA384, id: "0xC0,0x2C", protocol: TLSv1.2, kx: ECDH, au: ECDSA, enc: "AESGCM(256)", mac: AEAD, strength: 256, default: true, keywords: "AES AES256 AESGCM ALL ECDH ECDHE ECDSA EECDH FIPS HIGH TLSv1.2 aECDSA kEECDH"}
@@ -531,7 +527,6 @@ cipher_tables:
     standard_names: false
     security_levels: true
     default_level: 1
-    protocols: {"TLSv1": 1, "TLSv1.1": 1, "TLSv1.2": 5, "TLSv1.3": 5}
     tls13:
       - {name: TLS_AES_256_GCM_SHA384, standard: TLS_AES_256_GCM_SHA384, id: "0x13,0x02", protocol: TLSv1.3, kx: any, au: any, enc: "AESGCM(256)", mac: AEAD, level: 5, default: true}
       - {name: TLS_CHACHA20_POLY1305_SHA256, standard: TLS_CHACHA20_POLY1305_SHA256, id: "0x13,0x03", protocol: TLSv1.3, kx: any, au: any, enc: "CHACHA20/POLY1305(256)", mac: AEAD, level: 5, default: true}
@@ -710,7 +705,6 @@ cipher_tables:
     standard_names: false
     security_levels: true
     default_level: 1
-    protocols: {"TLSv1": 0, "TLSv1.1": 0, "TLSv1.2": 5, "TLSv1.3": 5}
     tls13:
       - {name: TLS_AES_256_GCM_SHA384, standard: TLS_AES_256_GCM_SHA384, id: "0x13,0x02", protocol: TLSv1.3, kx: any, au: any, enc: "AESGCM(256)", mac: AEAD, level: 5, default: true}
       - {name: TLS_CHACHA20_POLY1305_SHA256, standard: TLS_CHACHA20_POLY1305_SHA256, id: "0x13,0x03", protocol: TLSv1.3, kx: any, au: any, enc: "CHACHA20/POLY1305(256)", mac: AEAD, level: 5, default: true}
@@ -885,7 +879,6 @@ cipher_tables:
     standard_names: false
     security_levels: true
     default_level: 1
-    protocols: {"TLSv1": 0, "TLSv1.1": 0, "TLSv1.2": 5, "TLSv1.3": 5}
     tls13:
       - {name: TLS_AES_256_GCM_SHA384, standard: TLS_AES_256_GCM_SHA384, id: "0x13,0x02", protocol: TLSv1.3, kx: any, au: any, enc: "AESGCM(256)", mac: AEAD, level: 5, default: true}
       - {name: TLS_CHACHA20_POLY1305_SHA256, standard: TLS_CHACHA20_POLY1305_SHA256, id: "0x13,0x03", protocol: TLSv1.3, kx: any, au: any, enc: "CHACHA20/POLY1305(256)", mac: AEAD, level: 5, default: true}
@@ -1060,7 +1053,6 @@ cipher_tables:
     standard_names: true
     security_levels: true
     default_level: 1
-    protocols: {"TLSv1": 0, "TLSv1.1": 0, "TLSv1.2": 5, "TLSv1.3": 5}
     tls13:
       - {name: TLS_AES_256_GCM_SHA384, standard: TLS_AES_256_GCM_SHA384, id: "0x13,0x02", protocol: TLSv1.3, kx: any, au: any, enc: "AESGCM(256)", mac: AEAD, level: 5, default: true}
       - {name: TLS_CHACHA20_POLY1305_SHA256, standard: TLS_CHACHA20_POLY1305_SHA256, id: "0x13,0x03", protocol: TLSv1.3, kx: any, au: any, enc: "CHACHA20/POLY1305(256)", mac: AEAD, level: 5, default: true}
