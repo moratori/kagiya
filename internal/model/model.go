@@ -14,6 +14,8 @@ type Inventory struct {
 	// 見つかったパッケージ管理データベースと、そこから読んだ暗号関連のパッケージ（版の特定に使う）
 	PackageDatabases []PackageDatabase `json:"package_databases"`
 	Packages         []Package         `json:"packages"`
+	// OS 全体の暗号設定（暗号ポリシー、ライブラリのシステム既定の設定など）
+	OSSettings []OSSetting `json:"os_settings"`
 	// 見つかったアプリケーションと暗号ライブラリ、およびそのリンク関係
 	Components []Component `json:"components"`
 	Skipped    []Skipped   `json:"skipped"`
@@ -238,4 +240,12 @@ type Coverage struct {
 	BytesRead        int64          `json:"bytes_read"`
 	SkippedByReason  map[string]int `json:"skipped_by_reason"`
 	SkippedTruncated bool           `json:"skipped_list_truncated"`
+}
+
+// OSSetting は OS 全体の暗号設定の1項目。値は種類ごとの検証を通ったものだけを記録する。
+type OSSetting struct {
+	ID    string `json:"id"`
+	Value string `json:"value"`
+	Path  string `json:"path,omitempty"` // その値が書かれていたファイル
+	Line  int    `json:"line,omitempty"`
 }

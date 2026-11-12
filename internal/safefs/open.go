@@ -3,8 +3,10 @@ package safefs
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
+	"sort"
 	"strings"
 
 	"kagiya/internal/platform"
@@ -14,10 +16,13 @@ import (
 // Opener は、決まった場所にあるファイル（パッケージ管理データベースなど）を安全に開く。
 // 走査（Walker）と同じ規則に従う: 触れる前にマウント表で判定し、シンボリックリンクを辿らず、通常ファイルだけを開く。
 type Opener struct {
-	Mounts    MountChecker // nil なら判定しない
-	Limiter   *throttle.Limiter
-	OnSkip    func(Skip)
-	BytesRead int64
+	Mounts MountChecker // nil なら判定しない
+	// AllowPseudo は、擬似ファイルシステム（/proc など）のうち直接読んでよい場所。
+	// 擬似ファイルシステムは探索しないが、OS の設定を得るための決まったファイルだけは読む。
+	AllowPseudo []string
+	Limiter     *throttle.Limiter
+	OnSkip      func(Skip)
+	BytesRead   int64
 }
 
 // File は読み取り専用で開いたファイル。必要な部分だけを読めるよう、位置を指定して読む。
@@ -50,10 +55,8 @@ func (o *Opener) Open(path string) (*File, error) {
 	for i, seg := range segs {
 		prefix += "/" + seg
 		// 触れる前に判定する
-		if o.Mounts != nil {
-			if v, m := o.Mounts.Check(prefix); v != Allow {
-				return nil, o.skip(path, v.Reason(), m.FSType)
-			}
+		if v, m := o.check(prefix); v != Allow {
+			return nil, o.skip(path, v.Reason(), m.FSType)
 		}
 		fi, err := os.Lstat(prefix)
 		switch {
@@ -129,10 +132,8 @@ func (o *Opener) Resolve(path string) (string, error) {
 			continue
 		}
 		next := cur + "/" + seg
-		if o.Mounts != nil {
-			if v, m := o.Mounts.Check(next); v != Allow {
-				return "", o.skip(path, v.Reason(), m.FSType)
-			}
+		if v, m := o.check(next); v != Allow {
+			return "", o.skip(path, v.Reason(), m.FSType)
 		}
 		fi, err := os.Lstat(next)
 		switch {
@@ -166,4 +167,73 @@ func (o *Opener) Resolve(path string) (string, error) {
 		return "/", nil
 	}
 	return cur, nil
+}
+
+// check は、パスに触れてよいかを判定する。
+func (o *Opener) check(path string) (Verdict, Mount) {
+	if o.Mounts == nil {
+		return Allow, Mount{}
+	}
+	v, m := o.Mounts.Check(path)
+	if v == SkipPseudoFS {
+		for _, a := range o.AllowPseudo {
+			// 許可された場所そのもの・その配下・そこへ至る途中のディレクトリ
+			if path == a || strings.HasPrefix(path, a+"/") || strings.HasPrefix(a, path+"/") {
+				return Allow, m
+			}
+		}
+	}
+	return v, m
+}
+
+const maxDirEntries = 10_000
+
+// ReadDir は、ディレクトリ直下の通常ファイルの名前を整列して返す（リンクやサブディレクトリは含めない）。
+// path はリンクを含まない実際のパスであること（必要なら先に Resolve する）。
+func (o *Opener) ReadDir(path string) ([]string, error) {
+	if !isCleanAbs(path) {
+		return nil, fmt.Errorf("%q: %w", path, errNotPlain)
+	}
+	prefix := ""
+	for _, seg := range strings.Split(strings.TrimPrefix(path, "/"), "/") {
+		if seg == "" {
+			continue
+		}
+		prefix += "/" + seg
+		if v, m := o.check(prefix); v != Allow {
+			return nil, o.skip(path, v.Reason(), m.FSType)
+		}
+		fi, err := os.Lstat(prefix)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			return nil, fs.ErrNotExist
+		case errors.Is(err, fs.ErrPermission):
+			return nil, o.skip(path, "permission-denied", "")
+		case err != nil:
+			return nil, err
+		}
+		if fi.Mode()&fs.ModeSymlink != 0 || !fi.IsDir() {
+			return nil, fmt.Errorf("%q: %w", path, errNotPlain)
+		}
+	}
+	d, err := os.Open(path)
+	if errors.Is(err, fs.ErrPermission) {
+		return nil, o.skip(path, "permission-denied", "")
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer d.Close()
+	ents, err := d.ReadDir(maxDirEntries)
+	if err != nil && len(ents) == 0 && !errors.Is(err, io.EOF) {
+		return nil, err
+	}
+	var names []string
+	for _, e := range ents {
+		if e.Type().IsRegular() {
+			names = append(names, e.Name())
+		}
+	}
+	sort.Strings(names)
+	return names, nil
 }

@@ -28,6 +28,7 @@ type Builder struct {
 	pkgDBs       []model.PackageDatabase
 	packages     []model.Package
 	components   []*model.Component
+	osSettings   []model.OSSetting
 	skipped      []model.Skipped
 	skipByReason map[string]int
 	skipTotal    int
@@ -42,7 +43,8 @@ func NewBuilder(rs *ruleset.RuleSet, log *logx.Logger) *Builder {
 func (b *Builder) Skip(k safefs.Skip) {
 	b.skipTotal++
 	b.skipByReason[k.Reason]++
-	if k.Reason != "excluded" && k.Reason != "not-found" {
+	// 除外指定、存在しない起点、記録対象外の設定項目は、問題としては数えない。
+	if k.Reason != "excluded" && k.Reason != "not-found" && k.Reason != "unrecognized-setting" {
 		b.problemSkips++
 	}
 	b.log.Warn("skip", "path", k.Path, "reason", k.Reason, "detail", k.Detail)
@@ -135,6 +137,9 @@ func (b *Builder) AddPackageDatabase(db model.PackageDatabase) { b.pkgDBs = appe
 // AddPackage は導入済みパッケージを記録する。
 func (b *Builder) AddPackage(p model.Package) { b.packages = append(b.packages, p) }
 
+// AddOSSetting は OS 全体の暗号設定の1項目を記録する。
+func (b *Builder) AddOSSetting(s model.OSSetting) { b.osSettings = append(b.osSettings, s) }
+
 // Packages は記録済みのパッケージを返す。
 func (b *Builder) Packages() []model.Package { return b.packages }
 
@@ -167,6 +172,10 @@ func (b *Builder) Inventory() *model.Inventory {
 	}
 	if inv.Packages == nil {
 		inv.Packages = []model.Package{}
+	}
+	inv.OSSettings = b.osSettings
+	if inv.OSSettings == nil {
+		inv.OSSettings = []model.OSSetting{}
 	}
 	inv.Components = []model.Component{}
 	for _, c := range b.components {

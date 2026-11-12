@@ -1021,7 +1021,7 @@ OS ビルド別の既定値は、Microsoft の公式文書を出典とし、調�
 | 記録対象パッケージのルール | 済 | `rules/os/packages.yaml`（出典必須）。暗号ライブラリ、SSH、Web サーバー、暗号ポリシー、信頼ストアのパッケージだけを結果に記録し、それ以外は総数のみ |
 | 決まった場所のファイルを安全に開く仕組み | 済 | `safefs.Opener`。走査と同じ規則（触れる前のマウント表判定、リンクを辿らない、通常ファイルのみ）。大きなデータベースを全部読み込まずに必要な部分だけ読む |
 | リンクしている暗号ライブラリの特定（`DT_NEEDED`、版文字列） | 済 | ELF の動的セクションと `/etc/ld.so.cache` を直接読み、動的リンカと同じ順序（RPATH、RUNPATH、キャッシュ、既定のディレクトリ）で実体を特定する。版はライブラリ本体の版文字列から読む。アプリとライブラリの定義は `rules/apps/`、`rules/libraries/`（出典必須）。結果 JSON の `components` に記録 |
-| OS 暗号設定（暗号ポリシー、OpenSSL 設定など） | 未 | |
+| OS 暗号設定（暗号ポリシー、OpenSSL 設定など） | 済（一部） | システム全体の暗号ポリシー（選択されたポリシー名と適用済みのポリシー名）、カーネルの FIPS モード、OpenSSL のシステム既定の TLS 設定（設定ファイルの `.include` を辿って読む）。結果 JSON の `os_settings` に、値とその出どころ（ファイルと行）を記録する。GnuTLS、NSS、Kerberos、Java などは未対応 |
 | アプリプロファイル機構、OpenSSH / nginx / Apache httpd の設定値 | 未 | |
 
 パッケージ読み取りの実物確認（検証ラボ、arm64）: 各コンテナに OpenSSL・OpenSSH・nginx・Apache httpd を導入し、kagiya の結果を `rpm -qa` / `dpkg-query` の出力と突き合わせた。
@@ -1121,3 +1121,25 @@ ELF の読み取りは実物のバイナリ 30 個で `readelf -d` の出力と�
 - 環境変数 `LD_LIBRARY_PATH` や `LD_PRELOAD` による差し替えは分からない（稼働中プロセスの環境は調べない方針のため）。
 - コンポーネントとパッケージの対応は、名前による推定（ルールに書いたパッケージ名のうち、導入済みの最初のもの）。同じライブラリの複数の版が導入されている場合は、対応を誤る可能性がある。
 - 確認は arm64 のコンテナ。amd64 では未確認（ライブラリの置き場所は `/lib/x86_64-linux-gnu` などに変わるが、キャッシュ経由で解決されるはず）。
+
+### OS 暗号設定の実物確認（2026-11-12、検証ラボ、arm64）
+
+各コンテナで kagiya を動かし、結果を実物の設定ファイルと OS のコマンドの報告に突き合わせた。
+
+| イメージ | 暗号ポリシー（kagiya / `update-crypto-policies --show`） | OpenSSL の設定ファイル | システム既定の TLS 設定 |
+|---|---|---|---|
+| RHEL 8.10（`redhat/ubi8@sha256:44f19e30…`） | DEFAULT / DEFAULT | `/etc/pki/tls/openssl.cnf` | 7 項目。暗号ポリシーが生成したファイルの内容と全項目一致 |
+| RHEL 9.9（`redhat/ubi9@sha256:8b212f75…`） | DEFAULT / DEFAULT | `/etc/pki/tls/openssl.cnf` | 8 項目（`Groups` が加わる）。全項目一致 |
+| Ubuntu 16.04.7（`ubuntu@sha256:1f1a2d56…`） | なし / コマンドなし | `/etc/ssl/openssl.cnf` | 設定されていない |
+| Ubuntu 24.04.5（`ubuntu@sha256:2198e4c6…`） | なし / コマンドなし | `/etc/ssl/openssl.cnf` | 設定されていない |
+
+実物で分かったこと:
+
+- **RHEL の OpenSSL は、設定ファイルの連鎖で暗号ポリシーを取り込む。** `openssl.cnf` の `openssl_conf` → `ssl_conf` → `system_default` と辿った先の節が、
+  `/etc/crypto-policies/back-ends/opensslcnf.config` を `.include` している。このファイルは `/usr/share/crypto-policies/DEFAULT/opensslcnf.txt` へのシンボリックリンク。
+- **`.include` の書き方が版で違う。** RHEL 8.10 は `.include /path`、RHEL 9.9 は `.include = /path`。RHEL 9.9 にはディレクトリの取り込み（`.include /etc/pki/tls/openssl.d`）もある。
+- **RHEL 8.10 と 9.9 の DEFAULT ポリシーの内容**: `TLS.MinProtocol = TLSv1.2`、`TLS.MaxProtocol = TLSv1.3`、暗号の指定は `@SECLEVEL=2` で始まる。
+  署名アルゴリズムの一覧の末尾には、RHEL 8.10 では `ECDSA+SHA1:RSA+SHA1`（SHA-1 による署名）が含まれている。
+- **Ubuntu の `openssl.cnf` には、システム既定の TLS 設定を読み込む経路がない**（16.04 は `openssl_conf` 自体がなく、24.04 はプロバイダの設定だけ）。Ubuntu での既定値は、OpenSSL のビルド時の設定で決まる。
+- **RHEL 8.10 の `opensslcnf.config` は末尾に改行がない。** 確認用スクリプトがこれで次の行とつながり、一時的に「不一致」と表示された（kagiya の読み取りは正しかった）。
+- **コンテナ内には `/proc/sys/crypto/fips_enabled` がなかった。** FIPS モードの読み取りは実物では未確認。

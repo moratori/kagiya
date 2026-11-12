@@ -8,6 +8,26 @@ library:
   sonames: ["libcrypto.so*", "libssl.so*"]
   version_pattern: 'OpenSSL (\d+\.\d+\.\d+[a-z]{0,2})(?:-fips)? +(?:FIPS +)?\d{1,2} [A-Z][a-z]{2} \d{4}'
   packages: ["openssl-libs", "libssl*"]
+  # システム全体の設定ファイル。RHEL 系は /etc/pki/tls/openssl.cnf、Debian / Ubuntu は /etc/ssl/openssl.cnf
+  # （/usr/lib/ssl/openssl.cnf はそこへのシンボリックリンク）。`openssl version -a` の OPENSSLDIR で確認。
+  config_files: ["/etc/pki/tls/openssl.cnf", "/etc/ssl/openssl.cnf"]
+  # システム既定の TLS 設定として記録する項目。前半は RHEL 8.10 / 9.9 の暗号ポリシーが実際に出力していた項目、
+  # 後半は OpenSSL の文書（SSL_CONF_cmd）にある同種の項目。ここにない項目は記録しない。
+  system_default_keys:
+    - CipherString
+    - Ciphersuites
+    - TLS.MinProtocol
+    - TLS.MaxProtocol
+    - DTLS.MinProtocol
+    - DTLS.MaxProtocol
+    - SignatureAlgorithms
+    - Groups
+    - MinProtocol
+    - MaxProtocol
+    - Curves
+    - ClientSignatureAlgorithms
+    - Protocol
+    - Options
   sources:
     - image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
       os: "Red Hat Enterprise Linux 8.10 (Ootpa)"

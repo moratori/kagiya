@@ -505,7 +505,11 @@ type LibraryRule struct {
 	SONames        []string `yaml:"sonames"`
 	VersionPattern string   `yaml:"version_pattern"`
 	Packages       []string `yaml:"packages"`
-	Sources        []Source `yaml:"sources"`
+	// ConfigFiles は、このライブラリのシステム全体の設定ファイルの候補（先に見つかったものを使う）。
+	ConfigFiles []string `yaml:"config_files"`
+	// SystemDefaultKeys は、システム既定の設定として結果に記録してよい項目名（許可リスト）。
+	SystemDefaultKeys []string `yaml:"system_default_keys"`
+	Sources           []Source `yaml:"sources"`
 
 	re *regexp.Regexp
 }
@@ -517,6 +521,8 @@ type appFile struct {
 type libraryFile struct {
 	Library LibraryRule `yaml:"library"`
 }
+
+var settingKeyPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9.]{0,63}$`)
 
 var versionValue = regexp.MustCompile(`^[0-9][0-9A-Za-z.+~:_-]{0,63}$`)
 
@@ -630,6 +636,16 @@ func (rs *RuleSet) addLibrary(l LibraryRule, ids map[string]bool) error {
 	}
 	if err := checkNames(append(append([]string{}, l.SONames...), l.Packages...)); err != nil {
 		return fmt.Errorf("library %q: %w", l.ID, err)
+	}
+	for _, p := range l.ConfigFiles {
+		if !cleanAbsPath(p) {
+			return fmt.Errorf("library %q: path %q must be a clean absolute path", l.ID, p)
+		}
+	}
+	for _, k := range l.SystemDefaultKeys {
+		if !settingKeyPattern.MatchString(k) {
+			return fmt.Errorf("library %q: invalid setting name %q", l.ID, k)
+		}
 	}
 	re, err := compileVersionPattern(l.VersionPattern)
 	if err != nil {

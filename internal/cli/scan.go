@@ -20,6 +20,7 @@ import (
 
 	"kagiya/internal/collect/bins"
 	"kagiya/internal/collect/fscrawl"
+	"kagiya/internal/collect/osconf"
 	"kagiya/internal/collect/pkgs"
 	"kagiya/internal/inventory"
 	"kagiya/internal/logx"
@@ -211,6 +212,10 @@ func runScan(args []string, stderr io.Writer) int {
 	if mounts.table != nil {
 		opener.Mounts = mounts.table
 	}
+	// OS 全体の暗号設定（暗号ポリシー、OpenSSL のシステム既定の設定、FIPS モード）
+	opener.AllowPseudo = []string{"/proc/sys/crypto"}
+	(&osconf.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect()
+
 	(&pkgs.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect()
 
 	// アプリケーションのバイナリと、リンクしている暗号ライブラリ
