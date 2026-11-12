@@ -539,3 +539,56 @@ func TestLoadCipherTables(t *testing.T) {
 		}
 	}
 }
+
+// 対応表には、TLS 1.3 のスイートの全体（既定に入っていないものも含む）と、実際に接続できたプロトコルも入っている。
+func TestBuiltinCipherTableProtocolsAndTLS13(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tb, _, _, ok := rs.CipherTableFor("openssl", "openssl-libs", "3.5.9-1.el9_9")
+	if !ok {
+		t.Fatal("no table")
+	}
+	names := map[string]CipherSuite{}
+	for _, s := range tb.TLS13 {
+		names[s.Name] = s
+	}
+	if c, ok := names["TLS_AES_128_CCM_SHA256"]; !ok || c.Default || c.Level == nil || *c.Level != 3 {
+		t.Errorf("TLS_AES_128_CCM_SHA256 = %+v %v", c, ok)
+	}
+	if c := names["TLS_AES_256_GCM_SHA384"]; !c.Default || c.Level == nil || *c.Level != 5 {
+		t.Errorf("TLS_AES_256_GCM_SHA384 = %+v", c)
+	}
+	// RHEL 9 の OpenSSL は、どのレベルでも TLS 1.0 / 1.1 を受け付けない
+	if _, ok := tb.Protocols["TLSv1"]; ok || tb.Protocols["TLSv1.2"] != 5 || tb.Protocols["TLSv1.3"] != 5 {
+		t.Errorf("RHEL 9 protocols = %v", tb.Protocols)
+	}
+	// RHEL 8 の OpenSSL 1.1.1 は、レベル 2 まで TLS 1.0 を受け付ける
+	if tb8, _, _, _ := rs.CipherTableFor("openssl", "openssl-libs", "1.1.1k-18.el8_6"); tb8.Protocols["TLSv1"] != 2 {
+		t.Errorf("RHEL 8 protocols = %v", tb8.Protocols)
+	}
+}
+
+// nginx と Apache httpd の既定（暗号文字列と、DH パラメータなしで DHE を使えるか）が、パッケージ版から引ける。
+func TestBuiltinWebServerDefaults(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, src, ok := rs.AppDefaults("nginx", "nginx-core", "1.20.1-32.el9_9.1")
+	if !ok || strings.Join(v["tls.ciphers"], "|") != "HIGH:!aNULL:!MD5" || strings.Join(v["tls.dhe-without-params"], "|") != "disabled" || !strings.HasPrefix(src.Image, "redhat/ubi9@sha256:") {
+		t.Errorf("nginx on RHEL 9 = %v %v", v, ok)
+	}
+	// 古い nginx は、組み込みの DH パラメータを持っていた
+	if v, _, ok := rs.AppDefaults("nginx", "nginx-core", "1.10.3-0ubuntu0.16.04.5"); !ok || strings.Join(v["tls.dhe-without-params"], "|") != "builtin" {
+		t.Errorf("nginx on Ubuntu 16.04 = %v %v", v, ok)
+	}
+	if v, _, ok := rs.AppDefaults("httpd", "httpd-core", "2.4.62-13.el9_8.9"); !ok || strings.Join(v["tls.ciphers"], "|") != "DEFAULT" || strings.Join(v["tls.dhe-without-params"], "|") != "builtin" {
+		t.Errorf("httpd on RHEL 9 = %v %v", v, ok)
+	}
+	// Debian 系の Apache は、組み込みの既定の暗号文字列を実測できていない（設定ファイルが必ず書いているため）
+	if v, _, ok := rs.AppDefaults("httpd", "apache2-bin", "2.4.58-1ubuntu8.18"); !ok || v["tls.ciphers"] != nil || strings.Join(v["tls.dhe-without-params"], "|") != "builtin" {
+		t.Errorf("apache2 on Ubuntu 24.04 = %v %v", v, ok)
+	}
+}
