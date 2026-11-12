@@ -58,9 +58,62 @@ type Privilege struct {
 
 type Asset struct {
 	ID          string       `json:"id"`
-	Type        string       `json:"type"` // algorithm | certificate
+	Type        string       `json:"type"` // algorithm | certificate | private-key | public-key | csr | keystore
 	Algorithm   *Algorithm   `json:"algorithm,omitempty"`
 	Certificate *Certificate `json:"certificate,omitempty"`
+	Key         *Key         `json:"key,omitempty"`
+	CSR         *CSR         `json:"csr,omitempty"`
+	Keystore    *Keystore    `json:"keystore,omitempty"`
+}
+
+// Key は秘密鍵または公開鍵。形式や暗号化の有無はファイルごとに違い得るので、出現（Occurrence.Detail）側に持つ。
+type Key struct {
+	Algorithm               string `json:"algorithm,omitempty"`
+	PublicFingerprintSHA256 string `json:"public_fingerprint_sha256,omitempty"` // SubjectPublicKeyInfo の SHA-256
+	SSHFingerprint          string `json:"ssh_fingerprint,omitempty"`
+}
+
+type CSR struct {
+	Subject            string    `json:"subject"`
+	SignatureAlgorithm string    `json:"signature_algorithm"`
+	PublicKey          PublicKey `json:"public_key"`
+}
+
+// Keystore はキーストア（PKCS#12、JKS、JCEKS）。パスワードなしで読める範囲の情報。
+type Keystore struct {
+	Format         string         `json:"format"`
+	Integrity      *Integrity     `json:"integrity,omitempty"`
+	Entries        map[string]int `json:"entries"`
+	Sections       []Section      `json:"sections,omitempty"`        // PKCS#12 の区画ごとの暗号化
+	KeyProtections []Protection   `json:"key_protections,omitempty"` // 秘密鍵エントリの保護方式
+	Unreadable     bool           `json:"contents_unreadable"`       // 暗号化されていて確認できない部分がある
+	PartiallyRead  bool           `json:"partially_read,omitempty"`
+}
+
+type Integrity struct {
+	Algorithm  string `json:"algorithm"`
+	Iterations int    `json:"iterations,omitempty"`
+}
+
+type Section struct {
+	Encrypted  bool        `json:"encrypted"`
+	Protection *Protection `json:"protection,omitempty"`
+}
+
+// Protection はパスワード等による保護の方式（アルゴリズムは資産への参照）。
+type Protection struct {
+	Scheme     string `json:"scheme,omitempty"`
+	KDF        string `json:"kdf,omitempty"`
+	PRF        string `json:"prf,omitempty"`
+	Cipher     string `json:"cipher,omitempty"`
+	Iterations int    `json:"iterations,omitempty"`
+}
+
+// Detail は出現ごとの付加情報。
+type Detail struct {
+	Format     string      `json:"format,omitempty"`
+	Encrypted  *bool       `json:"encrypted,omitempty"`
+	Protection *Protection `json:"protection,omitempty"`
 }
 
 type Algorithm struct {
@@ -98,12 +151,15 @@ type Occurrence struct {
 	State      string   `json:"state"` // present: ファイルとして存在（用途は未特定）
 	Confidence string   `json:"confidence"`
 	Location   Location `json:"location"`
+	Detail     *Detail  `json:"detail,omitempty"`
 }
 
 type Location struct {
 	Kind  string `json:"kind"`
 	Path  string `json:"path"`
 	Index int    `json:"index"` // 同一ファイル内での順番
+	// キーストアや証明書束の中にある場合、その入れ物の形式（jks、pkcs12、pkcs7 など）
+	Container string `json:"container,omitempty"`
 }
 
 type Skipped struct {

@@ -460,7 +460,7 @@ func TestScanKeyMaterial(t *testing.T) {
 			}
 			CSR *struct {
 				Subject            string
-				SignatureAlgorithm string `json:"signature_algorithm"`
+				SignatureAlgorithm string                     `json:"signature_algorithm"`
 				PublicKey          struct{ Algorithm string } `json:"public_key"`
 			}
 			Keystore *struct {

@@ -9,11 +9,11 @@ algorithms:
   - id: rsa
     family: RSA
     primitive: public-key
-    aliases: { oid: ["1.2.840.113549.1.1.1"] }
+    aliases: { oid: ["1.2.840.113549.1.1.1"], ssh: ["ssh-rsa"] }
   - id: dsa
     family: DSA
     primitive: public-key
-    aliases: { oid: ["1.2.840.10040.4.1"] }
+    aliases: { oid: ["1.2.840.10040.4.1"], ssh: ["ssh-dss"] }
   - id: ec
     family: EC
     primitive: public-key
@@ -29,7 +29,7 @@ algorithms:
   - id: ed25519
     family: EdDSA
     primitive: signature
-    aliases: { oid: ["1.3.101.112"] }
+    aliases: { oid: ["1.3.101.112"], ssh: ["ssh-ed25519"] }
   - id: ed448
     family: EdDSA
     primitive: signature
@@ -183,3 +183,112 @@ algorithms:
     family: SHA-2
     primitive: hash
     aliases: { oid: ["2.16.840.1.101.3.4.2.3"] }
+
+  # ---- 鍵・キーストアの保護に使われる方式 ----
+  # OID と名前の対応は、OpenSSL 3.5.7 が生成したファイルを OpenSSL 自身に表示させた結果
+  # （internal/parse/testdata/material/pkcs12-info.txt）と各標準文書で確認。
+  - id: pbes2
+    family: PBES2
+    primitive: other
+    aliases: { oid: ["1.2.840.113549.1.5.13"] }
+    references: ["RFC 8018"]
+  - id: pbkdf2
+    family: PBKDF2
+    primitive: kdf
+    aliases: { oid: ["1.2.840.113549.1.5.12"] }
+    references: ["RFC 8018"]
+  - id: hmac-sha1
+    family: HMAC
+    primitive: mac
+    aliases: { oid: ["1.2.840.113549.2.7"] }
+    references: ["RFC 8018"]
+  - id: hmac-sha256
+    family: HMAC
+    primitive: mac
+    aliases: { oid: ["1.2.840.113549.2.9"] }
+    references: ["RFC 8018"]
+  - id: hmac-sha384
+    family: HMAC
+    primitive: mac
+    aliases: { oid: ["1.2.840.113549.2.10"] }
+    references: ["RFC 8018"]
+  - id: hmac-sha512
+    family: HMAC
+    primitive: mac
+    aliases: { oid: ["1.2.840.113549.2.11"] }
+    references: ["RFC 8018"]
+  - id: aes-128-cbc
+    family: AES
+    primitive: block-cipher
+    key_bits: 128
+    aliases: { oid: ["2.16.840.1.101.3.4.1.2"], openssl: ["AES-128-CBC"], ssh: ["aes128-cbc"] }
+    references: ["RFC 3565"]
+  - id: aes-192-cbc
+    family: AES
+    primitive: block-cipher
+    key_bits: 192
+    aliases: { oid: ["2.16.840.1.101.3.4.1.22"], openssl: ["AES-192-CBC"], ssh: ["aes192-cbc"] }
+    references: ["RFC 3565"]
+  - id: aes-256-cbc
+    family: AES
+    primitive: block-cipher
+    key_bits: 256
+    aliases: { oid: ["2.16.840.1.101.3.4.1.42"], openssl: ["AES-256-CBC"], ssh: ["aes256-cbc"] }
+    references: ["RFC 3565"]
+  - id: aes-128-ctr
+    family: AES
+    primitive: block-cipher
+    key_bits: 128
+    aliases: { ssh: ["aes128-ctr"] }
+    references: ["RFC 4344"]
+  - id: aes-192-ctr
+    family: AES
+    primitive: block-cipher
+    key_bits: 192
+    aliases: { ssh: ["aes192-ctr"] }
+    references: ["RFC 4344"]
+  - id: aes-256-ctr
+    family: AES
+    primitive: block-cipher
+    key_bits: 256
+    aliases: { ssh: ["aes256-ctr"] }
+    references: ["RFC 4344"]
+  - id: des-ede3-cbc
+    family: 3DES
+    primitive: block-cipher
+    key_bits: 168
+    aliases: { oid: ["1.2.840.113549.3.7"], openssl: ["DES-EDE3-CBC"], ssh: ["3des-cbc"] }
+    references: ["RFC 8018"]
+  - id: pkcs12-pbe-sha1-3des
+    family: PKCS12-PBE
+    primitive: other
+    aliases: { oid: ["1.2.840.113549.1.12.1.3"] }
+    references: ["RFC 7292"]
+  - id: pkcs12-pbe-sha1-rc2-40
+    family: PKCS12-PBE
+    primitive: other
+    aliases: { oid: ["1.2.840.113549.1.12.1.6"] }
+    references: ["RFC 7292"]
+  - id: bcrypt-pbkdf
+    family: bcrypt
+    primitive: kdf
+    aliases: { ssh: ["bcrypt"] }
+    references: ["OpenSSH PROTOCOL.key"]
+
+  # ---- Java キーストア固有の方式 ----
+  # OID は keytool（Temurin 21.0.13）が生成した JKS / JCEKS の鍵エントリから読み取った値。
+  - id: jks-key-protector
+    family: JKS
+    primitive: other
+    aliases: { oid: ["1.3.6.1.4.1.42.2.17.1.1"] }
+    references: ["JDK sun.security.provider.KeyProtector"]
+  - id: jceks-pbe-md5-3des
+    family: JCEKS
+    primitive: other
+    aliases: { oid: ["1.3.6.1.4.1.42.2.19.1"] }
+    references: ["JDK com.sun.crypto.provider.KeyProtector"]
+  - id: jks-sha1-keyed-digest
+    family: JKS
+    primitive: mac
+    aliases: { java: ["sha1-keyed-digest"] }
+    references: ["JDK sun.security.provider.JavaKeyStore"]

@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
@@ -16,31 +15,21 @@ import (
 	"os/signal"
 	"regexp"
 	"runtime"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 
+	"kagiya/internal/collect/fscrawl"
+	"kagiya/internal/inventory"
 	"kagiya/internal/logx"
 	"kagiya/internal/model"
 	"kagiya/internal/output"
-	"kagiya/internal/parse/der"
-	"kagiya/internal/parse/x509cert"
 	"kagiya/internal/platform"
 	"kagiya/internal/ruleset"
 	"kagiya/internal/safefs"
 	"kagiya/internal/throttle"
 )
 
-const (
-	maxSkippedInResult = 10_000
-	maxCertFileSize    = 1 << 20 // 証明書ファイルとして読む上限
-)
-
-var (
-	labelPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
-	certExts     = map[string]bool{".pem": true, ".crt": true, ".cer": true, ".cert": true}
-)
+var labelPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
 
 type scanOptions struct {
 	outputDir, logDir, rulesDir string
@@ -204,7 +193,8 @@ func runScan(args []string, stderr io.Writer) int {
 		defer cancel()
 	}
 
-	sc := newScanner(rs, log)
+	builder := inventory.NewBuilder(rs, log)
+	crawl := fscrawl.New(builder)
 	excludes, _ := safefs.NewExcludes(opts.excludes)
 	walker := &safefs.Walker{
 		Excludes:    excludes,
@@ -212,7 +202,7 @@ func runScan(args []string, stderr io.Writer) int {
 		MaxFileSize: opts.maxFileSizeMiB << 20,
 		Limiter: throttle.New(throttle.Config{CPUPercent: opts.cpuLimit, BytesPerSecond: opts.ioLimitMiB << 20},
 			throttle.RealClock()),
-		OnSkip: sc.skip,
+		OnSkip: builder.Skip,
 	}
 	if mounts.table != nil {
 		walker.Mounts = mounts.table
@@ -220,7 +210,7 @@ func runScan(args []string, stderr io.Writer) int {
 
 	incomplete := ""
 	for _, root := range opts.roots {
-		err := walker.Walk(ctx, root, sc.visit)
+		err := walker.Walk(ctx, root, crawl.Visit)
 		switch {
 		case err == nil:
 		case errors.Is(err, context.DeadlineExceeded):
@@ -228,9 +218,9 @@ func runScan(args []string, stderr io.Writer) int {
 		case errors.Is(err, context.Canceled):
 			incomplete = "interrupted"
 		case errors.Is(err, fs.ErrNotExist):
-			sc.skip(safefs.Skip{Path: root, Reason: "not-found"})
+			builder.Skip(safefs.Skip{Path: root, Reason: "not-found"})
 		default:
-			sc.skip(safefs.Skip{Path: root, Reason: "invalid-root"})
+			builder.Skip(safefs.Skip{Path: root, Reason: "invalid-root"})
 			log.Error("invalid-root", "path", root, "detail", err.Error())
 		}
 		if incomplete != "" {
@@ -239,7 +229,7 @@ func runScan(args []string, stderr io.Writer) int {
 		}
 	}
 
-	inv := sc.inventory()
+	inv := builder.Inventory()
 	inv.Meta = model.Meta{
 		ScanID: scanID, StartedAt: started.Format(time.RFC3339), FinishedAt: time.Now().UTC().Format(time.RFC3339),
 		Completed: incomplete == "", Incomplete: incomplete,
@@ -278,8 +268,8 @@ func runScan(args []string, stderr io.Writer) int {
 		return exitFatal
 	}
 	fmt.Fprintf(stderr, "kagiya: %d assets, %d occurrences, %d skipped; result: %s\n",
-		len(inv.Assets), len(inv.Occurrences), sc.skipTotal, resultPath)
-	if opts.strict && sc.problemSkips > 0 {
+		len(inv.Assets), len(inv.Occurrences), builder.SkipTotal(), resultPath)
+	if opts.strict && builder.ProblemSkips() > 0 {
 		return exitStrict
 	}
 	return exitOK
@@ -329,163 +319,4 @@ func sanitizeHostname() string {
 		h = h[:64]
 	}
 	return h
-}
-
-// scanner は見つけたものを資産と出現にまとめる。
-type scanner struct {
-	rs  *ruleset.RuleSet
-	log *logx.Logger
-
-	assets       map[string]model.Asset
-	occurrences  []model.Occurrence
-	skipped      []model.Skipped
-	skipByReason map[string]int
-	skipTotal    int
-	problemSkips int // 除外指定など意図したもの以外のスキップ
-}
-
-func newScanner(rs *ruleset.RuleSet, log *logx.Logger) *scanner {
-	return &scanner{rs: rs, log: log, assets: map[string]model.Asset{}, skipByReason: map[string]int{}}
-}
-
-func (s *scanner) skip(k safefs.Skip) {
-	s.skipTotal++
-	s.skipByReason[k.Reason]++
-	if k.Reason != "excluded" && k.Reason != "not-found" {
-		s.problemSkips++
-	}
-	s.log.Warn("skip", "path", k.Path, "reason", k.Reason, "detail", k.Detail)
-	if len(s.skipped) < maxSkippedInResult {
-		s.skipped = append(s.skipped, model.Skipped{Path: k.Path, Reason: k.Reason, Detail: k.Detail})
-	}
-}
-
-// visit は通常ファイル1つを調べる。Phase 0 では証明書ファイル（PEM / DER）のみ。
-func (s *scanner) visit(e *safefs.Entry) error {
-	ext := ""
-	if i := strings.LastIndexByte(e.Name, '.'); i >= 0 {
-		ext = strings.ToLower(e.Name[i:])
-	}
-	if !certExts[ext] {
-		return nil
-	}
-	data, err := e.ReadLimited(maxCertFileSize)
-	if err != nil {
-		return nil // スキップは記録済み
-	}
-	var ders [][]byte
-	if len(data) > 0 && data[0] == 0x30 {
-		ders = append(ders, data)
-	} else {
-		rest := data
-		for {
-			var block *pem.Block
-			block, rest = pem.Decode(rest)
-			if block == nil {
-				break
-			}
-			// 証明書以外のブロック（秘密鍵など）は中身に触れない。
-			switch block.Type {
-			case "CERTIFICATE", "X509 CERTIFICATE":
-				ders = append(ders, block.Bytes)
-			case "TRUSTED CERTIFICATE":
-				// OpenSSL の信頼設定付き証明書: 証明書の後ろに補助データ（信頼用途など）が続く。
-				// 先頭の要素（証明書本体）だけを取り出す。
-				if cert, _, err := der.Read(block.Bytes); err == nil {
-					ders = append(ders, cert.Raw)
-				} else {
-					ders = append(ders, block.Bytes)
-				}
-			}
-		}
-	}
-	found, failed := 0, 0
-	for i, der := range ders {
-		cert, err := x509cert.Parse(der)
-		if err != nil {
-			failed++
-			continue
-		}
-		found++
-		s.addCertificate(cert, e.Path, i)
-	}
-	if failed > 0 {
-		s.skip(safefs.Skip{Path: e.Path, Reason: "parse-error", Detail: strconv.Itoa(failed) + " certificate(s) could not be parsed"})
-	}
-	return nil
-}
-
-func (s *scanner) addCertificate(c *x509cert.Certificate, path string, index int) {
-	sigID := s.algorithmByOID(c.SignatureAlgorithmOID)
-	keyID := s.publicKeyAlgorithm(c)
-	id := "cert:sha256:" + c.FingerprintSHA256
-	if _, ok := s.assets[id]; !ok {
-		s.assets[id] = model.Asset{ID: id, Type: "certificate", Certificate: &model.Certificate{
-			Subject: c.Subject, Issuer: c.Issuer, Serial: c.SerialHex,
-			NotBefore: c.NotBefore.Format(time.RFC3339), NotAfter: c.NotAfter.Format(time.RFC3339),
-			IsCA: c.IsCA, SelfSigned: c.SelfSigned, SignatureAlgorithm: sigID,
-			PublicKey:         model.PublicKey{Algorithm: keyID, FingerprintSHA256: c.PublicKeyFingerprintSHA256},
-			FingerprintSHA256: c.FingerprintSHA256,
-		}}
-	}
-	h := sha256.Sum256([]byte(id + "\x00fscrawl\x00" + path + "\x00" + strconv.Itoa(index)))
-	s.occurrences = append(s.occurrences, model.Occurrence{
-		ID: "occ:" + hex.EncodeToString(h[:12]), Asset: id, Collector: "fscrawl",
-		State: "present", Confidence: "high",
-		Location: model.Location{Kind: "file", Path: path, Index: index},
-	})
-}
-
-// algorithmByOID は OID をカタログで引き、アルゴリズム資産の ID を返す。
-// カタログにない OID も捨てずに「未知」として記録する（OID は数字とドットだけなので秘密を含み得ない）。
-func (s *scanner) algorithmByOID(oid string) string {
-	if a, ok := s.rs.LookupAlias("oid", oid); ok {
-		id := "alg:" + a.ID
-		if _, exists := s.assets[id]; !exists {
-			s.assets[id] = model.Asset{ID: id, Type: "algorithm", Algorithm: &model.Algorithm{
-				Family: a.Family, Primitive: a.Primitive, KeyBits: a.KeyBits, RawName: oid, Scheme: "oid", Known: true}}
-		}
-		return id
-	}
-	id := "alg:unknown:oid:" + oid
-	if _, exists := s.assets[id]; !exists {
-		s.assets[id] = model.Asset{ID: id, Type: "algorithm", Algorithm: &model.Algorithm{RawName: oid, Scheme: "oid"}}
-	}
-	return id
-}
-
-func (s *scanner) publicKeyAlgorithm(c *x509cert.Certificate) string {
-	switch {
-	case c.RSABits > 0:
-		a, ok := s.rs.LookupAlias("oid", c.PublicKeyAlgorithmOID)
-		if !ok {
-			break
-		}
-		id := "alg:" + a.ID + "-" + strconv.Itoa(c.RSABits)
-		if _, exists := s.assets[id]; !exists {
-			s.assets[id] = model.Asset{ID: id, Type: "algorithm", Algorithm: &model.Algorithm{
-				Family: a.Family, Primitive: a.Primitive, KeyBits: c.RSABits, RawName: c.PublicKeyAlgorithmOID, Scheme: "oid", Known: true}}
-		}
-		return id
-	case c.CurveOID != "":
-		return s.algorithmByOID(c.CurveOID)
-	}
-	return s.algorithmByOID(c.PublicKeyAlgorithmOID)
-}
-
-func (s *scanner) inventory() *model.Inventory {
-	inv := &model.Inventory{Schema: model.Schema, Assets: []model.Asset{}, Occurrences: s.occurrences, Skipped: s.skipped}
-	for _, a := range s.assets {
-		inv.Assets = append(inv.Assets, a)
-	}
-	sort.Slice(inv.Assets, func(i, j int) bool { return inv.Assets[i].ID < inv.Assets[j].ID })
-	if inv.Occurrences == nil {
-		inv.Occurrences = []model.Occurrence{}
-	}
-	if inv.Skipped == nil {
-		inv.Skipped = []model.Skipped{}
-	}
-	inv.Coverage.SkippedByReason = s.skipByReason
-	inv.Coverage.SkippedTruncated = s.skipTotal > len(s.skipped)
-	return inv
 }
