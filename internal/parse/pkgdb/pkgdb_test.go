@@ -49,8 +49,15 @@ func lines(t testing.TB, path string) []string {
 // rpm -qa --qf '%{NAME}\t%{EPOCHNUM}\t%{VERSION}\t%{RELEASE}\t%{ARCH}\t%{SOURCERPM}\n' と同じ形にする。
 func rpmLines(pkgs []Package) []string {
 	out := make([]string, len(pkgs))
+	// rpm は値のない項目を "(none)" と表示する（署名鍵を表す gpg-pubkey にはアーキテクチャもソースもない）。
+	none := func(s string) string {
+		if s == "" {
+			return "(none)"
+		}
+		return s
+	}
 	for i, p := range pkgs {
-		out[i] = fmt.Sprintf("%s\t%d\t%s\t%s\t%s\t%s", p.Name, p.Epoch, p.Version, p.Release, p.Arch, p.SourceRPM)
+		out[i] = fmt.Sprintf("%s\t%d\t%s\t%s\t%s\t%s", p.Name, p.Epoch, p.Version, p.Release, none(p.Arch), none(p.SourceRPM))
 	}
 	sort.Strings(out)
 	return out
