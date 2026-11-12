@@ -24,7 +24,8 @@ var (
 	ErrProfileNeeded = errors.New("PROFILE=SYSTEM needs the content of the system crypto policy")
 )
 
-const maxRuleLen = 8192
+// MaxRuleLen は、展開する暗号文字列の長さの上限。これを超えるものは展開しない（ErrUnsupported）。
+const MaxRuleLen = 8192
 
 // Expansion は暗号文字列の展開結果。
 type Expansion struct {
@@ -43,17 +44,16 @@ type state struct {
 	list     []*entry // OpenSSL 内部の連結リストに対応する並び
 	keywords map[string][]int
 	names    map[string]int
-	tls13    map[string]bool
 	x        Expansion
 }
 
 // Expand は、暗号文字列 rule を対応表 t の版の OpenSSL と同じ手順で展開する。
 // profile は、「PROFILE=SYSTEM」が指す暗号文字列（暗号ポリシーのファイルの内容）。読めていなければ nil。
 func Expand(t *ruleset.CipherTable, rule string, profile *string) (Expansion, error) {
-	if len(rule) > maxRuleLen || (profile != nil && len(*profile) > maxRuleLen) {
+	if len(rule) > MaxRuleLen || (profile != nil && len(*profile) > MaxRuleLen) {
 		return Expansion{Level: -1}, ErrUnsupported
 	}
-	s := &state{t: t, keywords: map[string][]int{}, names: map[string]int{}, tls13: map[string]bool{}}
+	s := &state{t: t, keywords: map[string][]int{}, names: map[string]int{}}
 	s.x.Level = -1
 	for i, c := range t.Suites {
 		s.list = append(s.list, &entry{idx: i})
@@ -71,13 +71,6 @@ func Expand(t *ruleset.CipherTable, rule string, profile *string) (Expansion, er
 			}
 		}
 	}
-	for _, c := range t.TLS13 {
-		s.tls13[c.Name] = true
-		if c.Standard != "" {
-			s.tls13[c.Standard] = true
-		}
-	}
-
 	rest := rule
 	const profileWord = "PROFILE=SYSTEM"
 	if t.ProfileSystem != "" && strings.HasPrefix(rest, profileWord) {
@@ -180,10 +173,7 @@ func (s *state) lookup(word string) (map[int]bool, bool) {
 		out[i] = true
 		return out, true
 	}
-	if s.tls13[word] {
-		// TLS 1.3 のスイートは暗号文字列の対象外。OpenSSL は黙って無視する（知らない語と同じ扱い）
-		return nil, false
-	}
+	// どちらでもない語は無視される。TLS 1.3 のスイートの名前も暗号文字列の対象外で、同じ扱いになる
 	return nil, false
 }
 

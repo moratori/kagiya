@@ -145,7 +145,7 @@ func apacheScopes(r *apacheconf.Result, vhost func([]string) string) []tlsScope 
 			case len(f) == 2 && strings.EqualFold(f[0], "SSL"):
 				f = f[1:]
 			}
-			if len(f) != 1 || len(f[0]) > 8192 || !cipherString.MatchString(f[0]) {
+			if len(f) != 1 || !validCipherString(f[0]) {
 				sc.blocker = "the configured cipher string (SSLCipherSuite) is not interpreted"
 				continue
 			}

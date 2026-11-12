@@ -110,7 +110,7 @@ func (c *Collector) haproxy(app ruleset.AppRule, svc model.Service, config strin
 				sc.blocker = "the configured cipher string (ssl-default-bind-ciphers) contains a variable and is not interpreted"
 			}
 		}
-		if sc.cipher != "" && (len(sc.cipher) > 8192 || !cipherString.MatchString(sc.cipher)) {
+		if sc.cipher != "" && !validCipherString(sc.cipher) {
 			sc.blocker = "the configured cipher string is not interpreted"
 		}
 		// TLS 1.3 のスイート: bind の行の ciphersuites、なければ全体の ssl-default-bind-ciphersuites

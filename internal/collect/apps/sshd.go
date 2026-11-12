@@ -140,9 +140,9 @@ func (c *Collector) sshdEffective(app ruleset.AppRule, svc model.Service) {
 		}
 		done[rule.Parameter] = true
 		conf, def := configured[rule.Parameter], defs[rule.Parameter]
-		e := model.EffectiveValue{Service: svc.ID, Parameter: rule.Parameter, Direction: app.Direction, Status: "resolved", Confidence: "high"}
+		e := model.EffectiveValue{Service: svc.ID, Parameter: rule.Parameter, Direction: app.Direction, Status: model.StatusResolved, Confidence: model.ConfidenceHigh}
 		unresolved := func(reason string) {
-			e.Status, e.Confidence, e.Values, e.Reason = "unresolved", "", nil, reason
+			e.Status, e.Confidence, e.Values, e.Reason = model.StatusUnresolved, "", nil, reason
 		}
 		defaultStep := model.ResolutionStep{Layer: "app-default", Op: "default", Source: prov}
 		switch {
@@ -172,10 +172,10 @@ func (c *Collector) sshdEffective(app ruleset.AppRule, svc model.Service) {
 			e.Steps = []model.ResolutionStep{defaultStep, {Layer: conf.Layer, Op: op, Setting: conf.ID}}
 		}
 		// 補間した既定値を使った項目は、確度を一段下げる（一覧が明記されている項目は既定値を使わないので下げない）
-		if defNote != "" && e.Status == "resolved" {
+		if defNote != "" && e.Status == model.StatusResolved {
 			for _, st := range e.Steps {
 				if st.Layer == "app-default" {
-					e.Confidence, e.Notes = "medium", []string{defNote}
+					e.Confidence, e.Notes = model.ConfidenceMedium, []string{defNote}
 					break
 				}
 			}

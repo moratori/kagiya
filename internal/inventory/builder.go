@@ -77,7 +77,7 @@ func (b *Builder) Occur(assetID, collector string, loc model.Location, detail *m
 	h := sha256.Sum256([]byte(assetID + "\x00" + collector + "\x00" + loc.Path + "\x00" + loc.Container + "\x00" + strconv.Itoa(loc.Index)))
 	b.occurrences = append(b.occurrences, model.Occurrence{
 		ID: "occ:" + hex.EncodeToString(h[:12]), Asset: assetID, Collector: collector,
-		State: "present", Confidence: "high", Location: loc, Store: b.rs.StoreFor(loc.Path), Detail: detail,
+		State: "present", Confidence: model.ConfidenceHigh, Location: loc, Store: b.rs.StoreFor(loc.Path), Detail: detail,
 	})
 }
 
@@ -196,13 +196,13 @@ func (b *Builder) assignActivity() {
 		ev  model.Evidence
 	}
 	refs := map[string]ref{}
-	rank := map[string]int{"running": 4, "enabled": 3, "referenced": 2, "installed": 1, "unknown": 0}
+	rank := map[string]int{model.ActivityRunning: 4, model.ActivityEnabled: 3, model.ActivityReferenced: 2, model.ActivityInstalled: 1, model.ActivityUnknown: 0}
 	for _, s := range b.settings {
 		if !s.Effective {
 			continue
 		}
-		lvl := "referenced"
-		if l := level[s.Service]; l == "enabled" || l == "running" {
+		lvl := model.ActivityReferenced
+		if l := level[s.Service]; model.IsActive(l) {
 			lvl = l
 		}
 		for _, p := range s.ReferencedPaths {
@@ -218,7 +218,7 @@ func (b *Builder) assignActivity() {
 		case ok:
 			o.Activity = &model.Activity{Level: r.lvl, Evidence: []model.Evidence{r.ev}}
 		case o.Store != "":
-			o.Activity = &model.Activity{Level: "installed"}
+			o.Activity = &model.Activity{Level: model.ActivityInstalled}
 		default:
 			o.Activity = &model.Activity{Level: "unknown"}
 		}

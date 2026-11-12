@@ -18,9 +18,13 @@ import (
 	"kagiya/internal/parse/unitfile"
 	"kagiya/internal/ruleset"
 	"kagiya/internal/safefs"
+	"kagiya/internal/tlsciphers"
 )
 
-const maxConfigSize = 1 << 20
+const (
+	maxConfigSize   = 1 << 20 // 読む設定ファイルの大きさの上限
+	maxSettingValue = 8192    // 記録する設定値の長さの上限
+)
 
 // systemd のユニットファイルの置き場所（優先順）。出典: 設計書 13章（RHEL 8.10 / 9.9、Ubuntu 16.04 / 24.04 で確認）。
 var unitDirs = []string{"/etc/systemd/system", "/usr/lib/systemd/system", "/lib/systemd/system"}
@@ -162,13 +166,13 @@ func (c *Collector) activity(app ruleset.AppRule, units []unitInfo, hasComp bool
 	}
 	switch {
 	case len(enabled) > 0:
-		return model.Activity{Level: "enabled", Evidence: enabled}
+		return model.Activity{Level: model.ActivityEnabled, Evidence: enabled}
 	case len(masked) > 0:
-		return model.Activity{Level: "installed", Evidence: masked}
+		return model.Activity{Level: model.ActivityInstalled, Evidence: masked}
 	case len(units) > 0:
-		return model.Activity{Level: "installed", Evidence: []model.Evidence{{Kind: "unit-present", Path: c.Prefix + units[0].path, Detail: units[0].name}}}
+		return model.Activity{Level: model.ActivityInstalled, Evidence: []model.Evidence{{Kind: "unit-present", Path: c.Prefix + units[0].path, Detail: units[0].name}}}
 	case hasComp:
-		return model.Activity{Level: "installed", Evidence: []model.Evidence{{Kind: "binary-present", Path: comp.Path}}}
+		return model.Activity{Level: model.ActivityInstalled, Evidence: []model.Evidence{{Kind: "binary-present", Path: comp.Path}}}
 	}
 	return model.Activity{Level: "unknown"}
 }
@@ -184,7 +188,7 @@ const (
 // fill は、値を種類ごとに検証して設定に入れる。検証を通らない値は記録しない（設定ファイルに紛れた秘密が出力に写るのを防ぐ）。
 // baseDir は、相対パスの基準になるディレクトリ（接頭辞なし。空なら相対パスは受け付けない）。
 func (c *Collector) fill(s *model.Setting, rule ruleset.DirectiveRule, args, baseDir string) valueStatus {
-	if len(args) == 0 || len(args) > 8192 {
+	if len(args) == 0 || len(args) > maxSettingValue {
 		return valueInvalid
 	}
 	each := func(items []string, re *regexp.Regexp) bool {
@@ -352,4 +356,9 @@ func (c *Collector) unitArgs(u unitInfo) []cmdArg {
 		}
 	}
 	return args
+}
+
+// validCipherString は、設定に書かれた暗号文字列が、展開の対象にできる形（長さと使われている文字）かを返す。
+func validCipherString(s string) bool {
+	return s != "" && len(s) <= tlsciphers.MaxRuleLen && cipherString.MatchString(s)
 }

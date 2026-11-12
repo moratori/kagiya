@@ -112,14 +112,6 @@ var parameterLabel = map[string]string{
 	"ssh.host-key":                      "ホスト鍵",
 }
 
-// 実効値の項目 → 評価での名前の種類（assess と同じ対応）。
-var valueScheme = map[string]string{
-	"tls.ciphers": "tls-suite", "tls.ciphersuites-tls13": "tls-suite",
-	"ssh.kex-algorithms": "ssh-kex", "ssh.host-key-algorithms": "ssh-key", "ssh.pubkey-accepted-algorithms": "ssh-key",
-	"ssh.hostbased-accepted-algorithms": "ssh-key", "ssh.ca-signature-algorithms": "ssh-key",
-	"ssh.ciphers": "ssh-cipher", "ssh.macs": "ssh-mac", "tls.protocols": "tls-protocol",
-}
-
 type valueRow struct {
 	Name        string
 	Kx, Au, Enc string // 暗号スイートの場合だけ
@@ -454,25 +446,21 @@ func evidenceText(e model.Evidence) string {
 
 // values は、名前の一覧を判定つきの行にする。
 func (b *builder) values(parameter string, names []string) (rows []valueRow, reasons []string) {
-	scheme := valueScheme[parameter]
+	scheme := assess.SchemeFor(parameter)
 	seen := map[string]bool{}
 	for _, n := range names {
 		row := valueRow{Name: n}
 		if scheme != "" {
-			var vd model.Verdict
-			var ok bool
-			if scheme == "tls-suite" {
-				vd, ok = b.ev.Suite(n)
+			vd, ok := b.ev.Value(scheme, n)
+			if scheme == assess.SchemeTLSSuite {
 				if s, found := b.rs.SuiteAttributes(n); found {
 					row.Kx, row.Au, row.Enc = s.Kx, s.Au, s.Enc
 				}
-			} else {
-				vd, ok = b.ev.Name(scheme, n)
 			}
-			if ok || scheme != "tls-protocol" { // プロトコルの欄には版の名前でない語（all など）も入るので、当たらないものは判定を出さない
+			if ok || scheme != assess.SchemeTLSProtocol { // プロトコルの欄には版の名前でない語（all など）も入るので、当たらないものは判定を出さない
 				row.HasVerdict = true
 				row.Quantum, row.Classical = quantumBadge[vd.Quantum], classicalBadge[vd.Classical]
-				if scheme == "tls-protocol" {
+				if scheme == assess.SchemeTLSProtocol {
 					row.Quantum = badge{}
 				}
 				for _, id := range vd.Rules {
@@ -620,7 +608,7 @@ func (b *builder) services(v *view) {
 	}
 	for _, s := range svcs {
 		sv := serviceView{Name: s.App, Activity: activityLabel[s.Activity.Level], ActivityTip: activityTip[s.Activity.Level], Configs: s.ConfigFiles, Notes: s.Notes,
-			Active: s.Activity.Level == "running" || s.Activity.Level == "enabled"}
+			Active: model.IsActive(s.Activity.Level)}
 		if sv.Activity == "" {
 			sv.Activity = s.Activity.Level
 		}
@@ -633,10 +621,7 @@ func (b *builder) services(v *view) {
 				sv.Component += "（版 " + c.Version.Value + "）"
 			}
 			if c.Package != nil {
-				sv.Component += "、パッケージ " + c.Package.Name + " " + c.Package.Version
-				if c.Package.Release != "" {
-					sv.Component += "-" + c.Package.Release
-				}
+				sv.Component += "、パッケージ " + c.Package.Name + " " + c.Package.FullVersion()
 			}
 		}
 
@@ -654,8 +639,8 @@ func (b *builder) services(v *view) {
 			if e.Service != s.ID {
 				continue
 			}
-			ef := effectiveView{Label: label(e.Parameter), Parameter: e.Parameter, Resolved: e.Status == "resolved", Reason: e.Reason, Notes: e.Notes,
-				IsSuite: valueScheme[e.Parameter] == "tls-suite"}
+			ef := effectiveView{Label: label(e.Parameter), Parameter: e.Parameter, Resolved: e.Status == model.StatusResolved, Reason: e.Reason, Notes: e.Notes,
+				IsSuite: assess.SchemeFor(e.Parameter) == assess.SchemeTLSSuite}
 			switch e.Confidence {
 			case "high":
 				ef.Confidence = "確度: 高"
@@ -689,7 +674,7 @@ func (b *builder) services(v *view) {
 			if set.Modifier != "" {
 				st.Values = set.Modifier + st.Values
 			}
-			if set.Parameter == "tls.protocols" {
+			if set.Parameter == model.ParamTLSProtocols {
 				rows, _ := b.values(set.Parameter, set.Values)
 				for _, r := range rows {
 					if r.HasVerdict {
@@ -880,11 +865,7 @@ func (b *builder) misc(v *view) {
 		v.OSSettings = append(v.OSSettings, kv{s.ID, s.Value, location(s.Path, s.Line)})
 	}
 	for _, p := range b.inv.Packages {
-		ver := p.Version
-		if p.Release != "" {
-			ver += "-" + p.Release
-		}
-		v.Packages = append(v.Packages, kv{p.Name, ver, p.Manager})
+		v.Packages = append(v.Packages, kv{p.Name, p.FullVersion(), p.Manager})
 	}
 	for _, c := range b.inv.Components {
 		val := c.Path

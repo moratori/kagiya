@@ -123,7 +123,7 @@ func nginxScopes(ds []nginxconf.Directive, names map[string]string, base string)
 		}
 		if cs := lookup("ssl_ciphers"); len(cs) > 0 {
 			v := strings.Join(cs[0].Args, " ")
-			if len(v) == 0 || len(v) > 8192 || !cipherString.MatchString(v) {
+			if !validCipherString(v) {
 				sc.blocker = "the configured cipher string (ssl_ciphers) is not interpreted"
 			}
 			sc.cipher, sc.cipherFile, sc.cipherLine = v, cs[0].File, cs[0].Line

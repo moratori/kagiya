@@ -178,10 +178,18 @@ func (e *Evaluator) partial(scheme, name string) model.Verdict {
 	return v
 }
 
-// 実効値の項目 → 名前の種類。ここにない項目（数値など）は評価しない。
+// 評価での名前の種類のうち、扱いが特別なもの。
+const (
+	SchemeTLSSuite    = "tls-suite"    // TLS の暗号スイート（部品ごとに判定してまとめる）
+	SchemeTLSProtocol = "tls-protocol" // TLS のプロトコルの版（版の名前でない語は判定しない）
+)
+
+// 設定項目 → 評価での名前の種類。ここにない項目（数値など）は評価しない。
+// 評価（Assess）とレポートの両方がこの対応を使う。
 var parameterScheme = map[string]string{
-	"tls.ciphers":                       "tls-suite",
-	"tls.ciphersuites-tls13":            "tls-suite",
+	model.ParamTLSCiphers:               SchemeTLSSuite,
+	model.ParamTLSCiphersuites:          SchemeTLSSuite,
+	model.ParamTLSProtocols:             SchemeTLSProtocol,
 	"ssh.kex-algorithms":                "ssh-kex",
 	"ssh.host-key-algorithms":           "ssh-key",
 	"ssh.pubkey-accepted-algorithms":    "ssh-key",
@@ -189,6 +197,18 @@ var parameterScheme = map[string]string{
 	"ssh.ca-signature-algorithms":       "ssh-key",
 	"ssh.ciphers":                       "ssh-cipher",
 	"ssh.macs":                          "ssh-mac",
+}
+
+// SchemeFor は、設定項目に対応する名前の種類を返す。評価しない項目なら空。
+func SchemeFor(parameter string) string { return parameterScheme[parameter] }
+
+// Value は、名前の種類に応じて値を判定する（暗号スイートは部品ごとに、それ以外は名前で）。
+// どの規則も当たらなければ ok = false。
+func (e *Evaluator) Value(scheme, name string) (model.Verdict, bool) {
+	if scheme == SchemeTLSSuite {
+		return e.Suite(name)
+	}
+	return e.Name(scheme, name)
 }
 
 // Assess は、結果全体を判定する。
@@ -218,8 +238,8 @@ func (e *Evaluator) Assess(inv *model.Inventory) *model.Assessment {
 	}
 
 	for _, ev := range inv.EffectiveValues {
-		scheme, ok := parameterScheme[ev.Parameter]
-		if !ok || ev.Status != "resolved" {
+		scheme := SchemeFor(ev.Parameter)
+		if scheme == "" || scheme == SchemeTLSProtocol || ev.Status != model.StatusResolved {
 			continue
 		}
 		for _, name := range ev.Values {
@@ -227,23 +247,18 @@ func (e *Evaluator) Assess(inv *model.Inventory) *model.Assessment {
 			if _, done := a.Values[key]; done {
 				continue
 			}
-			var v model.Verdict
-			if scheme == "tls-suite" {
-				v, _ = e.Suite(name)
-			} else {
-				v, _ = e.Name(scheme, name)
-			}
+			v, _ := e.Value(scheme, name)
 			a.Values[key] = v // 規則のない名前も「判定できない」として残す
 		}
 	}
 	// プロトコルの版は、設定に書かれた値を判定する（「all」「-SSLv3」のような、版の名前でない語は対象にしない）
 	for _, s := range inv.Settings {
-		if s.Parameter != "tls.protocols" {
+		if s.Parameter != model.ParamTLSProtocols {
 			continue
 		}
 		for _, name := range s.Values {
-			if v, ok := e.Name("tls-protocol", name); ok {
-				a.Values["tls-protocol:"+name] = v
+			if v, ok := e.Name(SchemeTLSProtocol, name); ok {
+				a.Values[SchemeTLSProtocol+":"+name] = v
 			}
 		}
 	}

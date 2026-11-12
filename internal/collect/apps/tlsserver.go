@@ -35,10 +35,10 @@ type tlsScope struct {
 }
 
 const (
-	paramCiphers = "tls.ciphers"
-	paramTLS13   = "tls.ciphersuites-tls13"
-	paramDHE     = "tls.dhe-without-params"
-	paramCertSel = "tls.certificate-selection"
+	paramCiphers = model.ParamTLSCiphers
+	paramTLS13   = model.ParamTLSCiphersuites
+	paramDHE     = model.ParamTLSDHEWithout
+	paramCertSel = model.ParamTLSCertSelection
 
 	// 既定の表での特別な値: アプリが暗号文字列を設定せず、OpenSSL のシステム既定のままになる
 	cipherSystemDefault = "@system"
@@ -55,7 +55,7 @@ func (c *Collector) appDefaults(app ruleset.AppRule) (defs map[string][]string, 
 			if !ruleset.MatchName([]string{pat}, p.Name) {
 				continue
 			}
-			version := packageVersion(p)
+			version := p.FullVersion()
 			d, measured, src, exact, ok := c.Rules.AppDefaultsFor(app.ID, p.Name, version)
 			if !ok {
 				return nil, nil, "", "no default values are recorded for " + p.Name + " " + version
@@ -67,13 +67,6 @@ func (c *Collector) appDefaults(app ruleset.AppRule) (defs map[string][]string, 
 		}
 	}
 	return nil, nil, "", "no package information for this application; the default values are unknown"
-}
-
-func packageVersion(p model.Package) string {
-	if p.Release != "" {
-		return p.Version + "-" + p.Release
-	}
-	return p.Version
 }
 
 // cipherTable は、導入されている暗号ライブラリのパッケージ版に対応する暗号スイートの対応表を返す。
@@ -91,7 +84,7 @@ func (c *Collector) cipherTable(library string) (t *ruleset.CipherTable, prov *m
 		if !ruleset.MatchName(patterns, p.Name) {
 			continue
 		}
-		version := packageVersion(p)
+		version := p.FullVersion()
 		if first == "" {
 			first = p.Name + " " + version
 		}
@@ -240,14 +233,14 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 	}
 
 	for _, sc := range scopes {
-		e := model.EffectiveValue{Service: svc.ID, Parameter: paramCiphers, Direction: app.Direction, Scope: sc.name, Status: "resolved", Confidence: "high"}
+		e := model.EffectiveValue{Service: svc.ID, Parameter: paramCiphers, Direction: app.Direction, Scope: sc.name, Status: model.StatusResolved, Confidence: model.ConfidenceHigh}
 		e13 := e
 		e13.Parameter = paramTLS13
 		fail := func(reason string) {
-			e.Status, e.Confidence, e.Reason = "unresolved", "", reason
+			e.Status, e.Confidence, e.Reason = model.StatusUnresolved, "", reason
 			c.Builder.AddEffective(e)
 			if table == nil || len(table.TLS13) > 0 {
-				e13.Status, e13.Confidence, e13.Reason = "unresolved", "", reason
+				e13.Status, e13.Confidence, e13.Reason = model.StatusUnresolved, "", reason
 				c.Builder.AddEffective(e13)
 			}
 		}
@@ -369,7 +362,7 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 		}
 		e.Values, e.Notes = out.Suites, notes
 		if len(notes) > 0 {
-			e.Confidence = "medium"
+			e.Confidence = model.ConfidenceMedium
 		}
 		c.Builder.AddEffective(e)
 
@@ -378,7 +371,7 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			continue
 		}
 		if sc.tls13Blocker != "" {
-			e13.Status, e13.Confidence, e13.Reason = "unresolved", "", sc.tls13Blocker
+			e13.Status, e13.Confidence, e13.Reason = model.StatusUnresolved, "", sc.tls13Blocker
 			c.Builder.AddEffective(e13)
 			continue
 		}
@@ -397,7 +390,7 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 		e13.Notes = []string{"used only when TLS 1.3 is enabled"}
 		if libNote != "" {
 			e13.Notes = append(e13.Notes, libNote)
-			e13.Confidence = "medium"
+			e13.Confidence = model.ConfidenceMedium
 		}
 		c.Builder.AddEffective(e13)
 	}
