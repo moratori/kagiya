@@ -149,3 +149,78 @@ func TestHashChangesWithContent(t *testing.T) {
 		t.Error("hash must reflect file contents")
 	}
 }
+
+const okStores = `stores:
+  - id: system-trust
+    paths: ["/etc/ssl/certs", "/etc/pki/ca-trust/extracted"]
+    sources:
+      - image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
+        os: "Ubuntu 16.04.7 LTS"
+`
+
+func TestBuiltinStores(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 実物で確認した場所（出典はルールファイルに記載）
+	for path, want := range map[string]string{
+		"/etc/ssl/certs/ca-certificates.crt":                      "system-trust",
+		"/usr/share/ca-certificates/mozilla/X.crt":                "system-trust",
+		"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem":       "system-trust",
+		"/etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt": "system-trust",
+		"/etc/pki/ca-trust/extracted/java/cacerts":                "system-trust-java",
+		"/usr/local/share/ca-certificates/corp.crt":               "local-trust-anchors",
+		"/etc/pki/ca-trust/source/anchors/corp.pem":               "local-trust-anchors",
+		"/etc/ssl/private/server.key":                             "",
+		"/etc/ssl/certsX/a.pem":                                   "",
+		"/opt/app/cert.pem":                                       "",
+	} {
+		if got := rs.StoreFor(path); got != want {
+			t.Errorf("StoreFor(%q) = %q, want %q", path, got, want)
+		}
+	}
+	if len(rs.StorePaths()) < 5 {
+		t.Errorf("StorePaths() = %v", rs.StorePaths())
+	}
+	// 出典のないストア定義は内包ルールに存在しない
+	for _, s := range rs.Stores {
+		if len(s.Sources) == 0 {
+			t.Errorf("store %s has no source", s.ID)
+		}
+	}
+}
+
+func TestLoadStores(t *testing.T) {
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	with := func(stores string) map[string]string {
+		m := map[string]string{"os/stores.yaml": stores}
+		for k, v := range base {
+			m[k] = v
+		}
+		return m
+	}
+	rs, err := Load(mapFS(with(okStores)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// より深い場所の定義が優先される
+	if rs.StoreFor("/etc/ssl/certs/a.pem") != "system-trust" || rs.StoreFor("/etc/ssl") != "" {
+		t.Error("StoreFor on loaded rules is wrong")
+	}
+	bad := map[string]string{
+		"no sources":       "stores:\n  - id: s\n    paths: [\"/etc/ssl/certs\"]\n",
+		"source w/o image": "stores:\n  - id: s\n    paths: [\"/a\"]\n    sources:\n      - os: \"X\"\n",
+		"image w/o digest": "stores:\n  - id: s\n    paths: [\"/a\"]\n    sources:\n      - image: \"ubuntu:16.04\"\n        os: \"X\"\n",
+		"relative path":    "stores:\n  - id: s\n    paths: [\"etc/ssl\"]\n    sources:\n      - image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n        os: \"X\"\n",
+		"unclean path":     "stores:\n  - id: s\n    paths: [\"/etc/../x\"]\n    sources:\n      - image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n        os: \"X\"\n",
+		"no paths":         "stores:\n  - id: s\n    sources:\n      - image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n        os: \"X\"\n",
+		"duplicate id":     okStores + "  - id: system-trust\n    paths: [\"/b\"]\n    sources:\n      - image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n        os: \"X\"\n",
+		"same path twice":  okStores + "  - id: other\n    paths: [\"/etc/ssl/certs\"]\n    sources:\n      - image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n        os: \"X\"\n",
+	}
+	for name, y := range bad {
+		if _, err := Load(mapFS(with(y))); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+}

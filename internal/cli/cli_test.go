@@ -704,3 +704,39 @@ func TestConvertRejectsBadInput(t *testing.T) {
 		t.Errorf("failed conversions left files behind: %v", ents)
 	}
 }
+
+// 証明書ストアの場所はルールで定義され、そこで見つかったものには store が付く。
+func TestScanLabelsCertificateStores(t *testing.T) {
+	fx := setup(t)
+	rulesDir := filepath.Dir(fx.root) + "/rules"
+	if code, _, stderr := run("rules", "export", "--output-dir", rulesDir); code != 0 {
+		t.Fatalf("rules export: %s", stderr)
+	}
+	f, err := os.OpenFile(filepath.Join(rulesDir, "os", "stores.yaml"), os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatalf("exported rules lack os/stores.yaml: %v", err)
+	}
+	f.WriteString("  - id: test-store\n    paths: [\"" + fx.root + "/etc/ssl\"]\n    sources:\n" +
+		"      - image: \"test@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n        os: \"test\"\n")
+	f.Close()
+	if code, _, stderr := run(fx.scanArgs("--rules", rulesDir)...); code != 0 {
+		t.Fatalf("scan: exit %d: %s", code, stderr)
+	}
+	raw, _ := os.ReadFile(singleFile(t, fx.out, ".json"))
+	var inv struct {
+		Occurrences []struct {
+			Store    string
+			Location struct{ Path string }
+		}
+	}
+	json.Unmarshal(raw, &inv)
+	for _, o := range inv.Occurrences {
+		inStore := strings.HasPrefix(o.Location.Path, fx.root+"/etc/ssl/")
+		if inStore && o.Store != "test-store" || !inStore && o.Store != "" {
+			t.Errorf("%s: store = %q", o.Location.Path, o.Store)
+		}
+	}
+	if len(inv.Occurrences) != 3 {
+		t.Errorf("occurrences = %d", len(inv.Occurrences))
+	}
+}
