@@ -269,12 +269,21 @@ func runScan(args []string, stderr io.Writer) int {
 		}
 	}
 
+	// ディストリの名前と版（レポートのスキャン概要に出す）
+	var distribution *model.Distribution
+	for _, p := range []string{"/etc/os-release", "/usr/lib/os-release"} {
+		if data, err := opener.ReadFile(p, 64<<10); err == nil {
+			distribution = parseOSRelease(data)
+			break
+		}
+	}
+
 	inv := builder.Inventory()
 	inv.Meta = model.Meta{
 		ScanID: scanID, StartedAt: started.Format(time.RFC3339), FinishedAt: time.Now().UTC().Format(time.RFC3339),
 		Completed: incomplete == "", Incomplete: incomplete,
 		Tool: model.Tool{Version: Version}, Rules: rulesMeta,
-		Host:       model.Host{Hostname: host, OS: runtime.GOOS, Arch: runtime.GOARCH},
+		Host:       model.Host{Hostname: host, OS: runtime.GOOS, Arch: runtime.GOARCH, Distribution: distribution},
 		Labels:     opts.labels,
 		Invocation: model.Invocation{Roots: opts.roots, Excludes: opts.excludes},
 		Privilege:  model.Privilege{Elevated: platform.Elevated()},

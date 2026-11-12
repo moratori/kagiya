@@ -115,6 +115,14 @@ type Host struct {
 	Hostname string `json:"hostname"`
 	OS       string `json:"os"`
 	Arch     string `json:"arch"`
+	// ディストリの名前と版（Linux の /etc/os-release から）。読めなければ nil
+	Distribution *Distribution `json:"distribution,omitempty"`
+}
+
+type Distribution struct {
+	ID        string `json:"id,omitempty"`         // rhel、ubuntu など
+	VersionID string `json:"version_id,omitempty"` // 9.9、24.04 など
+	Name      string `json:"name,omitempty"`       // 表示用の名前（PRETTY_NAME）
 }
 
 type Invocation struct {
