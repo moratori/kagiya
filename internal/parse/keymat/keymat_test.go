@@ -245,3 +245,28 @@ func FuzzParse(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, name string, b []byte) { Parse(name, b) })
 }
+
+// PKCS#7 の証明書束（.p7b）。openssl crl2pkcs7 で cert-rsa と cert-ec を束ねたもの。
+func TestPKCS7Bundles(t *testing.T) {
+	exp := loadExpected(t)
+	want := map[string]bool{exp["bundle.p7b"]["sha256a"]: true, exp["bundle.p7b"]["sha256b"]: true}
+	for _, name := range []string{"bundle.p7b", "bundle-der.p7b"} {
+		items, failed := parseFile(t, name)
+		if failed != 0 || len(items) != 2 {
+			t.Errorf("%s: %d items, %d failed; want 2 certificates", name, len(items), failed)
+			continue
+		}
+		for _, it := range items {
+			if it.Kind != "certificate" || it.Cert == nil || !want[it.Cert.FingerprintSHA256] {
+				t.Errorf("%s: unexpected item %+v", name, it)
+			}
+		}
+	}
+}
+
+func TestCSRHasFingerprint(t *testing.T) {
+	items, _ := parseFile(t, "csr-rsa.pem")
+	if len(items) != 1 || len(items[0].CSR.SHA256) != 64 {
+		t.Errorf("CSR SHA256 = %q", items[0].CSR.SHA256)
+	}
+}

@@ -37,7 +37,8 @@ func TestReadRejectsMalformed(t *testing.T) {
 		"truncated long length":  {0x30, 0x82, 0x01},
 		"length exceeds input":   {0x04, 0x84, 0x7f, 0xff, 0xff, 0xff, 0x00},
 		"length too many octets": {0x04, 0x89, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-		"indefinite length":      {0x30, 0x80, 0x00, 0x00},
+		"indefinite primitive":   {0x04, 0x80, 0x00, 0x00},
+		"indefinite unterminated": {0x30, 0x80, 0x02, 0x01, 0x05},
 		"high tag truncated":     {0x1f, 0x81},
 		"high tag overflow":      {0x1f, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01, 0x00},
 	}
@@ -84,5 +85,46 @@ func TestOID(t *testing.T) {
 		if _, err := OID(in); err == nil {
 			t.Errorf("%s: expected an error", name)
 		}
+	}
+}
+
+// BER の不定長形式（PKCS#12 や PKCS#7 でよく使われる）。内容は終端（00 00）の手前まで。
+func TestReadIndefiniteLength(t *testing.T) {
+	in := []byte{0x30, 0x80, 0x02, 0x01, 0x05, 0x30, 0x80, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0xee}
+	e, rest, err := Read(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(rest, []byte{0xee}) || !bytes.Equal(e.Raw, in[:13]) || !bytes.Equal(e.Content, in[2:11]) {
+		t.Errorf("content=%x raw=%x rest=%x", e.Content, e.Raw, rest)
+	}
+	kids, err := Children(e.Content)
+	if err != nil || len(kids) != 2 || kids[0].Tag != TagInteger || !kids[1].Constructed || len(kids[1].Content) != 2 {
+		t.Errorf("children = %+v, %v", kids, err)
+	}
+	// 入れ子が深すぎるものは拒否する
+	deep := bytes.Repeat([]byte{0x30, 0x80}, 200)
+	deep = append(deep, bytes.Repeat([]byte{0x00, 0x00}, 200)...)
+	if _, _, err := Read(deep); err == nil {
+		t.Error("deeply nested indefinite-length input must be rejected")
+	}
+}
+
+// BER では OCTET STRING が分割（構造型）されることがある。
+func TestOctetString(t *testing.T) {
+	prim, _, _ := Read([]byte{0x04, 0x03, 1, 2, 3})
+	if b, err := OctetString(prim); err != nil || !bytes.Equal(b, []byte{1, 2, 3}) {
+		t.Errorf("primitive: %x %v", b, err)
+	}
+	cons, _, err := Read([]byte{0x24, 0x80, 0x04, 0x02, 1, 2, 0x04, 0x01, 3, 0x00, 0x00})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b, err := OctetString(cons); err != nil || !bytes.Equal(b, []byte{1, 2, 3}) {
+		t.Errorf("constructed: %x %v", b, err)
+	}
+	notOctet, _, _ := Read([]byte{0x02, 0x01, 0x05})
+	if _, err := OctetString(notOctet); err == nil {
+		t.Error("OctetString on INTEGER must fail")
 	}
 }
