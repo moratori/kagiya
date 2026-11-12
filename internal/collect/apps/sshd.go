@@ -166,32 +166,7 @@ func (c *Collector) sshdCommandLine(u unitInfo) []directive {
 // 既定の一覧は、導入されているパッケージ版と完全に一致する既定値表から得る。
 // 一致する表がなければ「不明」とし、理由を残す（近い版の値で代用しない）。
 func (c *Collector) sshdEffective(app ruleset.AppRule, svc model.Service) {
-	var defs map[string][]string
-	var prov *model.Provenance
-	noDefaults := "no package information for this application; the default values are unknown"
-	for _, pat := range app.Packages {
-		found := false
-		for _, p := range c.Builder.Packages() {
-			if !ruleset.MatchName([]string{pat}, p.Name) {
-				continue
-			}
-			found = true
-			version := p.Version
-			if p.Release != "" {
-				version += "-" + p.Release
-			}
-			if d, src, ok := c.Rules.AppDefaults(app.ID, p.Name, version); ok {
-				defs = d
-				prov = &model.Provenance{Image: src.Image, OS: src.OS, Package: p.Name, Version: version}
-			} else {
-				noDefaults = "no default values are recorded for " + p.Name + " " + version
-			}
-			break
-		}
-		if found {
-			break
-		}
-	}
+	defs, prov, noDefaults := c.appDefaults(app)
 
 	configured := map[string]*model.Setting{}
 	settings := c.Builder.Settings()

@@ -448,7 +448,7 @@ func TestBuiltinCipherTables(t *testing.T) {
 		tb.ProfileSystem != "/etc/crypto-policies/back-ends/opensslcnf.config" {
 		t.Errorf("table header = %+v", tb)
 	}
-	if len(tb.Suites) < 100 || len(tb.TLS13) != 3 {
+	if len(tb.Suites) < 100 || len(tb.TLS13) < 3 { // TLS 1.3 は、既定に入っていないものも含めて載せている
 		t.Fatalf("suites=%d tls13=%d", len(tb.Suites), len(tb.TLS13))
 	}
 	s := tb.Suites[0]

@@ -247,7 +247,8 @@ func TestNginxEffectiveCiphersLimits(t *testing.T) {
 	_, inv = collect(t, "rhel9", rhel9Web(t, "3.5.9", "1.el9_9", map[string]string{
 		nginxConf: "server { listen 127.0.0.1:8443 ssl; server_name default.lab.test; ssl_certificate /etc/lab/missing.crt; ssl_certificate_key /etc/lab/missing.key; }\n"}))
 	e = eff(t, inv, "svc:nginx", "tls.ciphers", scope)
-	if e.Status != "resolved" || e.Confidence != "medium" || len(e.Values) <= 38 || !strings.Contains(strings.Join(e.Notes, " "), "certificate") {
+	// （この構成では、証明書の種類で落ちるはずの DSA 認証のスイートはすべて DHE で、DH パラメータがないために既に落ちている。数は変わらない）
+	if e.Status != "resolved" || e.Confidence != "medium" || len(e.Values) < 38 || !strings.Contains(strings.Join(e.Notes, " "), "certificate") {
 		t.Errorf("unreadable certificate: %d suites, %+v", len(e.Values), e)
 	}
 	// RSA の証明書だけ → ECDSA で認証するスイートは使えない

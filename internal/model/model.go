@@ -316,17 +316,19 @@ type EffectiveValue struct {
 	Service    string           `json:"service"`
 	Parameter  string           `json:"parameter"`
 	Direction  string           `json:"direction,omitempty"`
-	Status     string           `json:"status"` // resolved | unresolved
+	Scope      string           `json:"scope,omitempty"` // 設定の範囲（nginx の server、Apache の VirtualHost）。全体なら空
+	Status     string           `json:"status"`          // resolved | unresolved
 	Values     []string         `json:"values,omitempty"`
-	Confidence string           `json:"confidence,omitempty"`
+	Confidence string           `json:"confidence,omitempty"` // high | medium（補間した、または一部の絞り込みができなかった）
 	Reason     string           `json:"reason,omitempty"`
+	Notes      []string         `json:"notes,omitempty"` // 確度を下げた理由など
 	Steps      []ResolutionStep `json:"steps,omitempty"` // どの層の値から、どう求めたか
 }
 
 // ResolutionStep は、実効値を求める過程の1段。
 type ResolutionStep struct {
-	Layer   string      `json:"layer"`             // app-default | os-policy | app-config
-	Op      string      `json:"op"`                // default | override | append | remove | prepend
+	Layer   string      `json:"layer"`             // app-default | os-policy | app-config | library
+	Op      string      `json:"op"`                // default | override | append | remove | prepend | profile | expand | security-level | filter-certificates | filter-dh-parameters
 	Setting string      `json:"setting,omitempty"` // 根拠になった設定値の ID
 	Source  *Provenance `json:"source,omitempty"`  // 既定値の出典
 }

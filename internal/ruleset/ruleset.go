@@ -778,7 +778,7 @@ type defaultsFile struct {
 
 var (
 	pkgVersionPattern   = regexp.MustCompile(`^[0-9A-Za-z][0-9A-Za-z.:+~_-]{0,127}$`)
-	defaultValuePattern = regexp.MustCompile(`^[A-Za-z0-9@._,*-]+$`)
+	defaultValuePattern = regexp.MustCompile(`^[A-Za-z0-9@._,*:!+=-]+$`)
 )
 
 func (rs *RuleSet) addDefaults(d DefaultSet, ids map[string]bool) error {

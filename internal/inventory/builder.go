@@ -149,7 +149,11 @@ func (b *Builder) Settings() []model.Setting { return b.settings }
 
 // AddEffective は実効値を記録する。
 func (b *Builder) AddEffective(e model.EffectiveValue) {
-	h := sha256.Sum256([]byte(e.Service + "\x00" + e.Parameter + "\x00" + e.Direction))
+	key := e.Service + "\x00" + e.Parameter + "\x00" + e.Direction
+	if e.Scope != "" {
+		key += "\x00" + e.Scope
+	}
+	h := sha256.Sum256([]byte(key))
 	e.ID = "eff:" + hex.EncodeToString(h[:12])
 	b.effective = append(b.effective, e)
 }
@@ -220,6 +224,9 @@ func (b *Builder) assignActivity() {
 		}
 	}
 }
+
+// OSSettings は記録済みの OS 全体の暗号設定を返す。
+func (b *Builder) OSSettings() []model.OSSetting { return b.osSettings }
 
 // AddOSSetting は OS 全体の暗号設定の1項目を記録する。
 func (b *Builder) AddOSSetting(s model.OSSetting) { b.osSettings = append(b.osSettings, s) }
