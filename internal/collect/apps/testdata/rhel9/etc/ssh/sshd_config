@@ -1,0 +1,3 @@
+Include /etc/ssh/sshd_config.d/*.conf
+AuthorizedKeysFile	.ssh/authorized_keys
+Subsystem	sftp	/usr/libexec/openssh/sftp-server
