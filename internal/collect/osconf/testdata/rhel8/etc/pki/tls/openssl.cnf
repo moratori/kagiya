@@ -1,0 +1,16 @@
+# Load default TLS policy configuration
+
+openssl_conf = default_modules
+
+[ default_modules ]
+
+ssl_conf = ssl_module
+
+[ ssl_module ]
+
+system_default = crypto_policy
+
+[ crypto_policy ]
+
+.include /etc/crypto-policies/back-ends/opensslcnf.config
+

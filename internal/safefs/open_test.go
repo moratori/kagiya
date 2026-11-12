@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -138,5 +139,58 @@ func TestOpenerResolveStopsAtDeniedMount(t *testing.T) {
 	}
 	if len(skips) != 1 || skips[0].Reason != "network-fs" {
 		t.Errorf("skips = %+v", skips)
+	}
+}
+
+func TestOpenerReadDir(t *testing.T) {
+	root := tmpDir(t)
+	write(t, root+"/d/b.cnf", "b")
+	write(t, root+"/d/a.cnf", "a")
+	os.Mkdir(root+"/d/sub", 0o755)
+	os.Symlink(root+"/d/a.cnf", root+"/d/link.cnf")
+	o := &Opener{}
+	names, err := o.ReadDir(root + "/d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 通常ファイルの名前だけを、整列して返す（リンクやディレクトリは含めない）
+	if len(names) != 2 || names[0] != "a.cnf" || names[1] != "b.cnf" {
+		t.Errorf("names = %v", names)
+	}
+	if _, err := o.ReadDir(root + "/d/a.cnf"); err == nil {
+		t.Error("ReadDir on a file must fail")
+	}
+	if _, err := o.ReadDir(root + "/missing"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("missing dir: %v", err)
+	}
+	o.Mounts = &fakeMounts{denied: map[string]string{root + "/d": "cifs"}}
+	if _, err := o.ReadDir(root + "/d"); !errors.Is(err, ErrSkipped) {
+		t.Errorf("denied dir: %v", err)
+	}
+}
+
+// 擬似ファイルシステム（/proc など）は探索しないが、許可した特定の場所だけは直接読める。
+type pseudoMounts struct{ prefix string }
+
+func (m pseudoMounts) Check(p string) (Verdict, Mount) {
+	if p == m.prefix || strings.HasPrefix(p, m.prefix+"/") {
+		return SkipPseudoFS, Mount{FSType: "proc"}
+	}
+	return Allow, Mount{FSType: "ext4"}
+}
+func (m pseudoMounts) ByDevice(uint32, uint32) (Verdict, Mount, bool) { return Allow, Mount{}, false }
+
+func TestOpenerAllowPseudo(t *testing.T) {
+	root := tmpDir(t)
+	write(t, root+"/proc/sys/crypto/fips_enabled", "1\n")
+	write(t, root+"/proc/1/environ", "SECRET=x")
+	o := &Opener{Mounts: pseudoMounts{root + "/proc"}, AllowPseudo: []string{root + "/proc/sys/crypto"}}
+	f, err := o.Open(root + "/proc/sys/crypto/fips_enabled")
+	if err != nil {
+		t.Fatalf("allowed pseudo file: %v", err)
+	}
+	f.Close()
+	if _, err := o.Open(root + "/proc/1/environ"); !errors.Is(err, ErrSkipped) {
+		t.Errorf("other pseudo files must stay off limits: %v", err)
 	}
 }

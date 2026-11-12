@@ -1,0 +1,55 @@
+# This definition stops the following lines choking if HOME isn't
+# defined.
+HOME			= .
+
+# Use this in order to automatically load providers.
+openssl_conf = openssl_init
+
+# Ignore configuration errors
+config_diagnostics = 0
+
+# Extra OBJECT IDENTIFIER info:
+# oid_file       = $ENV::HOME/.oid
+oid_section = new_oids
+[openssl_init]
+providers = provider_sect
+# Uncomment the sections that start with ## below to enable the legacy provider.
+# Loading the legacy provider enables support for the following algorithms:
+# Hashing Algorithms / Message Digests: MD2, MD4, MDC2, WHIRLPOOL, RIPEMD160
+# Symmetric Ciphers: Blowfish, CAST, DES, IDEA, RC2, RC4,RC5, SEED
+# Key Derivation Function (KDF): PBKDF1
+# In general it is not recommended to use the above mentioned algorithms for
+# security critical operations, as they are cryptographically weak or vulnerable
+# to side-channel attacks and as such have been deprecated.
+
+# Load default TLS policy configuration
+ssl_conf = ssl_module
+alg_section = evp_properties
+
+[ evp_properties ]
+#This section is intentionally added empty here
+#to be tuned on particular systems
+
+# List of providers to load
+[provider_sect]
+default = default_sect
+##legacy = legacy_sect
+##
+[default_sect]
+activate = 1
+
+##[legacy_sect]
+##activate = 1
+
+#Place the third party provider configuration files into this folder
+.include /etc/pki/tls/openssl.d
+
+
+[ ssl_module ]
+
+system_default = crypto_policy
+
+[ crypto_policy ]
+
+.include = /etc/crypto-policies/back-ends/opensslcnf.config
+
