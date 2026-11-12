@@ -864,3 +864,35 @@ func TestReportRejectsBadInput(t *testing.T) {
 		t.Errorf("mixed inputs: exit %d", code)
 	}
 }
+
+// CBOM（CycloneDX）への変換。出力は、結果と同じ名前に .cdx.json を付け、作成者だけが読める権限で作る。
+func TestConvertToCBOM(t *testing.T) {
+	fx := setup(t)
+	if code, _, stderr := run(fx.scanArgs()...); code != 0 {
+		t.Fatalf("scan: exit %d: %s", code, stderr)
+	}
+	result := singleFile(t, fx.out, ".json")
+	dir := filepath.Dir(fx.root) + "/cbom"
+	code, stdout, stderr := run("convert", "--to", "cbom", "--output-dir", dir, result)
+	if code != 0 {
+		t.Fatalf("convert: exit %d: %s", code, stderr)
+	}
+	out := singleFile(t, dir, ".cdx.json")
+	if !strings.Contains(stdout, out) || filepath.Base(out) != strings.TrimSuffix(filepath.Base(result), ".json")+".cdx.json" {
+		t.Errorf("stdout = %q, file = %s", stdout, filepath.Base(out))
+	}
+	if fi, _ := os.Stat(out); fi.Mode().Perm() != 0o600 {
+		t.Errorf("mode = %o, want 600", fi.Mode().Perm())
+	}
+	data, _ := os.ReadFile(out)
+	var doc struct {
+		BomFormat   string `json:"bomFormat"`
+		SpecVersion string `json:"specVersion"`
+		Components  []struct {
+			Type string `json:"type"`
+		} `json:"components"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil || doc.BomFormat != "CycloneDX" || doc.SpecVersion != "1.6" || len(doc.Components) == 0 {
+		t.Errorf("cbom = %+v (%v)", doc, err)
+	}
+}
