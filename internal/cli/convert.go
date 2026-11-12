@@ -19,11 +19,11 @@ const maxResultSize = 1 << 30 // 読み込む結果 JSON の上限
 
 func runConvert(args []string, stdout, stderr io.Writer) int {
 	fs := newFlagSet("convert", stderr)
-	to := fs.String("to", "", "output format: csv (required)")
+	to := fs.String("to", "", "output format: csv or cbom (required)")
 	outDir := fs.String("output-dir", ".", "directory for the converted file")
 	noBOM := fs.Bool("no-bom", false, "do not write a UTF-8 byte order mark (CSV)")
-	if err := fs.Parse(args); err != nil || fs.NArg() != 1 || *to != "csv" {
-		fmt.Fprintln(stderr, "usage: kagiya convert --to csv [--output-dir DIR] [--no-bom] RESULT.json")
+	if err := fs.Parse(args); err != nil || fs.NArg() != 1 || (*to != "csv" && *to != "cbom") {
+		fmt.Fprintln(stderr, "usage: kagiya convert --to csv|cbom [--output-dir DIR] [--no-bom] RESULT.json")
 		return exitUsage
 	}
 	fatal := func(err error) int {
@@ -56,19 +56,32 @@ func runConvert(args []string, stdout, stderr io.Writer) int {
 	if err := output.Probe(dir); err != nil {
 		return fatal(err)
 	}
-	name := strings.TrimSuffix(filepath.Base(in), ".json") + ".csv"
-	w, err := output.Create(dir, name)
+	// csv: 出現ごとの表。cbom: CycloneDX 1.6 の JSON（拡張子は、CycloneDX の慣例の .cdx.json）
+	ext := ".csv"
+	if *to == "cbom" {
+		ext = ".cdx.json"
+	}
+	w, err := output.Create(dir, strings.TrimSuffix(filepath.Base(in), ".json")+ext)
 	if err != nil {
 		return fatal(err)
 	}
-	if err := convert.WriteCSV(inv, w, !*noBOM); err != nil {
+	if *to == "cbom" {
+		err = convert.WriteCBOM(inv, w)
+	} else {
+		err = convert.WriteCSV(inv, w, !*noBOM)
+	}
+	if err != nil {
 		w.Abort()
 		return fatal(err)
 	}
 	if err := w.Commit(); err != nil {
 		return fatal(err)
 	}
-	fmt.Fprintf(stdout, "wrote %s (%d rows)\n", w.Path(), len(inv.Occurrences))
+	if *to == "cbom" {
+		fmt.Fprintf(stdout, "wrote %s\n", w.Path())
+	} else {
+		fmt.Fprintf(stdout, "wrote %s (%d rows)\n", w.Path(), len(inv.Occurrences))
+	}
 	return exitOK
 }
 

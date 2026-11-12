@@ -5,7 +5,7 @@
 
 - 証明書、鍵、キーストア、OS の暗号設定、サーバーソフトウェアの設定を調べます
 - 設定に書かれていない値も、「アプリの設定 > OS の暗号ポリシー > ライブラリの既定」の順で求めます
-- 結果は JSON で出力し、CSV と HTML のレポートに変換できます
+- 結果は JSON で出力し、HTML のレポート、CSV、CBOM（CycloneDX）に変換できます
 - 単一の実行ファイルで、追加のランタイムは要りません
 
 ## 入手
@@ -28,8 +28,9 @@ sha256sum -c SHA256SUMS_v0.1.0.txt --ignore-missing
 # HTML のレポートを作る（複数のホストの結果をまとめることもできます）
 ./kagiya report --output-dir out out/kagiya-*.json
 
-# CSV に変換する
-./kagiya convert --to csv --output-dir out out/kagiya-<ホスト名>-<日時>-<ID>.json
+# CSV、または CBOM（CycloneDX 1.6）に変換する
+./kagiya convert --to csv  --output-dir out out/kagiya-<ホスト名>-<日時>-<ID>.json
+./kagiya convert --to cbom --output-dir out out/kagiya-<ホスト名>-<日時>-<ID>.json
 ```
 
 すべての設定と鍵を調べるには、root で実行してください。一般ユーザーでも動きますが、権限がなく読めなかったファイルは結果に含まれません（読めなかったことは記録されます）。
