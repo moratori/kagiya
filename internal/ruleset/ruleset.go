@@ -45,8 +45,25 @@ type RuleSet struct {
 	Algorithms []Algorithm
 	Stores     []Store
 
-	byAlias    map[string]int
-	storePaths map[string]string // パス → ストア ID
+	Packages []PackageRule
+
+	byAlias     map[string]int
+	storePaths  map[string]string // パス → ストア ID
+	pkgExact    map[string]string // パッケージ名 → 役割
+	pkgPrefixes []pkgPrefix
+}
+
+// PackageRule は、結果に記録するパッケージとその役割の定義。出典（Sources）が必須。
+type PackageRule struct {
+	Role    string   `yaml:"role"`
+	Names   []string `yaml:"names"`
+	Sources []Source `yaml:"sources"`
+}
+
+type pkgPrefix struct{ prefix, role string }
+
+type packagesFile struct {
+	Packages []PackageRule `yaml:"packages"`
 }
 
 // Store は証明書ストアの場所の定義。出典（Sources）が必須。
@@ -87,7 +104,8 @@ var (
 	aliasPattern = regexp.MustCompile(`^[A-Za-z0-9._/+:@()-]{1,64}$`)
 	textPattern  = regexp.MustCompile(`^[A-Za-z0-9 ._/+:@()-]{1,64}$`)
 
-	imagePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9./_-]{0,127}@sha256:[0-9a-f]{64}$`)
+	pkgNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9+._-]{0,63}\*?$`)
+	imagePattern   = regexp.MustCompile(`^[a-z0-9][a-z0-9./_-]{0,127}@sha256:[0-9a-f]{64}$`)
 
 	primitives = map[string]bool{
 		"public-key": true, "signature": true, "hash": true, "block-cipher": true, "stream-cipher": true,
@@ -148,7 +166,7 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	rs := &RuleSet{byAlias: map[string]int{}, storePaths: map[string]string{}}
+	rs := &RuleSet{byAlias: map[string]int{}, storePaths: map[string]string{}, pkgExact: map[string]string{}}
 	h := sha256.New()
 	seenManifest := false
 	ids := map[string]bool{}
@@ -186,6 +204,16 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 			}
 			for _, st := range s.Stores {
 				if err := rs.addStore(st, ids); err != nil {
+					return nil, fmt.Errorf("%s: %w", f.Path, err)
+				}
+			}
+		case f.Path == "os/packages.yaml":
+			var pf packagesFile
+			if err := decodeStrict(f.Data, &pf); err != nil {
+				return nil, fmt.Errorf("%s: %w", f.Path, err)
+			}
+			for _, pr := range pf.Packages {
+				if err := rs.addPackageRule(pr); err != nil {
 					return nil, fmt.Errorf("%s: %w", f.Path, err)
 				}
 			}
@@ -341,16 +369,8 @@ func (rs *RuleSet) addStore(s Store, ids map[string]bool) error {
 		return fmt.Errorf("store %q: no paths", s.ID)
 	}
 	// 出典のない定義は受け付けない。
-	if len(s.Sources) == 0 {
-		return fmt.Errorf("store %q: at least one source (image digest and OS) is required", s.ID)
-	}
-	for _, src := range s.Sources {
-		if !imagePattern.MatchString(src.Image) {
-			return fmt.Errorf("store %q: source image must be given with its digest (name@sha256:...)", s.ID)
-		}
-		if src.OS == "" || len(src.OS) > 128 || len(src.Note) > 1024 {
-			return fmt.Errorf("store %q: source needs an OS name", s.ID)
-		}
+	if err := checkSources(s.Sources); err != nil {
+		return fmt.Errorf("store %q: %w", s.ID, err)
 	}
 	for _, p := range s.Paths {
 		if !cleanAbsPath(p) {
@@ -388,4 +408,63 @@ func (rs *RuleSet) StorePaths() []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// checkSources は出典の記載を検証する。出典のない定義は受け付けない。
+func checkSources(sources []Source) error {
+	if len(sources) == 0 {
+		return errors.New("at least one source (image digest and OS) is required")
+	}
+	for _, src := range sources {
+		if !imagePattern.MatchString(src.Image) {
+			return errors.New("source image must be given with its digest (name@sha256:...)")
+		}
+		if src.OS == "" || len(src.OS) > 128 || len(src.Note) > 1024 {
+			return errors.New("source needs an OS name")
+		}
+	}
+	return nil
+}
+
+func (rs *RuleSet) addPackageRule(pr PackageRule) error {
+	if !idPattern.MatchString(pr.Role) {
+		return fmt.Errorf("invalid package role %q", pr.Role)
+	}
+	if len(pr.Names) == 0 {
+		return fmt.Errorf("package role %q: no names", pr.Role)
+	}
+	if err := checkSources(pr.Sources); err != nil {
+		return fmt.Errorf("package role %q: %w", pr.Role, err)
+	}
+	for _, n := range pr.Names {
+		if !pkgNamePattern.MatchString(n) {
+			return fmt.Errorf("package role %q: invalid name %q", pr.Role, n)
+		}
+		if _, dup := rs.pkgExact[n]; dup {
+			return fmt.Errorf("package role %q: name %q is already assigned", pr.Role, n)
+		}
+		rs.pkgExact[n] = pr.Role
+		if strings.HasSuffix(n, "*") {
+			rs.pkgPrefixes = append(rs.pkgPrefixes, pkgPrefix{strings.TrimSuffix(n, "*"), pr.Role})
+		}
+	}
+	rs.Packages = append(rs.Packages, pr)
+	return nil
+}
+
+// PackageRole はパッケージ名から役割を返す（完全一致を優先し、次に最も長い前方一致）。対象外なら空。
+func (rs *RuleSet) PackageRole(name string) string {
+	if strings.HasSuffix(name, "*") {
+		return ""
+	}
+	if r, ok := rs.pkgExact[name]; ok {
+		return r
+	}
+	best, role := -1, ""
+	for _, p := range rs.pkgPrefixes {
+		if strings.HasPrefix(name, p.prefix) && len(p.prefix) > best {
+			best, role = len(p.prefix), p.role
+		}
+	}
+	return role
 }

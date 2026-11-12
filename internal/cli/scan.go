@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"kagiya/internal/collect/fscrawl"
+	"kagiya/internal/collect/pkgs"
 	"kagiya/internal/inventory"
 	"kagiya/internal/logx"
 	"kagiya/internal/model"
@@ -202,14 +203,22 @@ func runScan(args []string, stderr io.Writer) int {
 
 	builder := inventory.NewBuilder(rs, log)
 	crawl := fscrawl.New(builder)
+	limiter := throttle.New(throttle.Config{CPUPercent: opts.cpuLimit, BytesPerSecond: opts.ioLimitMiB << 20}, throttle.RealClock())
+
+	// パッケージ管理データベース（導入済みパッケージの版）
+	opener := &safefs.Opener{Limiter: limiter, OnSkip: builder.Skip}
+	if mounts.table != nil {
+		opener.Mounts = mounts.table
+	}
+	(&pkgs.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect()
+
 	excludes, _ := safefs.NewExcludes(opts.excludes)
 	walker := &safefs.Walker{
 		Excludes:    excludes,
 		SkipDirs:    []string{opts.outputDir, opts.logDir},
 		MaxFileSize: opts.maxFileSizeMiB << 20,
-		Limiter: throttle.New(throttle.Config{CPUPercent: opts.cpuLimit, BytesPerSecond: opts.ioLimitMiB << 20},
-			throttle.RealClock()),
-		OnSkip: builder.Skip,
+		Limiter:     limiter,
+		OnSkip:      builder.Skip,
 	}
 	if mounts.table != nil {
 		walker.Mounts = mounts.table
@@ -251,7 +260,7 @@ func runScan(args []string, stderr io.Writer) int {
 	inv.Coverage.DirsExamined = walker.Stats.Dirs
 	inv.Coverage.SymlinksIgnored = walker.Stats.Symlinks
 	inv.Coverage.SpecialIgnored = walker.Stats.Special
-	inv.Coverage.BytesRead = walker.Stats.BytesRead
+	inv.Coverage.BytesRead = walker.Stats.BytesRead + opener.BytesRead
 
 	resultName := fmt.Sprintf("kagiya-%s-%s-%s.json", host, stamp, scanID[:8])
 	resultPath, werr := writeResult(opts.outputDir, resultName, inv)

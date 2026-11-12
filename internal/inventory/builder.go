@@ -25,6 +25,8 @@ type Builder struct {
 
 	assets       map[string]*model.Asset
 	occurrences  []model.Occurrence
+	pkgDBs       []model.PackageDatabase
+	packages     []model.Package
 	skipped      []model.Skipped
 	skipByReason map[string]int
 	skipTotal    int
@@ -126,6 +128,12 @@ func (b *Builder) algorithm(scheme, name string, bits int) string {
 	return id
 }
 
+// AddPackageDatabase は見つかったパッケージ管理データベースを記録する。
+func (b *Builder) AddPackageDatabase(db model.PackageDatabase) { b.pkgDBs = append(b.pkgDBs, db) }
+
+// AddPackage は導入済みパッケージを記録する。
+func (b *Builder) AddPackage(p model.Package) { b.packages = append(b.packages, p) }
+
 // Inventory は集めた内容を結果の形にする（Meta と走査統計は呼び出し側が埋める）。
 func (b *Builder) Inventory() *model.Inventory {
 	inv := &model.Inventory{Schema: model.Schema, Assets: []model.Asset{}, Occurrences: b.occurrences, Skipped: b.skipped}
@@ -136,6 +144,14 @@ func (b *Builder) Inventory() *model.Inventory {
 	if inv.Occurrences == nil {
 		inv.Occurrences = []model.Occurrence{}
 	}
+	inv.PackageDatabases, inv.Packages = b.pkgDBs, b.packages
+	if inv.PackageDatabases == nil {
+		inv.PackageDatabases = []model.PackageDatabase{}
+	}
+	if inv.Packages == nil {
+		inv.Packages = []model.Package{}
+	}
+	sort.SliceStable(inv.Packages, func(i, j int) bool { return inv.Packages[i].Name < inv.Packages[j].Name })
 	if inv.Skipped == nil {
 		inv.Skipped = []model.Skipped{}
 	}

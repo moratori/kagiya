@@ -11,8 +11,32 @@ type Inventory struct {
 	Meta        Meta         `json:"meta"`
 	Assets      []Asset      `json:"assets"`
 	Occurrences []Occurrence `json:"occurrences"`
-	Skipped     []Skipped    `json:"skipped"`
-	Coverage    Coverage     `json:"coverage"`
+	// 見つかったパッケージ管理データベースと、そこから読んだ暗号関連のパッケージ（版の特定に使う）
+	PackageDatabases []PackageDatabase `json:"package_databases"`
+	Packages         []Package         `json:"packages"`
+	Skipped          []Skipped         `json:"skipped"`
+	Coverage         Coverage          `json:"coverage"`
+}
+
+type PackageDatabase struct {
+	Manager  string `json:"manager"` // rpm | dpkg
+	Format   string `json:"format"`  // bdb | sqlite | status
+	Path     string `json:"path"`
+	Packages int    `json:"packages"`           // 導入済みパッケージの総数
+	Unparsed int    `json:"unparsed,omitempty"` // 読めなかった件数（更新途中などで整合しなかったもの）
+	WAL      bool   `json:"wal,omitempty"`      // 先行書き込みログの内容を反映して読んだ
+}
+
+// Package は導入済みパッケージ。記録するのはルール（os/packages.yaml）で役割が定義されたものだけ。
+type Package struct {
+	Manager string `json:"manager"`
+	Name    string `json:"name"`
+	Epoch   int    `json:"epoch,omitempty"`
+	Version string `json:"version"`
+	Release string `json:"release,omitempty"` // rpm のリリース（ディストリによる改変を識別する部分）
+	Arch    string `json:"arch,omitempty"`
+	Source  string `json:"source,omitempty"`
+	Role    string `json:"role"`
 }
 
 type Meta struct {
