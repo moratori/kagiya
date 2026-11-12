@@ -1,0 +1,103 @@
+# HAProxy の既定値と、版によって違う挙動。設定に記載のない項目の実効値を求めるのに使う。
+#
+#   tls.ciphers               : 暗号の指定（ssl-default-bind-ciphers、bind の ciphers）がないときの暗号文字列。
+#                               「@system」は、アプリが何も設定せず、OpenSSL のシステム既定（openssl.cnf の CipherString。
+#                               なければライブラリの DEFAULT）のままになることを表す。
+#   tls.dhe-without-params    : DH パラメータの指定（tune.ssl.default-dh-param、ssl-dh-param-file）がないときに DHE のスイートを使えるか。
+#                               builtin = 組み込みのパラメータで使える / disabled = 使えない。
+#   tls.certificate-selection : 1つの bind に、同じ名前で鍵の種類が違う証明書を複数指定したときの扱い。
+#                               all = 接続に応じてどれも使われ得る / first = 最初の証明書だけが使われる。
+#
+# 採取方法: 各イメージにディストリのリポジトリから haproxy を導入し、実際に起動して、同じコンテナ内からのハンドシェイク
+#           （openssl s_client、サーバー名つき）で受け入れるスイートを数え上げた。その結果が「この暗号文字列を、その版の
+#           OpenSSL で展開したもの」と完全に一致することを確かめている。
+# このファイルは検証ラボの生成スクリプトで作った。手で編集しない。
+defaults:
+  - app: haproxy
+    package: haproxy
+    version: "1.8.27-5.el8_10.2"
+    source:
+      image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
+      os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "builtin"
+      tls.certificate-selection: "all"
+  - app: haproxy
+    package: haproxy
+    version: "2.8.14-3.el9_8.2"
+    source:
+      image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
+      os: "Red Hat Enterprise Linux 9.9 (Plow)"
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "disabled"
+      tls.certificate-selection: "all"
+  - app: haproxy
+    package: haproxy
+    version: "3.0.5-7.el10"
+    source:
+      image: "redhat/ubi10@sha256:1e9193f051ac70582821c8a941325c5053488c54c75cd0c31b577d871ac29dba"
+      os: "Red Hat Enterprise Linux 10.3 (Coughlan)"
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "disabled"
+      tls.certificate-selection: "all"
+  - app: haproxy
+    package: haproxy
+    version: "1.6.3-1ubuntu0.3"
+    source:
+      image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
+      os: "Ubuntu 16.04.7 LTS"
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "builtin"
+      tls.certificate-selection: "first"
+  - app: haproxy
+    package: haproxy
+    version: "2.0.33-0ubuntu0.1"
+    source:
+      image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
+      os: "Ubuntu 20.04.6 LTS"
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "builtin"
+      tls.certificate-selection: "all"
+  - app: haproxy
+    package: haproxy
+    version: "2.4.30-0ubuntu0.22.04.4"
+    source:
+      image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+      os: "Ubuntu 22.04.5 LTS"
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "builtin"
+      tls.certificate-selection: "all"
+  - app: haproxy
+    package: haproxy
+    version: "2.8.30-0ubuntu0.24.04.2"
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "disabled"
+      tls.certificate-selection: "all"
+  - app: haproxy
+    package: haproxy
+    version: "3.0.11-1+deb13u4"
+    source:
+      image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+      os: "Debian GNU/Linux 13 (trixie)"
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "disabled"
+      tls.certificate-selection: "all"

@@ -47,9 +47,25 @@ func sorted(names []string) string {
 
 // 実際に起動した nginx と Apache httpd が受け入れたスイート（検証ラボでハンドシェイクにより数え上げたもの）と、すべて一致する。
 func TestResolveMatchesRealServers(t *testing.T) {
-	data, err := os.ReadFile("testdata/servers.tsv")
+	// servers.tsv は nginx と Apache httpd、servers-<アプリ>.tsv はそれ以外のアプリ
+	entries, err := os.ReadDir("testdata")
 	if err != nil {
 		t.Fatal(err)
+	}
+	var data []byte
+	files := 0
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "servers") && strings.HasSuffix(e.Name(), ".tsv") {
+			b, err := os.ReadFile("testdata/" + e.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			data = append(append(data, b...), '\n')
+			files++
+		}
+	}
+	if files < 2 {
+		t.Fatalf("only %d vector files were found", files)
 	}
 	n := 0
 	sc := bufio.NewScanner(bytes.NewReader(data))
@@ -60,7 +76,7 @@ func TestResolveMatchesRealServers(t *testing.T) {
 			continue
 		}
 		f := strings.Split(line, "\t")
-		if len(f) != 12 {
+		if len(f) != 12 && len(f) != 13 {
 			t.Fatalf("bad line: %q", line)
 		}
 		n++
@@ -75,6 +91,9 @@ func TestResolveMatchesRealServers(t *testing.T) {
 		}
 		if f[6] != "-" {
 			in.SystemTLS13 = strings.Split(f[6], ":")
+		}
+		if len(f) == 13 && f[12] != "-" { // アプリの設定が指定した TLS 1.3 のスイート
+			in.AppTLS13 = strings.Split(f[12], ":")
 		}
 		for _, c := range strings.Split(f[7], ",") {
 			ks := strings.Split(c, "/")
@@ -95,7 +114,7 @@ func TestResolveMatchesRealServers(t *testing.T) {
 			t.Errorf("%s: TLS 1.3 suites = %s, the real server accepted %s", name, sorted(out.TLS13), f[11])
 		}
 	}
-	if n < 50 {
+	if n < 100 {
 		t.Fatalf("only %d vectors were checked", n)
 	}
 }
@@ -142,6 +161,19 @@ func TestResolveExamples(t *testing.T) {
 	out, _ = Resolve(Input{Table: tb, CipherString: rule, SystemLevel: 2, SystemTLS13: []string{"TLS_AES_128_CCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_NO_SUCH_SUITE"}, Certs: both, CertsKnown: true, DHEKnown: true})
 	if strings.Join(out.TLS13, " ") != "TLS_AES_128_CCM_SHA256 TLS_AES_256_GCM_SHA384" || strings.Join(out.Ignored, " ") != "TLS_NO_SUCH_SUITE" {
 		t.Errorf("system TLS 1.3 suites: %v, ignored %v", out.TLS13, out.Ignored)
+	}
+
+	// アプリの設定が TLS 1.3 のスイートを指定していれば、システムの設定より優先される。
+	out, _ = Resolve(Input{Table: tb, CipherString: rule, SystemLevel: 2, SystemTLS13: []string{"TLS_AES_128_CCM_SHA256", "TLS_AES_256_GCM_SHA384"},
+		AppTLS13: []string{"TLS_CHACHA20_POLY1305_SHA256", "TLS_AES_128_GCM_SHA256"}, Certs: both, CertsKnown: true, DHEKnown: true})
+	if strings.Join(out.TLS13, " ") != "TLS_CHACHA20_POLY1305_SHA256 TLS_AES_128_GCM_SHA256" || out.TLS13Source != "app" {
+		t.Errorf("application TLS 1.3 suites: %v (%s)", out.TLS13, out.TLS13Source)
+	}
+	if out, _ := Resolve(Input{Table: tb, CipherString: rule, SystemLevel: 2, SystemTLS13: []string{"TLS_AES_256_GCM_SHA384"}}); out.TLS13Source != "system" {
+		t.Errorf("TLS 1.3 source = %s", out.TLS13Source)
+	}
+	if out, _ := Resolve(Input{Table: tb, CipherString: rule, SystemLevel: 2}); out.TLS13Source != "library-default" {
+		t.Errorf("TLS 1.3 source = %s", out.TLS13Source)
 	}
 
 	// 証明書や DH パラメータの状況が分からないときは、その絞り込みをせず、していないことを報告する。

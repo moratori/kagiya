@@ -738,3 +738,33 @@ func TestLoadPolicy(t *testing.T) {
 		}
 	}
 }
+
+// HAProxy のルールと既定の表。
+func TestBuiltinHAProxy(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var app *AppRule
+	for i := range rs.Apps {
+		if rs.Apps[i].ID == "haproxy" {
+			app = &rs.Apps[i]
+		}
+	}
+	if app == nil || app.Grammar != "haproxy" || len(app.Sources) == 0 || app.Direction != "inbound" {
+		t.Fatalf("haproxy app rule = %+v", app)
+	}
+	if d, ok := app.Directive("ssl-default-bind-ciphers"); !ok || d.Parameter != "tls.ciphers" || d.Type != "cipher-string" {
+		t.Errorf("ssl-default-bind-ciphers = %+v %v", d, ok)
+	}
+	if d, ok := app.Directive("tune.ssl.default-dh-param"); !ok || d.Type != "int" {
+		t.Errorf("tune.ssl.default-dh-param = %+v %v", d, ok)
+	}
+	v, _, ok := rs.AppDefaults("haproxy", "haproxy", "2.8.14-3.el9_8.2")
+	if !ok || strings.Join(v["tls.ciphers"], "|") != "@system" || strings.Join(v["tls.dhe-without-params"], "|") != "disabled" || strings.Join(v["tls.certificate-selection"], "|") != "all" {
+		t.Errorf("haproxy on RHEL 9 = %v %v", v, ok)
+	}
+	if v, _, ok := rs.AppDefaults("haproxy", "haproxy", "1.6.3-1ubuntu0.3"); !ok || strings.Join(v["tls.certificate-selection"], "|") != "first" || strings.Join(v["tls.dhe-without-params"], "|") != "builtin" {
+		t.Errorf("haproxy on Ubuntu 16.04 = %v %v", v, ok)
+	}
+}
