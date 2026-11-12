@@ -16,7 +16,7 @@ var csvHeader = []string{
 	"asset_type", "asset_id", "algorithm", "key_bits",
 	"subject", "issuer", "not_after", "signature_algorithm", "fingerprint_sha256",
 	"format", "encrypted", "protection_cipher", "protection_iterations",
-	"state", "confidence", "collector", "path", "container", "index",
+	"state", "confidence", "collector", "store", "path", "container", "index",
 }
 
 // WriteCSV は出現1件を1行として書き出す。bom が真なら UTF-8 の BOM を付ける（Excel での文字化け対策）。
@@ -47,7 +47,7 @@ func WriteCSV(inv *model.Inventory, w io.Writer, bom bool) error {
 		row := map[string]string{
 			"hostname": inv.Meta.Host.Hostname, "scan_started_at": inv.Meta.StartedAt, "labels": labels,
 			"asset_id": o.Asset, "state": o.State, "confidence": o.Confidence, "collector": o.Collector,
-			"path": o.Location.Path, "container": o.Location.Container, "index": strconv.Itoa(o.Location.Index),
+			"store": o.Store, "path": o.Location.Path, "container": o.Location.Container, "index": strconv.Itoa(o.Location.Index),
 		}
 		if a, ok := assets[o.Asset]; ok {
 			row["asset_type"] = a.Type

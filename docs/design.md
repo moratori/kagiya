@@ -882,7 +882,7 @@ v0.1 に対し独立エージェントによるクリティカルレビューを
 | 暗号カタログの拡充 | 済（一部） | 鍵・キーストアの保護方式（PBES2、PBKDF2、HMAC、AES、3DES、PKCS#12 PBE、bcrypt、Java キーストア固有の方式）、SSH の鍵種別名・暗号名 |
 | CSV 出力 | 済 | `kagiya convert --to csv`。出現1件1行、既定で UTF-8 BOM 付き、数式として解釈される先頭文字の無害化 |
 | テスト | 済 | 実物のツール（OpenSSL 3.5.7、OpenSSH 10.0p2、keytool / Temurin 21.0.13）で生成したファイルと、ツール自身が報告した値との照合。各パーサのファジング |
-| Linux の証明書ストアの位置づけ | 未 | 各ディストリの実物で場所を確認してからルール化する（検証ラボが必要） |
+| Linux の証明書ストアの位置づけ | 済 | `rules/os/stores.yaml`（出典必須。出典のない定義は読み込み時に拒否）。ストア内で見つかった出現には `store` が付き、既定の探索起点に含まれないストアの場所は起点に追加される。UBI 8 / 9 と Ubuntu 16.04 の実物で確認 |
 | PGP 鍵、PuTTY PPK、NSS DB、BKS | 未 | Phase 6 |
 
 実装して分かったこと・決めたこと:
@@ -903,3 +903,43 @@ GitHub Actions の全16ジョブが成功した（リポジトリ所有者から
 - Windows Server 2022 / 2025 での単体テスト（OS に依存しない部分）、ビルド、起動、`scan` が書き込まずに拒否されること
 
 引き続き未確認: 各ディストリ本来のカーネル（RHEL 8 の 4.18、Ubuntu 16.04 の 4.4）上での動作、Windows Server 2016 / 2019、実際の NFS / SMB / autofs マウントのスキップ。
+
+### 証明書ストアの実物確認（2026-11-12）
+
+既定の起点で kagiya を各コンテナ内で動かした結果（出現数）:
+
+| イメージ | `system-trust` の証明書 | `system-trust-java` | ストア外の証明書 | SSH ホスト鍵（秘密鍵 / 公開鍵） |
+|---|---|---|---|---|
+| RHEL 8.10（`redhat/ubi8@sha256:44f19e30…`） | 904 | 証明書 118、キーストア 1（JKS） | 6（`/etc/rhsm/ca`、`/etc/pki/product-default` など製品・サブスクリプション用） | 4 / 4 |
+| RHEL 9.9（`redhat/ubi9@sha256:8b212f75…`） | 1022 | 証明書 118、キーストア 1 | 8（上記に加え `/etc/keys/ima`） | 3 / 3 |
+| Ubuntu 16.04.7（`ubuntu@sha256:1f1a2d56…`） | 258 | なし | 0 | 4 / 4 |
+
+- 解析エラーは 0 件。スキップは出力先・ログ先の自動除外と、存在しない起点だけだった。
+- Ubuntu 16.04（OpenSSH 7.2p2）の `ssh-keygen -A` は DSA 1024 ビットのホスト鍵も生成し、秘密鍵は従来の PEM 形式（PKCS#1 / SEC1 / DSA）で書かれる。RHEL 8.10（OpenSSH 8.0p1）も DSA のホスト鍵を生成する。RHEL 9.9（OpenSSH 9.9p1）は生成しない。
+
+### Phase 1b に向けて実物から採取した事実（2026-11-12）
+
+各イメージに `openssl`、`ca-certificates`、`openssh-server`、`nginx`、Apache httpd を導入して採取した。
+
+| 項目 | RHEL 8.10（UBI 8） | RHEL 9.9（UBI 9） | Ubuntu 16.04.7 | Ubuntu 24.04.5 |
+|---|---|---|---|---|
+| OpenSSL | `openssl-1.1.1k`（`OpenSSL 1.1.1k  FIPS 25 Mar 2021`） | `openssl-3.5.9-1.el9_9` | `1.0.2g-1ubuntu4.20` | `3.0.13-0ubuntu3.16` |
+| OpenSSH | `OpenSSH_8.0p1` | `openssh-9.9p1-16.el9_9` | `1:7.2p2-4ubuntu2.10` | `1:9.6p1-3ubuntu13.20` |
+| nginx | `1:1.14.1-9.module+el8.0.0+4108+af250afe` | `2:1.20.1-32.el9_9.1` | `1.10.3-0ubuntu0.16.04.5` | `1.24.0-2ubuntu7.19` |
+| Apache httpd | `2.4.37-65.module+el8.10.0+25092+6f3ea0dd.13` | `2.4.62-13.el9_8.9` | `2.4.18-2ubuntu3.17` | `2.4.58-1ubuntu8.18` |
+| パッケージ DB | rpm、Berkeley DB（`/var/lib/rpm/Packages`、Hash version 9） | rpm、SQLite（`/var/lib/rpm/rpmdb.sqlite`） | dpkg（`/var/lib/dpkg/status`） | dpkg |
+| OpenSSL の設定ディレクトリ | `/etc/pki/tls` | `/etc/pki/tls` | `/usr/lib/ssl` | `/usr/lib/ssl` |
+| システム全体の暗号ポリシー | あり（`DEFAULT`）。`crypto-policies-20230731-1.git3177e06.el8` | あり（`DEFAULT`）。`crypto-policies-20260714-1.git65b74f7.el9` | なし | なし |
+
+sshd と暗号ポリシーの結び付き方（設計書 5.4 の「順序が逆転する例」の実物）:
+
+- **RHEL 8.10**: systemd ユニットが `EnvironmentFile=-/etc/crypto-policies/back-ends/opensshserver.config` を読み、`ExecStart=/usr/sbin/sshd -D $OPTIONS $CRYPTO_POLICY` で起動する。
+  `opensshserver.config` の中身は `CRYPTO_POLICY='-oCiphers=... -oMACs=... '` という**コマンドライン引数**で、`sshd_config` の記載より優先される。`/etc/sysconfig/sshd` に `# CRYPTO_POLICY=` というコメント行があり、これを有効にするとポリシーから外れる。
+- **RHEL 9.9**: ユニットは `ExecStart=/usr/sbin/sshd -D $OPTIONS` で、ポリシーを引数では渡さない。`/etc/ssh/sshd_config` が `Include /etc/ssh/sshd_config.d/*.conf` を持ち、`50-redhat.conf` が `Include /etc/crypto-policies/back-ends/opensshserver.config` を持つ。
+  `opensshserver.config` の中身は `Ciphers ...`、`MACs ...`、`KexAlgorithms ...`、`RequiredRSASize 2048` などの**設定ファイル形式**。
+- **Ubuntu 16.04 / 24.04**: 暗号ポリシーの仕組みはない。ユニットは `ExecStart=/usr/sbin/sshd -D $SSHD_OPTS`（`EnvironmentFile=-/etc/default/ssh`）。24.04 の `sshd_config` は `Include /etc/ssh/sshd_config.d/*.conf` を持つ。
+
+バイナリから分かること（RHEL 8.10 の `/usr/sbin/sshd`）:
+
+- `DT_NEEDED` に `libcrypto.so.1.1` があり、`/lib64/libcrypto.so.1.1` に解決される。
+- バイナリ内の文字列を `OpenSSH_[0-9]...` のような緩いパターンで探すと、互換性判定用の文字列（`OpenSSH_2`、`OpenSSH_3.0` など）が多数当たる。版の特定には `OpenSSH_<数字>.<数字>p<数字>` の形に絞る必要がある。

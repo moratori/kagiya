@@ -151,6 +151,7 @@ type Occurrence struct {
 	State      string   `json:"state"` // present: ファイルとして存在（用途は未特定）
 	Confidence string   `json:"confidence"`
 	Location   Location `json:"location"`
+	Store      string   `json:"store,omitempty"` // 属する証明書ストア（ルールの os/stores.yaml の ID）
 	Detail     *Detail  `json:"detail,omitempty"`
 }
 

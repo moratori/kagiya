@@ -1,0 +1,58 @@
+# 証明書ストアの場所。ここで見つかった証明書・鍵には、結果の出現に store が付く。
+# 既定の探索起点に含まれない場所は、起点にも追加される。
+#
+# 各定義には出典（sources）が必須。場所は、下記イメージにパッケージ
+# （ca-certificates、openssl、openssh-server、nginx、Apache httpd）を導入した状態で確認した。
+#   image : 確認に使ったコンテナイメージ（ダイジェスト付き）
+#   os    : そのイメージの /etc/os-release の PRETTY_NAME
+#   note  : 確認した内容
+stores:
+  # OS が配布する信頼済み CA 証明書
+  - id: system-trust
+    paths:
+      - /etc/ssl/certs
+      - /usr/share/ca-certificates
+      - /etc/pki/tls/certs
+      - /etc/pki/tls/cert.pem
+      - /etc/pki/ca-trust/extracted/pem
+      - /etc/pki/ca-trust/extracted/openssl
+      - /usr/share/pki/ca-trust-source
+    sources:
+      - image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
+        os: "Ubuntu 16.04.7 LTS"
+        note: "ca-certificates 20210119~16.04.1。/etc/ssl/certs は束ねたファイル ca-certificates.crt（129件）と /usr/share/ca-certificates へのシンボリックリンク"
+      - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+        os: "Ubuntu 24.04.5 LTS"
+        note: "ca-certificates 20260816ubuntu0.24.04.2。構成は 16.04 と同じ（ca-certificates.crt は120件）"
+      - image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
+        os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
+        note: "ca-certificates 2026.2.92_v9.0.319-81.3.el8_10。実体は /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem（118件）と extracted/openssl/ca-bundle.trust.crt。/etc/pki/tls/cert.pem、/etc/pki/tls/certs/ca-bundle.crt、/etc/ssl/certs/ca-bundle.crt はそこへのシンボリックリンク"
+      - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
+        os: "Red Hat Enterprise Linux 9.9 (Plow)"
+        note: "ca-certificates 2026.2.92_v9.0.319-90.3.el9_8。8.10 と同じ構成に加え、extracted/pem/directory-hash（1証明書1ファイル）と /etc/ssl/cert.pem がある"
+
+  # OS が配布する信頼済み CA 証明書（Java 用のキーストア形式）
+  - id: system-trust-java
+    paths:
+      - /etc/pki/ca-trust/extracted/java
+      - /etc/pki/java
+    sources:
+      - image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
+        os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
+        note: "/etc/pki/java/cacerts は /etc/pki/ca-trust/extracted/java/cacerts へのシンボリックリンク"
+      - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
+        os: "Red Hat Enterprise Linux 9.9 (Plow)"
+        note: "8.10 と同じ"
+
+  # 管理者が追加する信頼の起点（社内 CA など）。OS の更新コマンドで system-trust に取り込まれる。
+  - id: local-trust-anchors
+    paths:
+      - /usr/local/share/ca-certificates
+      - /etc/pki/ca-trust/source/anchors
+    sources:
+      - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+        os: "Ubuntu 24.04.5 LTS"
+        note: "/usr/local/share/ca-certificates が空のディレクトリとして存在（16.04 でも同じ）"
+      - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
+        os: "Red Hat Enterprise Linux 9.9 (Plow)"
+        note: "/etc/pki/ca-trust/source/anchors が空のディレクトリとして存在（8.10 でも同じ）"

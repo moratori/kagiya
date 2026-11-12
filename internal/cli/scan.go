@@ -34,6 +34,7 @@ var labelPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
 type scanOptions struct {
 	outputDir, logDir, rulesDir string
 	roots, excludes             []string
+	rootsExplicit               bool
 	labels                      map[string]string
 	maxFileSizeMiB              int64
 	cpuLimit                    int
@@ -80,6 +81,7 @@ func parseScanOptions(args []string, stderr io.Writer) (*scanOptions, error) {
 	if o.logDir, err = absClean(o.logDir); err != nil {
 		return nil, fmt.Errorf("--log-dir: %w", err)
 	}
+	o.rootsExplicit = len(roots) > 0
 	if len(roots) == 0 {
 		roots = defaultRoots()
 	}
@@ -157,6 +159,11 @@ func runScan(args []string, stderr io.Writer) int {
 		return fatal(err)
 	}
 	rulesMeta.Version, rulesMeta.SHA256 = rs.Version, rs.SHA256
+
+	// 起点が明示されていなければ、ルールにある証明書ストアの場所のうち既定の起点に含まれないものも探す。
+	if !opts.rootsExplicit {
+		opts.roots = append(opts.roots, extraStoreRoots(opts.roots, rs.StorePaths(), mounts)...)
+	}
 
 	if err := output.EnsureDir(opts.outputDir); err != nil {
 		return fatal(fmt.Errorf("output directory: %w", err))
@@ -319,4 +326,25 @@ func sanitizeHostname() string {
 		h = h[:64]
 	}
 	return h
+}
+
+// extraStoreRoots は、ストアの場所のうち既存の起点の配下になく、ローカルに実在するディレクトリを返す。
+func extraStoreRoots(roots, storePaths []string, mounts *mountState) []string {
+	var extra []string
+	for _, p := range storePaths {
+		covered := false
+		for _, r := range append(append([]string{}, roots...), extra...) {
+			if p == r || strings.HasPrefix(p, r+"/") {
+				covered = true
+				break
+			}
+		}
+		if covered || mounts.requireLocal(p, "store") != nil {
+			continue
+		}
+		if fi, err := os.Lstat(p); err == nil && fi.IsDir() {
+			extra = append(extra, p)
+		}
+	}
+	return extra
 }

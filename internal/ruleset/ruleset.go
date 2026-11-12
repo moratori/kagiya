@@ -43,8 +43,28 @@ type RuleSet struct {
 	Version    string
 	SHA256     string // 全ファイルの内容から計算したハッシュ（結果 JSON に記録する）
 	Algorithms []Algorithm
+	Stores     []Store
 
-	byAlias map[string]int
+	byAlias    map[string]int
+	storePaths map[string]string // パス → ストア ID
+}
+
+// Store は証明書ストアの場所の定義。出典（Sources）が必須。
+type Store struct {
+	ID      string   `yaml:"id"`
+	Paths   []string `yaml:"paths"`
+	Sources []Source `yaml:"sources"`
+}
+
+// Source は、ルールの内容を実物で確認した出典。
+type Source struct {
+	Image string `yaml:"image"` // ダイジェスト付きのコンテナイメージ
+	OS    string `yaml:"os"`
+	Note  string `yaml:"note"`
+}
+
+type storesFile struct {
+	Stores []Store `yaml:"stores"`
 }
 
 // File はルールファイル1つ（書き出し用）。Path は `/` 区切りの相対パス。
@@ -66,6 +86,8 @@ var (
 	idPattern    = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
 	aliasPattern = regexp.MustCompile(`^[A-Za-z0-9._/+:@()-]{1,64}$`)
 	textPattern  = regexp.MustCompile(`^[A-Za-z0-9 ._/+:@()-]{1,64}$`)
+
+	imagePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9./_-]{0,127}@sha256:[0-9a-f]{64}$`)
 
 	primitives = map[string]bool{
 		"public-key": true, "signature": true, "hash": true, "block-cipher": true, "stream-cipher": true,
@@ -126,7 +148,7 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	rs := &RuleSet{byAlias: map[string]int{}}
+	rs := &RuleSet{byAlias: map[string]int{}, storePaths: map[string]string{}}
 	h := sha256.New()
 	seenManifest := false
 	ids := map[string]bool{}
@@ -154,6 +176,16 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 			}
 			for _, a := range c.Algorithms {
 				if err := rs.add(a, ids); err != nil {
+					return nil, fmt.Errorf("%s: %w", f.Path, err)
+				}
+			}
+		case f.Path == "os/stores.yaml":
+			var s storesFile
+			if err := decodeStrict(f.Data, &s); err != nil {
+				return nil, fmt.Errorf("%s: %w", f.Path, err)
+			}
+			for _, st := range s.Stores {
+				if err := rs.addStore(st, ids); err != nil {
 					return nil, fmt.Errorf("%s: %w", f.Path, err)
 				}
 			}
@@ -282,4 +314,78 @@ func yamlErrorKind(err error) string {
 		return kind + " at " + loc
 	}
 	return kind
+}
+
+func cleanAbsPath(p string) bool {
+	if len(p) < 2 || len(p) > 1024 || p[0] != '/' || strings.HasSuffix(p, "/") || strings.ContainsAny(p, "\x00\n\r") {
+		return false
+	}
+	for _, seg := range strings.Split(p[1:], "/") {
+		if seg == "" || seg == "." || seg == ".." {
+			return false
+		}
+	}
+	return true
+}
+
+func (rs *RuleSet) addStore(s Store, ids map[string]bool) error {
+	if !idPattern.MatchString(s.ID) {
+		return fmt.Errorf("invalid store id %q", s.ID)
+	}
+	key := "store\x00" + s.ID
+	if ids[key] {
+		return fmt.Errorf("duplicate store id %q", s.ID)
+	}
+	ids[key] = true
+	if len(s.Paths) == 0 {
+		return fmt.Errorf("store %q: no paths", s.ID)
+	}
+	// 出典のない定義は受け付けない。
+	if len(s.Sources) == 0 {
+		return fmt.Errorf("store %q: at least one source (image digest and OS) is required", s.ID)
+	}
+	for _, src := range s.Sources {
+		if !imagePattern.MatchString(src.Image) {
+			return fmt.Errorf("store %q: source image must be given with its digest (name@sha256:...)", s.ID)
+		}
+		if src.OS == "" || len(src.OS) > 128 || len(src.Note) > 1024 {
+			return fmt.Errorf("store %q: source needs an OS name", s.ID)
+		}
+	}
+	for _, p := range s.Paths {
+		if !cleanAbsPath(p) {
+			return fmt.Errorf("store %q: path %q must be a clean absolute path", s.ID, p)
+		}
+		if _, dup := rs.storePaths[p]; dup {
+			return fmt.Errorf("store %q: path %q is already assigned to a store", s.ID, p)
+		}
+		rs.storePaths[p] = s.ID
+	}
+	rs.Stores = append(rs.Stores, s)
+	return nil
+}
+
+// StoreFor は、パスが属する証明書ストアの ID を返す（最も深い定義が優先）。どれにも属さなければ空。
+func (rs *RuleSet) StoreFor(path string) string {
+	for p := path; len(p) > 1; {
+		if id, ok := rs.storePaths[p]; ok {
+			return id
+		}
+		i := strings.LastIndexByte(p, '/')
+		if i <= 0 {
+			break
+		}
+		p = p[:i]
+	}
+	return ""
+}
+
+// StorePaths は定義されているストアの場所の一覧（整列済み）。
+func (rs *RuleSet) StorePaths() []string {
+	out := make([]string, 0, len(rs.storePaths))
+	for p := range rs.storePaths {
+		out = append(out, p)
+	}
+	sort.Strings(out)
+	return out
 }

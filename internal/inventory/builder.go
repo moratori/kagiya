@@ -68,7 +68,7 @@ func (b *Builder) Occur(assetID, collector string, loc model.Location, detail *m
 	h := sha256.Sum256([]byte(assetID + "\x00" + collector + "\x00" + loc.Path + "\x00" + loc.Container + "\x00" + strconv.Itoa(loc.Index)))
 	b.occurrences = append(b.occurrences, model.Occurrence{
 		ID: "occ:" + hex.EncodeToString(h[:12]), Asset: assetID, Collector: collector,
-		State: "present", Confidence: "high", Location: loc, Detail: detail,
+		State: "present", Confidence: "high", Location: loc, Store: b.rs.StoreFor(loc.Path), Detail: detail,
 	})
 }
 
