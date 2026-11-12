@@ -1,0 +1,7 @@
+# 生成に使ったツールの版（生成手順は README.md）
+OpenSSL 3.5.7 9 Jun 2026 (Library: OpenSSL 3.5.7 9 Jun 2026)
+OpenSSH_10.0p2 Debian-7+deb13u4, OpenSSL 3.5.7 9 Jun 2026
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+java: openjdk version "21.0.13" 2026-10-20 LTS
+java: OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS)
+java: OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)

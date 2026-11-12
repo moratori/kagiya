@@ -1,0 +1,43 @@
+rsa2048-pkcs1.pem	kind=private-key	format=pkcs1	alg=rsa	bits=2048	encrypted=false	spki=20a62a372b11ef095089e9faafdde233b3af6dc20ba6207f6b3a1b81c81fa043
+rsa2048-pkcs8.pem	kind=private-key	format=pkcs8	alg=rsa	bits=2048	encrypted=false	spki=20a62a372b11ef095089e9faafdde233b3af6dc20ba6207f6b3a1b81c81fa043
+rsa2048-pkey.der	kind=private-key	format=pkcs1	alg=rsa	bits=2048	encrypted=false	spki=20a62a372b11ef095089e9faafdde233b3af6dc20ba6207f6b3a1b81c81fa043
+rsa2048-pkcs8.der	kind=private-key	format=pkcs8	alg=rsa	bits=2048	encrypted=false	spki=20a62a372b11ef095089e9faafdde233b3af6dc20ba6207f6b3a1b81c81fa043
+rsa2048-pkcs8-enc.pem	kind=private-key	format=pkcs8-encrypted	encrypted=true	enc=pbes2	kdf=pbkdf2	cipher=aes-256-cbc	iterations=4096
+rsa2048-pkcs1-enc.pem	kind=private-key	format=pkcs1	alg=rsa	encrypted=true	enc=pem-legacy	cipher=AES-128-CBC
+rsa3072-pkcs1.pem	kind=private-key	format=pkcs1	alg=rsa	bits=3072	encrypted=false	spki=d0b7c23fa748af41ab43dfd6a9845601c243f7c91159971e8d1ccb6c6c213046
+ec256-sec1.pem	kind=private-key	format=sec1	alg=ec	curve=1.2.840.10045.3.1.7	encrypted=false	spki=372678d8a66134fc1d5e21cdcfd8932621ded0ed851c6e7d2c163e0b8d35334f
+ec256-pkcs8.pem	kind=private-key	format=pkcs8	alg=ec	curve=1.2.840.10045.3.1.7	encrypted=false	spki=372678d8a66134fc1d5e21cdcfd8932621ded0ed851c6e7d2c163e0b8d35334f
+ec384-sec1.pem	kind=private-key	format=sec1	alg=ec	curve=1.3.132.0.34	encrypted=false	spki=4894302f8c367b0f48da97bdc1a02cbafd0a8e8c4616571ac6247790a805f82d
+ed25519-pkcs8.pem	kind=private-key	format=pkcs8	alg=ed25519	encrypted=false
+dsa2048.pem	kind=private-key	format=dsa-traditional	alg=dsa	bits=2048	encrypted=false	spki=788c7657ada8be348709e939d1f2557c03bb79d21aef7570b6f15a064961e442
+dsa2048-pkcs8.pem	kind=private-key	format=pkcs8	alg=dsa	bits=2048	encrypted=false	spki=788c7657ada8be348709e939d1f2557c03bb79d21aef7570b6f15a064961e442
+mldsa65-pkcs8.pem	kind=private-key	format=pkcs8	alg=ml-dsa-65	encrypted=false
+rsa2048-spki.pem	kind=public-key	format=spki	alg=rsa	bits=2048	spki=20a62a372b11ef095089e9faafdde233b3af6dc20ba6207f6b3a1b81c81fa043
+rsa2048-rsapub.pem	kind=public-key	format=pkcs1-public	alg=rsa	bits=2048	spki=20a62a372b11ef095089e9faafdde233b3af6dc20ba6207f6b3a1b81c81fa043
+ec256-spki.pem	kind=public-key	format=spki	alg=ec	curve=1.2.840.10045.3.1.7	spki=372678d8a66134fc1d5e21cdcfd8932621ded0ed851c6e7d2c163e0b8d35334f
+cert-rsa.pem	kind=certificate	sha256=c1036a7a934bf489f9eedc3cf592929eff7a8469d8b5355ac25b57e26814de20	spki=20a62a372b11ef095089e9faafdde233b3af6dc20ba6207f6b3a1b81c81fa043	sigalg=1.2.840.113549.1.1.11
+cert-rsa.der	kind=certificate	sha256=c1036a7a934bf489f9eedc3cf592929eff7a8469d8b5355ac25b57e26814de20
+cert-ec.pem	kind=certificate	sha256=fee6d938217115088a6173f832914accd455d76ead9ce7b508ee77c057f39c9e	spki=372678d8a66134fc1d5e21cdcfd8932621ded0ed851c6e7d2c163e0b8d35334f	sigalg=1.2.840.10045.4.3.3
+cert-mldsa65.pem	kind=certificate	sha256=3bfdfcbc7f169a18ea53ac95d06db272e3761f3846d251e4f7317dfbdf5a500d	sigalg=2.16.840.1.101.3.4.3.18	keyalg=2.16.840.1.101.3.4.3.18
+csr-rsa.pem	kind=csr	spki=20a62a372b11ef095089e9faafdde233b3af6dc20ba6207f6b3a1b81c81fa043	sigalg=1.2.840.113549.1.1.11	subject=C=JP, O=Kagiya Test, CN=csr.test.example
+cert-rsa-pss.pem	kind=certificate	sha256=8b50b4ec02a2d6e57ebce5db7569bc4eabdbae2c6c7d8b0e5a21b7de939f574b	sigalg=1.2.840.113549.1.1.10
+bundle.p7b	kind=pkcs7	certs=2	sha256a=c1036a7a934bf489f9eedc3cf592929eff7a8469d8b5355ac25b57e26814de20	sha256b=fee6d938217115088a6173f832914accd455d76ead9ce7b508ee77c057f39c9e
+bundle-der.p7b	kind=pkcs7	certs=2
+modern.p12	kind=keystore	format=pkcs12	note=OpenSSL 3 default
+legacy.p12	kind=keystore	format=pkcs12	note=-legacy
+plaincert.p12	kind=keystore	format=pkcs12	note=-certpbe NONE	certsha256=c1036a7a934bf489f9eedc3cf592929eff7a8469d8b5355ac25b57e26814de20
+ssh-ed25519	kind=private-key	format=openssh	sshtype=ssh-ed25519	bits=256	encrypted=false	sshfp=SHA256:0wf2Z/I4f70zCMlpe1ne7SWcfQ/W/bH5XA2lSCEKAhA
+ssh-ed25519.pub	kind=public-key	format=ssh-public	sshtype=ssh-ed25519	bits=256	sshfp=SHA256:0wf2Z/I4f70zCMlpe1ne7SWcfQ/W/bH5XA2lSCEKAhA
+ssh-rsa3072	kind=private-key	format=openssh	sshtype=ssh-rsa	bits=3072	encrypted=false	sshfp=SHA256:Ik6rvqUl55/k+9znJpBAeKLcAZr2PO+cSHf9lzZMYOU
+ssh-rsa3072.pub	kind=public-key	format=ssh-public	sshtype=ssh-rsa	bits=3072	sshfp=SHA256:Ik6rvqUl55/k+9znJpBAeKLcAZr2PO+cSHf9lzZMYOU
+ssh-ecdsa256	kind=private-key	format=openssh	sshtype=ecdsa-sha2-nistp256	bits=256	encrypted=false	sshfp=SHA256:K+jzdCsGW/RZrbuvUuOkGBD0Vmh76ag9teyNAzJSCJw
+ssh-ecdsa256.pub	kind=public-key	format=ssh-public	sshtype=ecdsa-sha2-nistp256	bits=256	sshfp=SHA256:K+jzdCsGW/RZrbuvUuOkGBD0Vmh76ag9teyNAzJSCJw
+ssh-ed25519-enc	kind=private-key	format=openssh	sshtype=ssh-ed25519	bits=256	encrypted=true	sshfp=SHA256:FtWQm12fGtU622oWlhTGQ5vhdnZciuE2ZehDGgky/qI
+ssh-ed25519-enc.pub	kind=public-key	format=ssh-public	sshtype=ssh-ed25519	bits=256	sshfp=SHA256:FtWQm12fGtU622oWlhTGQ5vhdnZciuE2ZehDGgky/qI
+ssh-rsa3072.pub+spki	spki=a33955dea1380933ded5bf07d9de623ed303d77825646280f44b023c73cb5aec
+ssh-ecdsa256.pub+spki	spki=cc13750f9fd5c0359d5ec2fb134a403990eed7315f7fcbf725219e0fcd379607
+authorized_keys	kind=ssh-key-list	keys=3
+known_hosts	kind=ssh-key-list	keys=3
+store.jks	kind=keystore	format=jks	entries=2	keycertsha256=64494b9f084efc439d1257d44e9c081ff8b9ee9eab1dc1485a30dd13ddd3f787
+store.jceks	kind=keystore	format=jceks	entries=2	keycertsha256=fc72fadcc5953f686f77bcf25eecab525c30349d217358c86a318e1dbf53e054
+store-keytool.p12	kind=keystore	format=pkcs12	entries=2	keycertsha256=b9385bb30cab18738322e60c0582bcab26b265d8f402916473944340f6e838c7

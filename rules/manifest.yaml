@@ -1,0 +1,5 @@
+# kagiya 検出ルール
+# このディレクトリは `kagiya rules export` で書き出したもの、またはその編集版です。
+# `kagiya scan --rules <このディレクトリ>` のように明示的に指定した場合のみ読み込まれます。
+format: kagiya-rules/v0
+version: "2026.11.0"

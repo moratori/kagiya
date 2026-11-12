@@ -1,0 +1,185 @@
+# 暗号カタログ: アルゴリズムの正規 ID と別名（OID など）。
+# 新しいアルゴリズムはここに1エントリを追加する。
+#   id        : 正規 ID（英小文字・数字・. _ -）
+#   family    : アルゴリズムファミリ
+#   primitive : public-key | signature | hash | block-cipher | stream-cipher | aead | mac | kdf | kem | key-exchange | curve | rng | other
+#   aliases   : 命名体系ごとの別名（oid, jca, openssl, ...）
+algorithms:
+  # ---- 公開鍵 ----
+  - id: rsa
+    family: RSA
+    primitive: public-key
+    aliases: { oid: ["1.2.840.113549.1.1.1"] }
+  - id: dsa
+    family: DSA
+    primitive: public-key
+    aliases: { oid: ["1.2.840.10040.4.1"] }
+  - id: ec
+    family: EC
+    primitive: public-key
+    aliases: { oid: ["1.2.840.10045.2.1"] }
+  - id: x25519
+    family: X25519
+    primitive: key-exchange
+    aliases: { oid: ["1.3.101.110"] }
+  - id: x448
+    family: X448
+    primitive: key-exchange
+    aliases: { oid: ["1.3.101.111"] }
+  - id: ed25519
+    family: EdDSA
+    primitive: signature
+    aliases: { oid: ["1.3.101.112"] }
+  - id: ed448
+    family: EdDSA
+    primitive: signature
+    aliases: { oid: ["1.3.101.113"] }
+
+  # ---- 楕円曲線 ----
+  - id: ec-p224
+    family: EC
+    primitive: curve
+    key_bits: 224
+    aliases: { oid: ["1.3.132.0.33"] }
+  - id: ec-p256
+    family: EC
+    primitive: curve
+    key_bits: 256
+    aliases: { oid: ["1.2.840.10045.3.1.7"] }
+  - id: ec-p384
+    family: EC
+    primitive: curve
+    key_bits: 384
+    aliases: { oid: ["1.3.132.0.34"] }
+  - id: ec-p521
+    family: EC
+    primitive: curve
+    key_bits: 521
+    aliases: { oid: ["1.3.132.0.35"] }
+  - id: ec-secp256k1
+    family: EC
+    primitive: curve
+    key_bits: 256
+    aliases: { oid: ["1.3.132.0.10"] }
+
+  # ---- 署名（RSA）----
+  - id: md2-with-rsa
+    family: RSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.113549.1.1.2"] }
+  - id: md5-with-rsa
+    family: RSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.113549.1.1.4"] }
+  - id: sha1-with-rsa
+    family: RSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.113549.1.1.5"] }
+  - id: rsassa-pss
+    family: RSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.113549.1.1.10"] }
+  - id: sha256-with-rsa
+    family: RSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.113549.1.1.11"] }
+  - id: sha384-with-rsa
+    family: RSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.113549.1.1.12"] }
+  - id: sha512-with-rsa
+    family: RSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.113549.1.1.13"] }
+  - id: sha224-with-rsa
+    family: RSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.113549.1.1.14"] }
+
+  # ---- 署名（DSA / ECDSA）----
+  - id: dsa-with-sha1
+    family: DSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.10040.4.3"] }
+  - id: dsa-with-sha256
+    family: DSA
+    primitive: signature
+    aliases: { oid: ["2.16.840.1.101.3.4.3.2"] }
+  - id: ecdsa-with-sha1
+    family: ECDSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.10045.4.1"] }
+  - id: ecdsa-with-sha224
+    family: ECDSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.10045.4.3.1"] }
+  - id: ecdsa-with-sha256
+    family: ECDSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.10045.4.3.2"] }
+  - id: ecdsa-with-sha384
+    family: ECDSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.10045.4.3.3"] }
+  - id: ecdsa-with-sha512
+    family: ECDSA
+    primitive: signature
+    aliases: { oid: ["1.2.840.10045.4.3.4"] }
+
+  # ---- 耐量子計算機暗号 ----
+  - id: ml-dsa-44
+    family: ML-DSA
+    primitive: signature
+    aliases: { oid: ["2.16.840.1.101.3.4.3.17"] }
+    references: ["FIPS 204"]
+  - id: ml-dsa-65
+    family: ML-DSA
+    primitive: signature
+    aliases: { oid: ["2.16.840.1.101.3.4.3.18"] }
+    references: ["FIPS 204"]
+  - id: ml-dsa-87
+    family: ML-DSA
+    primitive: signature
+    aliases: { oid: ["2.16.840.1.101.3.4.3.19"] }
+    references: ["FIPS 204"]
+  - id: ml-kem-512
+    family: ML-KEM
+    primitive: kem
+    aliases: { oid: ["2.16.840.1.101.3.4.4.1"] }
+    references: ["FIPS 203"]
+  - id: ml-kem-768
+    family: ML-KEM
+    primitive: kem
+    aliases: { oid: ["2.16.840.1.101.3.4.4.2"] }
+    references: ["FIPS 203"]
+  - id: ml-kem-1024
+    family: ML-KEM
+    primitive: kem
+    aliases: { oid: ["2.16.840.1.101.3.4.4.3"] }
+    references: ["FIPS 203"]
+
+  # ---- ハッシュ ----
+  - id: md5
+    family: MD5
+    primitive: hash
+    aliases: { oid: ["1.2.840.113549.2.5"] }
+  - id: sha1
+    family: SHA-1
+    primitive: hash
+    aliases: { oid: ["1.3.14.3.2.26"] }
+  - id: sha224
+    family: SHA-2
+    primitive: hash
+    aliases: { oid: ["2.16.840.1.101.3.4.2.4"] }
+  - id: sha256
+    family: SHA-2
+    primitive: hash
+    aliases: { oid: ["2.16.840.1.101.3.4.2.1"] }
+  - id: sha384
+    family: SHA-2
+    primitive: hash
+    aliases: { oid: ["2.16.840.1.101.3.4.2.2"] }
+  - id: sha512
+    family: SHA-2
+    primitive: hash
+    aliases: { oid: ["2.16.840.1.101.3.4.2.3"] }

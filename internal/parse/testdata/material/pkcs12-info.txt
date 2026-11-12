@@ -1,0 +1,18 @@
+modern.p12: MAC: sha256, Iteration 2048
+modern.p12: MAC length: 32, salt length: 8
+modern.p12: PKCS7 Encrypted data: PBES2, PBKDF2, AES-256-CBC, Iteration 2048, PRF hmacWithSHA256
+modern.p12: Certificate bag
+modern.p12: PKCS7 Data
+modern.p12: Shrouded Keybag: PBES2, PBKDF2, AES-256-CBC, Iteration 2048, PRF hmacWithSHA256
+legacy.p12: MAC: sha1, Iteration 2048
+legacy.p12: MAC length: 20, salt length: 8
+legacy.p12: PKCS7 Encrypted data: pbeWithSHA1And40BitRC2-CBC, Iteration 2048
+legacy.p12: Certificate bag
+legacy.p12: PKCS7 Data
+legacy.p12: Shrouded Keybag: pbeWithSHA1And3-KeyTripleDES-CBC, Iteration 2048
+plaincert.p12: MAC: sha256, Iteration 2048
+plaincert.p12: MAC length: 32, salt length: 8
+plaincert.p12: PKCS7 Data
+plaincert.p12: Certificate bag
+plaincert.p12: PKCS7 Data
+plaincert.p12: Shrouded Keybag: PBES2, PBKDF2, AES-256-CBC, Iteration 2048, PRF hmacWithSHA256

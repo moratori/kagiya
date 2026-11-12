@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# このワークフローは読み取りだけで足りる。
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 依存は vendor/ に固定してあり、ビルド・テスト中にモジュールを取得しない。
+  GOFLAGS: -mod=vendor
+  GOPROXY: "off"
+  GOTOOLCHAIN: local
+  CGO_ENABLED: "0"
+
+jobs:
+  # 単体テスト。Linux（amd64 / arm64）と Windows Server（2022 / 2025）で実行する。
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, windows-2022, windows-2025]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: gofmt
+        if: runner.os == 'Linux'
+        run: test -z "$(gofmt -l cmd internal rules)" || { gofmt -l cmd internal rules; exit 1; }
+      - name: go vet
+        run: go vet ./...
+      - name: go test
+        run: go test ./...
+      - name: クロスビルド（全ターゲット）
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          for t in linux/amd64 linux/arm64 windows/amd64; do
+            GOOS=${t%/*} GOARCH=${t#*/} go vet ./...
+            GOOS=${t%/*} GOARCH=${t#*/} go build -trimpath -o /tmp/kagiya-${t%/*}-${t#*/} ./cmd/kagiya
+          done
+      - name: Linux バイナリに通信・プロセス起動系のシンボルがないこと
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          n=$(go tool nm /tmp/kagiya-linux-amd64 | grep -cE ' net\.| net/http|os/exec\.|syscall\.(socket|connect|bind|listen|accept|sendto)$' || true)
+          echo "matching symbols: $n"; test "$n" = 0
+
+  # 実際の Linux カーネル上での安全策の確認（ランナー上で直接実行）。
+  # amd64 のランナーでは、手元（Apple シリコン）で確認できない amd64 の seccomp を検証できる。
+  linux-host:
+    name: linux host (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, ubuntu-24.04-arm]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: build
+        run: go build -trimpath -o "$RUNNER_TEMP/kagiya" ./cmd/kagiya
+      - name: strace を導入
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq strace
+      - name: 安全策の確認
+        run: sh ci/verify-linux.sh "$RUNNER_TEMP/kagiya" "$RUNNER_TEMP/work"
+
+  # 各ディストリビューションのコンテナ内での確認（カーネルはランナーのもの）。
+  linux-distros:
+    name: distro (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:16.04", "ubuntu:20.04", "ubuntu:24.04", "redhat/ubi8", "redhat/ubi9", "rockylinux:8", "debian:13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: build
+        run: |
+          mkdir -p "$RUNNER_TEMP/mnt"
+          go build -trimpath -o "$RUNNER_TEMP/mnt/kagiya" ./cmd/kagiya
+          cp ci/verify-linux.sh "$RUNNER_TEMP/mnt/"
+      - name: コンテナ内で確認
+        run: |
+          docker run --rm -v "$RUNNER_TEMP/mnt:/mnt/ci:ro" "${{ matrix.image }}" sh -c '
+            mkdir -p /opt/kagiya && cp /mnt/ci/kagiya /opt/kagiya/kagiya &&
+            sh /mnt/ci/verify-linux.sh /opt/kagiya/kagiya /root/work nostrace'
+
+  # Windows での起動確認。Windows 対応の実装が進むのに合わせて検証を追加していく。
+  windows-smoke:
+    name: windows smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: build
+        run: go build -trimpath -o "$env:RUNNER_TEMP\kagiya.exe" ./cmd/kagiya
+      - name: version
+        run: '& "$env:RUNNER_TEMP\kagiya.exe" version'
+      - name: 通信用 DLL を静的にインポートしていないこと
+        shell: bash
+        run: |
+          # PE のインポート表に通信用 DLL の名前がないことを確認する（実行時ロードの確認は Windows 対応時に追加）
+          if go tool nm "$RUNNER_TEMP/kagiya.exe" | grep -E ' net\.| net/http|os/exec\.'; then echo "forbidden symbols found"; exit 1; fi
+      - name: scan は未対応として安全に拒否されること（現状の仕様）
+        shell: bash
+        run: |
+          set +e
+          "$RUNNER_TEMP/kagiya.exe" scan --roots 'C:\Windows\System32\drivers\etc' --output-dir "$RUNNER_TEMP/out" --log-dir "$RUNNER_TEMP/logs"
+          code=$?
+          echo "exit code: $code"
+          # 出力ファイルの権限を保証する実装が入るまでは、書き込まずに終了する。
+          test "$code" != 0
+          test ! -e "$RUNNER_TEMP/out" || test -z "$(ls -A "$RUNNER_TEMP/out")"

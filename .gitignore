@@ -1,0 +1,6 @@
+/dist/
+/logs/
+*.partial
+lab/
+.claude/
+CLAUDE.md
