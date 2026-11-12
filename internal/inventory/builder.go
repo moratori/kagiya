@@ -27,6 +27,7 @@ type Builder struct {
 	occurrences  []model.Occurrence
 	pkgDBs       []model.PackageDatabase
 	packages     []model.Package
+	components   []*model.Component
 	skipped      []model.Skipped
 	skipByReason map[string]int
 	skipTotal    int
@@ -134,6 +135,22 @@ func (b *Builder) AddPackageDatabase(db model.PackageDatabase) { b.pkgDBs = appe
 // AddPackage は導入済みパッケージを記録する。
 func (b *Builder) AddPackage(p model.Package) { b.packages = append(b.packages, p) }
 
+// Packages は記録済みのパッケージを返す。
+func (b *Builder) Packages() []model.Package { return b.packages }
+
+// Component は ID に対応するコンポーネントを返す。無ければ make で作って登録する。
+func (b *Builder) Component(id string, make func() model.Component) *model.Component {
+	for _, c := range b.components {
+		if c.ID == id {
+			return c
+		}
+	}
+	c := make()
+	c.ID = id
+	b.components = append(b.components, &c)
+	return &c
+}
+
 // Inventory は集めた内容を結果の形にする（Meta と走査統計は呼び出し側が埋める）。
 func (b *Builder) Inventory() *model.Inventory {
 	inv := &model.Inventory{Schema: model.Schema, Assets: []model.Asset{}, Occurrences: b.occurrences, Skipped: b.skipped}
@@ -151,6 +168,11 @@ func (b *Builder) Inventory() *model.Inventory {
 	if inv.Packages == nil {
 		inv.Packages = []model.Package{}
 	}
+	inv.Components = []model.Component{}
+	for _, c := range b.components {
+		inv.Components = append(inv.Components, *c)
+	}
+	sort.SliceStable(inv.Components, func(i, j int) bool { return inv.Components[i].ID < inv.Components[j].ID })
 	sort.SliceStable(inv.Packages, func(i, j int) bool { return inv.Packages[i].Name < inv.Packages[j].Name })
 	if inv.Skipped == nil {
 		inv.Skipped = []model.Skipped{}

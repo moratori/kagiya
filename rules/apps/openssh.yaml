@@ -1,0 +1,21 @@
+# OpenSSH サーバー（sshd）。
+# バイナリには相手の版を判定するための文字列（OpenSSH_2、OpenSSH_3.0 など）が多数入っているため、
+# 自身の版は「OpenSSH_<数字>.<数字>p<数字>」の形だけを採る。
+app:
+  id: openssh
+  binaries: ["/usr/sbin/sshd"]
+  version_pattern: 'OpenSSH_(\d+\.\d+p\d+)'
+  packages: ["openssh-server"]
+  sources:
+    - image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
+      os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
+      note: "/usr/sbin/sshd に 'OpenSSH_8.0p1'。libcrypto.so.1.1 にリンク"
+    - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
+      os: "Red Hat Enterprise Linux 9.9 (Plow)"
+      note: "/usr/sbin/sshd に 'OpenSSH_9.9p1'。libcrypto.so.3 にリンク"
+    - image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
+      os: "Ubuntu 16.04.7 LTS"
+      note: "/usr/sbin/sshd に 'OpenSSH_7.2p2'。libcrypto.so.1.0.0 にリンク"
+    - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "/usr/sbin/sshd に 'OpenSSH_9.6p1'。libcrypto.so.3 にリンク"

@@ -14,8 +14,45 @@ type Inventory struct {
 	// 見つかったパッケージ管理データベースと、そこから読んだ暗号関連のパッケージ（版の特定に使う）
 	PackageDatabases []PackageDatabase `json:"package_databases"`
 	Packages         []Package         `json:"packages"`
-	Skipped          []Skipped         `json:"skipped"`
-	Coverage         Coverage          `json:"coverage"`
+	// 見つかったアプリケーションと暗号ライブラリ、およびそのリンク関係
+	Components []Component `json:"components"`
+	Skipped    []Skipped   `json:"skipped"`
+	Coverage   Coverage    `json:"coverage"`
+}
+
+// Component はアプリケーションのバイナリ、または暗号ライブラリ。
+type Component struct {
+	ID      string            `json:"id"`
+	Kind    string            `json:"kind"` // application | library
+	Name    string            `json:"name"` // ルール上の ID（nginx、openssl など）
+	Path    string            `json:"path"` // リンクを辿った先の実際のパス
+	Version *ComponentVersion `json:"version,omitempty"`
+	Package *PackageRef       `json:"package,omitempty"`
+	Links   []Link            `json:"links,omitempty"`
+	Notes   []string          `json:"notes,omitempty"`
+}
+
+type ComponentVersion struct {
+	Value  string `json:"value"`
+	Source string `json:"source"` // binary-string: ファイルに埋め込まれた版文字列
+}
+
+// PackageRef は、そのコンポーネントを含むと考えられるパッケージ（ディストリによる改変を識別するための版）。
+type PackageRef struct {
+	Name    string `json:"name"`
+	Epoch   int    `json:"epoch,omitempty"`
+	Version string `json:"version"`
+	Release string `json:"release,omitempty"`
+}
+
+// Link はアプリケーションから暗号ライブラリへのリンク。
+type Link struct {
+	SOName     string `json:"soname"`
+	Via        string `json:"via"`                 // needed: 本体が直接リンク / module: 実行時に読み込まれるモジュール経由
+	Module     string `json:"module,omitempty"`    // via=module のときのモジュールのパス
+	Path       string `json:"path,omitempty"`      // 解決した実際のパス
+	Component  string `json:"component,omitempty"` // ライブラリのコンポーネント ID
+	ResolvedBy string `json:"resolved_by"`         // rpath | runpath | ld.so.cache | default-path | unresolved
 }
 
 type PackageDatabase struct {

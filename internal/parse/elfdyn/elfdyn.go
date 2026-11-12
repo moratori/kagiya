@@ -22,7 +22,11 @@ type Info struct {
 	RunPath      []string
 }
 
-var errNotELF = errors.New("elfdyn: not a supported ELF file")
+// ErrNotELF は ELF ファイルではないこと、ErrMalformed は ELF だが読めないことを表す。
+var (
+	ErrNotELF    = errors.New("elfdyn: not an ELF file")
+	ErrMalformed = errors.New("elfdyn: malformed or unsupported ELF file")
+)
 
 const (
 	ptLoad    = 1
@@ -46,11 +50,12 @@ const (
 // Read は ELF ファイルを読む。動的セクションがない（静的リンクの）場合は、Needed が空の Info を返す。
 func Read(r io.ReaderAt, size int64) (*Info, error) {
 	hdr := make([]byte, 64)
-	if n, _ := r.ReadAt(hdr, 0); n < 52 {
-		return nil, errNotELF
+	n, _ := r.ReadAt(hdr, 0)
+	if n < 4 || string(hdr[:4]) != "\x7fELF" {
+		return nil, ErrNotELF
 	}
-	if string(hdr[:4]) != "\x7fELF" {
-		return nil, errNotELF
+	if n < 52 {
+		return nil, ErrMalformed
 	}
 	info := &Info{}
 	switch hdr[4] {
@@ -59,7 +64,7 @@ func Read(r io.ReaderAt, size int64) (*Info, error) {
 	case 2:
 		info.Class = 64
 	default:
-		return nil, errNotELF
+		return nil, ErrMalformed
 	}
 	var bo binary.ByteOrder
 	switch hdr[5] {
@@ -68,7 +73,7 @@ func Read(r io.ReaderAt, size int64) (*Info, error) {
 	case 2:
 		bo = binary.BigEndian
 	default:
-		return nil, errNotELF
+		return nil, ErrMalformed
 	}
 	info.Type = bo.Uint16(hdr[16:])
 	info.Machine = bo.Uint16(hdr[18:])
@@ -90,11 +95,11 @@ func Read(r io.ReaderAt, size int64) (*Info, error) {
 		return info, nil
 	}
 	if phnum > maxPhdrs || phentsize < minPh || phentsize > 256 || phoff > uint64(size) {
-		return nil, errNotELF
+		return nil, ErrMalformed
 	}
 	phdrs := make([]byte, phnum*phentsize)
 	if _, err := r.ReadAt(phdrs, int64(phoff)); err != nil {
-		return nil, errNotELF
+		return nil, ErrMalformed
 	}
 	type segment struct {
 		typ                uint32
@@ -127,11 +132,11 @@ func Read(r io.ReaderAt, size int64) (*Info, error) {
 			continue
 		}
 		if s.filesz == 0 || s.filesz > maxDynSize || s.off > uint64(size) || s.filesz > uint64(size)-s.off {
-			return nil, errNotELF
+			return nil, ErrMalformed
 		}
 		dyn = make([]byte, s.filesz)
 		if _, err := r.ReadAt(dyn, int64(s.off)); err != nil {
-			return nil, errNotELF
+			return nil, ErrMalformed
 		}
 		break
 	}
@@ -172,11 +177,11 @@ func Read(r io.ReaderAt, size int64) (*Info, error) {
 	}
 	strOff, ok := toOffset(strAddr)
 	if !ok || strSize == 0 || strSize > maxStrTab || strOff > uint64(size) || strSize > uint64(size)-strOff {
-		return nil, errNotELF
+		return nil, ErrMalformed
 	}
 	strtab := make([]byte, strSize)
 	if _, err := r.ReadAt(strtab, int64(strOff)); err != nil {
-		return nil, errNotELF
+		return nil, ErrMalformed
 	}
 	str := func(off uint64) string {
 		if off >= uint64(len(strtab)) {

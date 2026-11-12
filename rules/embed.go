@@ -3,5 +3,5 @@ package rules
 
 import "embed"
 
-//go:embed manifest.yaml catalog os
+//go:embed manifest.yaml catalog os apps libraries
 var FS embed.FS

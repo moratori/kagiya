@@ -1,0 +1,23 @@
+# OpenSSL（libcrypto / libssl）。
+# 版は、アプリのバイナリではなくライブラリ本体に埋め込まれた版文字列から読む。
+# アプリ側にもビルド時の OpenSSL の版文字列が埋め込まれていることがあるが、実行時に使われる版とは限らない
+# （RHEL 8.10 の nginx には "OpenSSL 1.1.1 FIPS  11 Sep 2018" が入っているが、実際にリンクされるのは 1.1.1k）。
+# 版文字列があるのは libcrypto で、OpenSSL 3 系の libssl には入っていない。
+library:
+  id: openssl
+  sonames: ["libcrypto.so*", "libssl.so*"]
+  version_pattern: 'OpenSSL (\d+\.\d+\.\d+[a-z]{0,2})(?:-fips)? +(?:FIPS +)?\d{1,2} [A-Z][a-z]{2} \d{4}'
+  packages: ["openssl-libs", "libssl*"]
+  sources:
+    - image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
+      os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
+      note: "/usr/lib64/libcrypto.so.1.1.1k に 'OpenSSL 1.1.1k  FIPS 25 Mar 2021'。パッケージは openssl-libs"
+    - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
+      os: "Red Hat Enterprise Linux 9.9 (Plow)"
+      note: "/usr/lib64/libcrypto.so.3.5.9 に 'OpenSSL 3.5.9 29 Sep 2026'。libssl.so.3.5.9 には版文字列なし"
+    - image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
+      os: "Ubuntu 16.04.7 LTS"
+      note: "/lib/<arch>-linux-gnu/libcrypto.so.1.0.0 に 'OpenSSL 1.0.2g  1 Mar 2016'。パッケージは libssl1.0.0"
+    - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "/usr/lib/<arch>-linux-gnu/libcrypto.so.3 に 'OpenSSL 3.0.13 30 Jan 2024'。パッケージは libssl3t64"

@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"kagiya/internal/collect/bins"
 	"kagiya/internal/collect/fscrawl"
 	"kagiya/internal/collect/pkgs"
 	"kagiya/internal/inventory"
@@ -211,6 +212,9 @@ func runScan(args []string, stderr io.Writer) int {
 		opener.Mounts = mounts.table
 	}
 	(&pkgs.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect()
+
+	// アプリケーションのバイナリと、リンクしている暗号ライブラリ
+	(&bins.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect()
 
 	excludes, _ := safefs.NewExcludes(opts.excludes)
 	walker := &safefs.Walker{

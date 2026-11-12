@@ -45,7 +45,9 @@ type RuleSet struct {
 	Algorithms []Algorithm
 	Stores     []Store
 
-	Packages []PackageRule
+	Packages  []PackageRule
+	Apps      []AppRule
+	Libraries []LibraryRule
 
 	byAlias     map[string]int
 	storePaths  map[string]string // パス → ストア ID
@@ -206,6 +208,22 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 				if err := rs.addStore(st, ids); err != nil {
 					return nil, fmt.Errorf("%s: %w", f.Path, err)
 				}
+			}
+		case strings.HasPrefix(f.Path, "apps/") && strings.HasSuffix(f.Path, ".yaml") && strings.Count(f.Path, "/") == 1:
+			var af appFile
+			if err := decodeStrict(f.Data, &af); err != nil {
+				return nil, fmt.Errorf("%s: %w", f.Path, err)
+			}
+			if err := rs.addApp(af.App, ids); err != nil {
+				return nil, fmt.Errorf("%s: %w", f.Path, err)
+			}
+		case strings.HasPrefix(f.Path, "libraries/") && strings.HasSuffix(f.Path, ".yaml") && strings.Count(f.Path, "/") == 1:
+			var lf libraryFile
+			if err := decodeStrict(f.Data, &lf); err != nil {
+				return nil, fmt.Errorf("%s: %w", f.Path, err)
+			}
+			if err := rs.addLibrary(lf.Library, ids); err != nil {
+				return nil, fmt.Errorf("%s: %w", f.Path, err)
 			}
 		case f.Path == "os/packages.yaml":
 			var pf packagesFile
@@ -467,4 +485,167 @@ func (rs *RuleSet) PackageRole(name string) string {
 		}
 	}
 	return role
+}
+
+// AppRule はサーバーアプリケーションの定義（どのバイナリか、版をどう読むか）。出典が必須。
+type AppRule struct {
+	ID             string   `yaml:"id"`
+	Binaries       []string `yaml:"binaries"`
+	Modules        []string `yaml:"modules"` // 実行時に読み込まれ、暗号ライブラリにリンクしているモジュール
+	VersionPattern string   `yaml:"version_pattern"`
+	Packages       []string `yaml:"packages"` // このアプリを含むパッケージ名（優先順）
+	Sources        []Source `yaml:"sources"`
+
+	re *regexp.Regexp
+}
+
+// LibraryRule は暗号ライブラリの定義。出典が必須。
+type LibraryRule struct {
+	ID             string   `yaml:"id"`
+	SONames        []string `yaml:"sonames"`
+	VersionPattern string   `yaml:"version_pattern"`
+	Packages       []string `yaml:"packages"`
+	Sources        []Source `yaml:"sources"`
+
+	re *regexp.Regexp
+}
+
+type appFile struct {
+	App AppRule `yaml:"app"`
+}
+
+type libraryFile struct {
+	Library LibraryRule `yaml:"library"`
+}
+
+var versionValue = regexp.MustCompile(`^[0-9][0-9A-Za-z.+~:_-]{0,63}$`)
+
+// compileVersionPattern は版文字列のパターンを検証する。取り出す部分（括弧）はちょうど1つ。
+func compileVersionPattern(p string) (*regexp.Regexp, error) {
+	if p == "" {
+		return nil, nil
+	}
+	if len(p) > 256 {
+		return nil, errors.New("version_pattern is too long")
+	}
+	re, err := regexp.Compile(p)
+	if err != nil {
+		return nil, errors.New("version_pattern is not a valid regular expression")
+	}
+	if re.NumSubexp() != 1 {
+		return nil, errors.New("version_pattern must have exactly one capture group")
+	}
+	return re, nil
+}
+
+// matchVersion はバイト列からパターンに合う版を探し、重複を除いて返す。
+// 取り出した値は版として妥当な文字だけからなるものに限る（ファイルの内容が出力に紛れ込むのを防ぐ）。
+func matchVersion(re *regexp.Regexp, b []byte) []string {
+	if re == nil {
+		return nil
+	}
+	var out []string
+	for _, m := range re.FindAllSubmatch(b, 64) {
+		v := string(m[1])
+		if !versionValue.MatchString(v) {
+			continue
+		}
+		dup := false
+		for _, o := range out {
+			dup = dup || o == v
+		}
+		if !dup {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func (a AppRule) MatchVersion(b []byte) []string     { return matchVersion(a.re, b) }
+func (l LibraryRule) MatchVersion(b []byte) []string { return matchVersion(l.re, b) }
+
+// MatchName は、名前がパターン（完全一致、または末尾 * の前方一致）のどれかに合うかを返す。
+func MatchName(patterns []string, name string) bool {
+	for _, p := range patterns {
+		if p == name || (strings.HasSuffix(p, "*") && strings.HasPrefix(name, strings.TrimSuffix(p, "*"))) {
+			return true
+		}
+	}
+	return false
+}
+
+func checkNames(names []string) error {
+	for _, n := range names {
+		if !pkgNamePattern.MatchString(n) {
+			return fmt.Errorf("invalid name %q", n)
+		}
+	}
+	return nil
+}
+
+func (rs *RuleSet) addApp(a AppRule, ids map[string]bool) error {
+	if !idPattern.MatchString(a.ID) {
+		return fmt.Errorf("invalid app id %q", a.ID)
+	}
+	if ids["app\x00"+a.ID] {
+		return fmt.Errorf("duplicate app id %q", a.ID)
+	}
+	ids["app\x00"+a.ID] = true
+	if err := checkSources(a.Sources); err != nil {
+		return fmt.Errorf("app %q: %w", a.ID, err)
+	}
+	if len(a.Binaries) == 0 {
+		return fmt.Errorf("app %q: no binaries", a.ID)
+	}
+	for _, p := range append(append([]string{}, a.Binaries...), a.Modules...) {
+		if !cleanAbsPath(p) {
+			return fmt.Errorf("app %q: path %q must be a clean absolute path", a.ID, p)
+		}
+	}
+	if err := checkNames(a.Packages); err != nil {
+		return fmt.Errorf("app %q: %w", a.ID, err)
+	}
+	re, err := compileVersionPattern(a.VersionPattern)
+	if err != nil {
+		return fmt.Errorf("app %q: %w", a.ID, err)
+	}
+	a.re = re
+	rs.Apps = append(rs.Apps, a)
+	return nil
+}
+
+func (rs *RuleSet) addLibrary(l LibraryRule, ids map[string]bool) error {
+	if !idPattern.MatchString(l.ID) {
+		return fmt.Errorf("invalid library id %q", l.ID)
+	}
+	if ids["lib\x00"+l.ID] {
+		return fmt.Errorf("duplicate library id %q", l.ID)
+	}
+	ids["lib\x00"+l.ID] = true
+	if err := checkSources(l.Sources); err != nil {
+		return fmt.Errorf("library %q: %w", l.ID, err)
+	}
+	if len(l.SONames) == 0 {
+		return fmt.Errorf("library %q: no sonames", l.ID)
+	}
+	if err := checkNames(append(append([]string{}, l.SONames...), l.Packages...)); err != nil {
+		return fmt.Errorf("library %q: %w", l.ID, err)
+	}
+	re, err := compileVersionPattern(l.VersionPattern)
+	if err != nil {
+		return fmt.Errorf("library %q: %w", l.ID, err)
+	}
+	l.re = re
+	rs.Libraries = append(rs.Libraries, l)
+	return nil
+}
+
+// LibraryForSOName は、共有ライブラリ名に対応する暗号ライブラリの定義を返す。
+func (rs *RuleSet) LibraryForSOName(soname string) (LibraryRule, bool) {
+	for _, l := range rs.Libraries {
+		if MatchName(l.SONames, soname) {
+			return l, true
+		}
+	}
+	return LibraryRule{}, false
 }
