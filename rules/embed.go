@@ -3,5 +3,5 @@ package rules
 
 import "embed"
 
-//go:embed manifest.yaml catalog os apps libraries defaults
+//go:embed manifest.yaml catalog os apps libraries defaults ciphers
 var FS embed.FS

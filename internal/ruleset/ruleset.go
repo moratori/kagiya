@@ -50,6 +50,8 @@ type RuleSet struct {
 	Libraries []LibraryRule
 	Defaults  []DefaultSet
 
+	CipherTables []*CipherTable
+
 	byAlias     map[string]int
 	storePaths  map[string]string // パス → ストア ID
 	pkgExact    map[string]string // パッケージ名 → 役割
@@ -233,6 +235,16 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 			}
 			for _, d := range df.Defaults {
 				if err := rs.addDefaults(d, ids); err != nil {
+					return nil, fmt.Errorf("%s: %w", f.Path, err)
+				}
+			}
+		case strings.HasPrefix(f.Path, "ciphers/") && strings.HasSuffix(f.Path, ".yaml") && strings.Count(f.Path, "/") == 1:
+			var cf cipherFile
+			if err := decodeStrict(f.Data, &cf); err != nil {
+				return nil, fmt.Errorf("%s: %w", f.Path, err)
+			}
+			for _, t := range cf.CipherTables {
+				if err := rs.addCipherTable(t, ids); err != nil {
 					return nil, fmt.Errorf("%s: %w", f.Path, err)
 				}
 			}
