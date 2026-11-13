@@ -7,6 +7,9 @@
 #   wildcard               : 無効にする方式に書いた「TLS_RSA_*」のような名前のパターンを解釈するか（解釈しない版では、その項目は何も無効にしない）。
 #   disable_groups_by_name : 無効にする方式に書いたグループの名前（x25519 など）が効くか（効かない版でも、鍵長の条件は効く）。
 #   dhe_default_bits       : TLS 1.2 以下の DHE で、クライアントが ffdhe のグループを示さないときに使う DH パラメータの長さ。
+#   system_properties_file : java.security の security.useSystemPropertiesFile=true で、暗号ポリシーのファイル
+#                            （/etc/crypto-policies/back-ends/java.config）の値が上書きする版（RHEL 系の 8 / 11 / 17 / 21）。
+#   security_include       : java.security の include での取り込みを実測で確かめた版（RHEL 系の 25。暗号ポリシーのファイルを取り込む）。
 #   unusable_groups        : jdk.tls.namedGroups で名前を挙げても受け入れなかったグループ（Java での名前。測った範囲で）。
 #   protocols              : 対応しているプロトコル。default は、制限をすべて外したときにサーバーで有効なもの。
 #   suites                 : 対応している暗号スイート（JDK が答える並び）。default は、制限をすべて外したときにサーバーで有効なもの。
@@ -45,6 +48,7 @@ jdk_tables:
     wildcard: true
     disable_groups_by_name: true
     dhe_default_bits: 2048
+    system_properties_file: true
     protocols:
       - {name: TLSv1.3, default: true}
       - {name: TLSv1.2, default: true}
@@ -174,6 +178,7 @@ jdk_tables:
     wildcard: true
     disable_groups_by_name: true
     dhe_default_bits: 2048
+    security_include: true
     protocols:
       - {name: TLSv1.3, default: true}
       - {name: TLSv1.2, default: true}
@@ -304,6 +309,7 @@ jdk_tables:
     wildcard: false
     disable_groups_by_name: false
     dhe_default_bits: 1024
+    system_properties_file: true
     unusable_groups: [x25519]
     protocols:
       - {name: TLSv1.3, default: true}
@@ -438,6 +444,7 @@ jdk_tables:
     wildcard: false
     disable_groups_by_name: true
     dhe_default_bits: 2048
+    system_properties_file: true
     protocols:
       - {name: TLSv1.3, default: true}
       - {name: TLSv1.2, default: true}
@@ -567,6 +574,7 @@ jdk_tables:
     wildcard: true
     disable_groups_by_name: true
     dhe_default_bits: 2048
+    system_properties_file: true
     protocols:
       - {name: TLSv1.3, default: true}
       - {name: TLSv1.2, default: true}

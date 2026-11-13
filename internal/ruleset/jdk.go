@@ -35,6 +35,9 @@ type JDKTable struct {
 	DisableGroupsByName bool `yaml:"disable_groups_by_name"` // グループの名前を書くと、そのグループを受け入れなくなる
 	// TLS 1.2 以下の DHE で、クライアントが ffdhe のグループを示さないときに使う DH パラメータの長さ
 	DHEDefaultBits int `yaml:"dhe_default_bits"`
+	// 暗号ポリシーとのつなぎ方（RHEL 系）。どちらも、その読み方で JDK 自身の報告を再現できた版にだけ付く
+	SystemPropertiesFile bool `yaml:"system_properties_file"` // security.useSystemPropertiesFile=true で、暗号ポリシーの java.config が上書きする
+	SecurityInclude      bool `yaml:"security_include"`       // java.security の include での取り込みを確かめた
 	// jdk.tls.namedGroups で名前を挙げても受け入れなかったグループ（Java での名前。測った範囲で）
 	UnusableGroups []string   `yaml:"unusable_groups"`
 	Protocols      []JDKName  `yaml:"protocols"`
