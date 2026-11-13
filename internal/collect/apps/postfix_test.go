@@ -255,3 +255,14 @@ func TestPostfixLimits(t *testing.T) {
 		t.Errorf("interpolated: %+v", e)
 	}
 }
+
+// 証明書を持たないサービスでは TLS 1.3 を使えないので、TLS 1.3 でだけ使われるグループ（有限体 DH）は受け入れない
+// （Debian 13 の postfix 3.10.13 で、認証なしの ECDH のスイートを使って実測）。
+func TestPostfixGroupsWithoutCertificate(t *testing.T) {
+	_, inv := collect(t, "", postfixDeb(t, "3.10.13-0+deb13u1", "libssl3t64", "3.5.7-1~deb13u3",
+		postfixFiles("smtpd_tls_cert_file = none\nsmtpd_tls_security_level = may\n", postfixSMTP)))
+	g := groupsOf(t, inv, "svc:postfix", smtpScope)
+	if strings.Join(g.Values, " ") != "X25519 X448 P-256 P-384 P-521" || g.Confidence != "high" {
+		t.Errorf("groups without a certificate = %+v", g)
+	}
+}
