@@ -1400,7 +1400,8 @@ PostgreSQL、Dovecot、BIND、OpenVPN、MariaDB / MySQL、OpenDKIM、OpenLDAP �
 | stunnel | 済 | 8 ディストリの 49 場面すべてで一致（Ubuntu 16.04 の版は TLS 1.3 の指定を受け付けないので、その場面はない） |
 | Postfix（受信側の smtpd） | 済 | 8 ディストリ × 12 場面の 96 の待ち受けすべてで、暗号スイート・TLS 1.3 のスイート・鍵交換のグループが実測と一致（グループは、対応表のない OpenSSL 1.0.2 の 12 件を除く） |
 | PostgreSQL | 済 | 7 ディストリ（AlmaLinux 8 / 9 / 10、Ubuntu 20.04 / 22.04 / 24.04、Debian 13。PostgreSQL 10〜17）の 55 場面すべてで一致 |
-| Dovecot、BIND、OpenVPN、MariaDB / MySQL ほか | 未 | RHEL 系は AlmaLinux の公式イメージで測る（2026-11-12 に決定） |
+| Dovecot | 済 | 8 ディストリ（AlmaLinux 8 / 9 / 10、Ubuntu 16.04〜24.04、Debian 13。Dovecot 2.2.22〜2.4.1）の 81 の待ち受けすべてで一致（グループは、対応表のない OpenSSL 1.0.2 の 6 件を除く） |
+| BIND、OpenVPN、MariaDB / MySQL ほか | 未 | RHEL 系は AlmaLinux の公式イメージで測る（2026-11-12 に決定） |
 
 HAProxy の測定: 各イメージの haproxy を実際に起動し、サーバー名を付けたハンドシェイクで受け入れるスイートを数え上げた。
 場面は、暗号の指定なし、全体の指定（`ssl-default-bind-ciphers`）の引き継ぎと `bind` の行での書き換え、パッケージの設定ファイルが全体に書いている値、
@@ -1462,6 +1463,23 @@ PostgreSQL で分かったこと:
 - **ALTER SYSTEM で書かれた値（データディレクトリの `postgresql.auto.conf`）は、`postgresql.conf` より優先される。** 設定ファイルだけを見ると見落とす。
 - **ディストリが配る設定:** Debian・Ubuntu は、導入しただけで `ssl = on`（自己署名の証明書）。RHEL 系は `ssl` の指定がなく、TLS は無効。
 - Ubuntu 16.04（PostgreSQL 9.5、OpenSSL 1.0.2）は、試す側の `openssl` が PostgreSQL の接続開始の手順に対応しておらず、測れていない（既定値表がなく「不明」になる）。
+
+Dovecot の測定（2026-11-13）: imaps（993）と pop3s（995）へのハンドシェイクで数え上げた。既定値は Dovecot 自身の出力（`doveconf -d`）、
+設定の読み方（取り込みの順、後勝ち、プロトコルごとの上書き）も Dovecot 自身の出力（`doveconf -n`、`doveconf -f protocol=imap`）を正解にした。RHEL 系は AlmaLinux で測った。
+
+Dovecot で分かったこと:
+
+- **RHEL 系が配る設定の `ssl_cipher_list = PROFILE=SYSTEM` は、実際には暗号ポリシーの暗号文字列として働いていない。**
+  接続を受けるプロセス（imap-login など）は既定で chroot の中で動き、暗号ポリシーのファイルを読めないため、ライブラリの既定（`DEFAULT`）になる。
+  AlmaLinux 8 / 9 / 10 のいずれでも、受け入れたスイートは `DEFAULT` の展開と一致し、chroot を外した設定では暗号ポリシーの展開と一致した。
+  `PROFILE=SYSTEM:!kRSA` のように続きを書くと、`DEFAULT:!kRSA` として働く。暗号ポリシーが鍵交換の RSA を外している AlmaLinux 10 でも、配られる設定のままでは受け入れる。
+  既定の表に、この挙動（`tls.profile-in-chroot`）を持たせ、実際に効く暗号文字列で求めて、理由を結果に添える。
+- **鍵交換のグループと TLS 1.3 のスイートは、Dovecot 自身の既定を持たない。** システムの openssl.cnf（これは chroot の前に読まれる）、なければライブラリの既定に従う。
+  このため、Debian 13（OpenSSL 3.5）と AlmaLinux 10（暗号ポリシー）の Dovecot は、何も設定しなくても耐量子のハイブリッドを受け入れる。
+- **DHE は、DH パラメータのファイルを指定したときだけ使える**（2.3 以降）。Ubuntu が配る設定はファイルを指定しており、RHEL 系と Debian 13 は指定していない。
+  2.2 は、自分で生成したパラメータで使える。
+- **証明書などの項目の名前が、2.4 で変わった**（`ssl_cert = <ファイル` → `ssl_server_cert_file = ファイル` など）。どちらも読む。
+- **ディストリが配る設定:** RHEL 系と Debian・Ubuntu 20.04 以降は、導入しただけで TLS が有効。
 
 差分テストで分かった、既知の限界の現れ方: 暗号文字列が IDEA のスイート（TLS 1.1 以下でしか使えない）を含み、サーバーが TLS 1.2 未満を受け付けない場合、
 kagiya の一覧にはそのスイートが残る（AlmaLinux 8 で 1 個）。一覧は「いずれかの版が有効なら受け入れ得るもの」で、プロトコルの版による絞り込みはしていないため。
