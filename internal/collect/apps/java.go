@@ -90,6 +90,25 @@ func (c *Collector) jdkPackage(app ruleset.AppRule, home string) (pkg model.Pack
 	return model.Package{}, "more than one package matches the JDK in " + home + "; which one it belongs to is not determined"
 }
 
+// jdkReleaseVersion は、JDK のディレクトリにある release ファイルから、開発元の版（JAVA_VERSION）を読む。
+// 取り出すのはこの 1 項目だけで、版の形をしていない値は使わない。
+func (c *Collector) jdkReleaseVersion(home string) string {
+	data, err := c.read(home + "/release")
+	if err != nil {
+		return ""
+	}
+	for _, l := range strings.Split(string(data), "\n") {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(l), "JAVA_VERSION="); ok {
+			v = strings.Trim(strings.TrimSpace(v), "\"")
+			if ruleset.ValidJavaVersion(v) {
+				return v
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
 func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec string) {
 	params := []string{model.ParamTLSProtocols, paramCiphers, paramTLS13, model.ParamTLSGroups}
 	fail := func(reason string) {
@@ -108,6 +127,18 @@ func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec st
 		var ok bool
 		if tb, build, exact, ok = c.Rules.JDKTableFor(jdkRuntime, pkg.Name, pkg.FullVersion()); !ok {
 			reason = "no JDK table is recorded for " + pkg.Name + " " + pkg.FullVersion()
+		}
+	}
+	// 表が見つからない場合（配布元の違う JDK、測っていないパッケージ）は、JDK のディレクトリにある release ファイルの
+	// 開発元の版で引く。Java だけの扱いで、暗号ポリシーとのつなぎ方は引き継がれない（ruleset.JDKTableForJavaVersion）
+	other := ""
+	if reason != "" {
+		if v := c.jdkReleaseVersion(home); v != "" {
+			if t2, b2, ok := c.Rules.JDKTableForJavaVersion(jdkRuntime, v); ok {
+				tb, build, exact, reason, other = t2, b2, false, "", v
+			} else {
+				reason += "; no JDK table is recorded for Java " + v + " either"
+			}
 		}
 	}
 	f := javasecurity.Load(sec, confFS{c}, map[string]string{"java.home": home, "__redhat_fips__": "false"})
@@ -207,7 +238,12 @@ func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec st
 	confidence := model.ConfidenceHigh
 	notes := []string{"these are the defaults of this JDK, used unless the application chooses its own protocols, cipher suites or groups; " +
 		"options given when Java is started (-D options, an extra security properties file) are not read"}
-	if !exact {
+	switch {
+	case other != "":
+		confidence = model.ConfidenceMedium
+		notes = append(notes, "the JDK table measured on "+build.Package+" "+build.Version+" is used for this JDK because its release file reports the same upstream Java version ("+
+			other+"); the table comes from another distributor's build of that version")
+	case !exact:
 		confidence = model.ConfidenceMedium
 		notes = append(notes, "the JDK table measured on "+build.Package+" "+build.Version+" is used for the installed "+pkg.Name+" "+
 			pkg.FullVersion()+" (same upstream version and distribution, different release)")

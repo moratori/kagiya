@@ -24,8 +24,17 @@ app:
   config_files:
     - "/usr/lib/jvm/*/conf/security/java.security"
     - "/usr/lib/jvm/*/jre/lib/security/java.security"
+    # Eclipse Temurin の公式イメージでの配置
+    - "/opt/java/openjdk/conf/security/java.security"
+    - "/opt/java/openjdk/jre/lib/security/java.security"
   direction: inbound
   sources:
+    - image: "eclipse-temurin@sha256:0a3f329821dcadf54b2a3033a15e2e9f007069a9db43d7f51897e6b80e726b07"
+      os: "Ubuntu 26.04.1 LTS"
+      note: "JDK は /opt/java/openjdk に入っている（JAVA_HOME）。conf/security/java.security はリンクではなく実体。release に JAVA_VERSION=\"21.0.13\"、IMPLEMENTOR=\"Eclipse Adoptium\""
+    - image: "amazoncorretto@sha256:90100f194336ef2326f5efe1ee747395fd87d8210ad6d60463196aa0c4b0ad4e"
+      os: "Amazon Linux 2023.12.20261102"
+      note: "JDK は /usr/lib/jvm/java-21-amazon-corretto.aarch64 に入り、/usr/lib/jvm/java-21-amazon-corretto はそこへのリンク。release に JAVA_VERSION=\"21.0.13\"、IMPLEMENTOR=\"Amazon.com Inc.\"。Corretto 8 は /usr/lib/jvm/java-1.8.0-amazon-corretto.aarch64 で、jre/lib/security/java.security"
     - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
       os: "AlmaLinux 9.8 (Olive Jaguar)"
       note: "java-21-openjdk-headless 21.0.13.0.9-1.2.el9.alma.1 は /usr/lib/jvm/java-21-openjdk-21.0.13.0.9-1.2.el9.alma.1.aarch64/ に入る（ディレクトリ名は、パッケージ名から -headless を除いたものに版とアーキテクチャが続く）。conf/security/java.security は /etc/java/java-21-openjdk/<同じ名前>/conf/security/java.security へのリンク。java-1.8.0-openjdk-headless は jre/lib/security/java.security。security.useSystemPropertiesFile=true で /etc/crypto-policies/back-ends/java.config の値が上書きする"
