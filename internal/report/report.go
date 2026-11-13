@@ -10,6 +10,7 @@
 package report
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"sort"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"kagiya/internal/assess"
+	"kagiya/internal/convert"
 	"kagiya/internal/model"
 	"kagiya/internal/ruleset"
 )
@@ -27,6 +29,26 @@ const foldRows = 12
 
 // 期限が近いとみなす日数。
 const expiringDays = 30
+
+// レポートに埋め込む CBOM の合計の上限（これを超える分のホストには、保存用のリンクを付けない）。
+const maxEmbeddedCBOM = 48 << 20
+
+// fileSafe は、ファイル名に使える文字（英数字と . _ -）以外を「_」に置き換える。
+func fileSafe(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		if !(c == '.' || c == '_' || c == '-' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z') {
+			b[i] = '_'
+		}
+	}
+	if len(b) == 0 {
+		return "host"
+	}
+	if len(b) > 100 {
+		b = b[:100]
+	}
+	return string(b)
+}
 
 type builder struct {
 	inv      *model.Inventory
@@ -76,6 +98,7 @@ func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy
 			"confidence":  "確度「高」は、導入されている版そのもので実測した表から求めた値。「中」は、近い版の実測を当てはめたか、証明書などを読めずに絞り込みの一部をしていない値",
 		}}
 	used := map[string]bool{}
+	embedded := 0
 	byID := make(map[string]ruleset.PolicyRule, len(p.Rules))
 	for _, r := range p.Rules {
 		byID[r.ID] = r
@@ -96,10 +119,27 @@ func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy
 		}
 		v := b.build(i + 1)
 		v.Tips = pg.Tips
+		// CBOM を作って埋め込む（保存用のリンクにする）。ホストが多いときは、ファイルが大きくなりすぎないところまで
+		var cb bytes.Buffer
+		if err := convert.WriteCBOMCompact(inv, &cb); err == nil && embedded+cb.Len() <= maxEmbeddedCBOM {
+			embedded += cb.Len()
+			v.CBOM = cb.Bytes()
+		}
 		pg.Hosts = append(pg.Hosts, v)
 		pg.Total.add(v.Summary)
 	}
 	pg.TotalView = &view{Summary: pg.Total, Tips: pg.Tips, ExpiringDays: expiringDays}
+	// 全体の集計には、どれかのホストで探索した起点を、重複なく並べる
+	seenRoot := map[string]bool{}
+	for _, v := range pg.Hosts {
+		for _, r := range v.RootList {
+			if !seenRoot[r] {
+				seenRoot[r] = true
+				pg.TotalView.RootList = append(pg.TotalView.RootList, r)
+			}
+		}
+	}
+	sort.Strings(pg.TotalView.RootList)
 	// 判定の理由として挙げた規則と、出典
 	titles := map[string]string{}
 	for _, r := range p.References {
@@ -124,7 +164,8 @@ func (b *builder) build(n int) *view {
 		Host: m.Host.Hostname, OSArch: m.Host.OS + " / " + m.Host.Arch, Started: m.StartedAt, Finished: m.FinishedAt,
 		ToolVersion: m.Tool.Version, RulesVersion: m.Rules.Version, RulesSource: m.Rules.Source,
 		Incomplete: !m.Completed, IncompleteReason: m.Incomplete, Elevated: m.Privilege.Elevated, Warnings: m.Warnings,
-		ExpiringDays: expiringDays, Coverage: b.inv.Coverage, Roots: strings.Join(m.Invocation.Roots, "、")}
+		ExpiringDays: expiringDays, Coverage: b.inv.Coverage, Roots: strings.Join(m.Invocation.Roots, "、"),
+		RootList: m.Invocation.Roots, CBOMName: "kagiya-" + fileSafe(m.Host.Hostname) + ".cdx.json"}
 	if m.Host.Distribution != nil {
 		v.Distribution = m.Host.Distribution.Name
 	}

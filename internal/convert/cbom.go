@@ -158,7 +158,12 @@ type cbomBuilder struct {
 }
 
 // WriteCBOM は、結果を CBOM（CycloneDX 1.6 の JSON）として書き出す。
-func WriteCBOM(inv *model.Inventory, w io.Writer) error {
+func WriteCBOM(inv *model.Inventory, w io.Writer) error { return writeCBOM(inv, w, true) }
+
+// WriteCBOMCompact は、WriteCBOM と同じ内容を、字下げなしで書き出す（HTML レポートへの埋め込み用）。
+func WriteCBOMCompact(inv *model.Inventory, w io.Writer) error { return writeCBOM(inv, w, false) }
+
+func writeCBOM(inv *model.Inventory, w io.Writer, indent bool) error {
 	b := &cbomBuilder{inv: inv, refs: map[string]bool{}, algs: map[string]*model.Algorithm{}, occs: map[string][]model.Occurrence{}, deps: map[string][]string{}}
 	for _, o := range inv.Occurrences {
 		b.occs[o.Asset] = append(b.occs[o.Asset], o)
@@ -218,7 +223,9 @@ func WriteCBOM(inv *model.Inventory, w io.Writer) error {
 
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
-	enc.SetIndent("", "  ")
+	if indent {
+		enc.SetIndent("", "  ")
+	}
 	return enc.Encode(doc)
 }
 

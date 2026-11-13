@@ -21,8 +21,14 @@ nav.side .grp { font-size: 11.5px; color: #9fb2c8; padding: 14px 18px 4px; lette
 nav.side a { display: block; padding: 7px 18px; font-size: 13.5px; color: #dbe4ef; text-decoration: none; border-left: 4px solid transparent; overflow-wrap: anywhere; }
 nav.side a:hover, nav.side a:focus { background: rgba(255,255,255,.08); border-left-color: #8fb8ef; color: #fff; }
 .wrap { margin-left: 250px; }
-nav.local { display: flex; flex-wrap: wrap; gap: 2px 6px; margin: 10px 0 0; font-size: 13px; }
-nav.local a { padding: 4px 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); text-decoration: none; }
+.dl { display: inline-block; vertical-align: -3px; margin-left: 8px; padding: 2px 4px; border-radius: 5px; color: inherit; opacity: .8; border-left: 0 !important; }
+.dl:hover, .dl:focus { opacity: 1; background: rgba(255,255,255,.15); }
+nav.side .brand .dl { display: inline-block; padding: 2px 4px; }
+.common { display: none; }
+.common:target { display: block; }
+main:has(.common:target) .view, main:has(.common:target) .dashboard { display: none !important; }
+ul.roots { margin: 0 0 8px; padding: 0; list-style: none; }
+.card ul.roots li { border-bottom: 0; padding: 1px 0; }
 body.multi .view { display: none; }
 body.multi .view:target, body.multi .view:has(:target) { display: block; }
 body.multi main:has(.view:target) .dashboard, body.multi main:has(.view :target) .dashboard { display: none; }
@@ -91,7 +97,8 @@ footer { padding: 0 24px 40px; color: var(--sub); font-size: 12px; }
 @media print {
   :root { --bg:#ffffff; }
   body { font-size: 11.5px; }
-  nav.side, nav.local { display: none; }
+  nav.side, .dl { display: none; }
+  .common { display: block; }
   .wrap { margin-left: 0; }
   body.multi .view { display: block; }
   .tip:hover::after { content: none; }

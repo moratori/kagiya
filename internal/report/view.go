@@ -173,6 +173,9 @@ type view struct {
 	Warnings                                      []string
 	ExpiringDays                                  int
 	Roots                                         string
+	RootList                                      []string // 探索の起点（要点の「探索した範囲」に並べる）
+	CBOM                                          []byte   // このホストの CBOM（CycloneDX の JSON）。埋め込まない場合は空
+	CBOMName                                      string   // 保存するときのファイル名
 
 	Summary     summaryView
 	Services    []serviceView

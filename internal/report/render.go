@@ -13,6 +13,7 @@ package report
 import (
 	"bytes"
 	_ "embed"
+	"encoding/base64"
 	"io"
 	"strconv"
 	"strings"
@@ -111,7 +112,7 @@ func renderPage(out io.Writer, pg *page) error {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>暗号の棚卸しレポート`))
+<title>クリプトインベントリ`))
 	if pg.Multi {
 		h.w("（", len(pg.Hosts), " ホスト）")
 	} else {
@@ -127,8 +128,11 @@ func renderPage(out io.Writer, pg *page) error {
 	}
 	h.w(raw(`
 <nav class="side">
-<div class="brand">暗号の棚卸しレポート</div>
-`))
+<div class="brand">クリプトインベントリ`))
+	if !pg.Multi && len(pg.Hosts) == 1 {
+		h.download(pg.Hosts[0])
+	}
+	h.w(raw("</div>\n"))
 	if pg.Multi {
 		h.w(raw(`<a href="#dashboard">全体の集計（`), len(pg.Hosts), raw(` ホスト）</a>
 <div class="grp">ホストごとの詳細</div>
@@ -140,24 +144,27 @@ func renderPage(out io.Writer, pg *page) error {
 		for _, v := range pg.Hosts {
 			h.w(raw(`<div class="grp">`), v.Host, raw("</div>\n"))
 			for _, l := range [][2]string{{"overview", "スキャンの概要"}, {"summary", "要点"}, {"services", "サービスの設定"}, {"files", "証明書と鍵"},
-				{"system", "OS とライブラリ"}, {"coverage", "探索した範囲"}, {"limits", "分からないこと"}} {
+				{"system", "OS とライブラリ"}, {"coverage", "探索した範囲"}} {
 				h.w(raw(`<a href="#`), v.H, "-", l[0], raw(`">`), l[1], raw("</a>\n"))
 			}
 		}
 	}
 	h.w(raw(`<div class="grp">共通</div>
+<a href="#limits">このレポートでは分からないこと</a>
 <a href="#criteria">判定の基準と出典</a>
 </nav>
 <div class="wrap">
 <main>
 `))
 	for _, v := range pg.Hosts {
-		h.host(v)
+		h.host(v, pg.Multi)
 	}
 	if pg.Multi {
 		h.dashboard(pg)
 	}
-	h.w(raw(`<div class="block" id="criteria">
+	h.limits()
+	h.w(raw(`<section class="common" id="criteria">
+<div class="block">
 <h2>判定の基準と出典</h2>
 <p class="sub">評価の基準: `), pg.PolicyTitle, "（版 ", pg.PolicyVersion, raw(`）。このレポートを作った時点の基準で判定しています。判定は、下の文書に照らした目安です。個々のシステムで移行が必要か、いつまでに行うかは、扱う情報と利用期間に応じて判断してください。</p>
 `))
@@ -186,6 +193,7 @@ func renderPage(out io.Writer, pg *page) error {
 	}
 	h.w(raw(`</table></div>
 </div>
+</section>
 </main>
 <footer>このファイルは外部の資源を読み込みません。スキャン結果は機密として扱ってください。</footer>
 </div>
@@ -255,9 +263,7 @@ func (h *htmlWriter) cards(v *view) {
 	h.item(tips["weak"], "危殆化している方式・プロトコル", s.Weak, "bad")
 	h.item(tips["legacy"], "非推奨の方式", s.Legacy, "warn")
 	h.item(tips["unknown"], "判定できない方式", s.Unknown, "unk")
-	h.item(tips["unresolved"], "受け入れる方式を特定できなかった項目", s.Unresolved, "unk")
 	h.w(raw(`</ul>
-<p class="sub">見つかったサービスすべてについて、サービス・範囲ごとに受け入れる設定になっている方式を延べで数えています。起動するよう設定されているかどうかは、各サービスの欄に示します。</p>
 </div>
 <div class="card">
 <h3>ファイルとして見つかった証明書・鍵（証明書ストアを除く）</h3>
@@ -270,41 +276,39 @@ func (h *htmlWriter) cards(v *view) {
 	h.item("", strconv.Itoa(v.ExpiringDays)+" 日以内に期限が来る証明書", s.Expiring, "warn")
 	h.item(tips["unconfirmed"], "設定からの参照を確認できなかった秘密鍵", s.Unconfirmed, "warn")
 	h.w(raw(`</ul>
-<p class="sub">期限は、スキャンした時点を基準に判定しています。</p>
 </div>
 <div class="card">
 <h3>探索した範囲</h3>
-<ul>
 `))
+	if len(v.RootList) > 0 {
+		h.w(raw(`<ul class="roots">`))
+		for _, r := range v.RootList {
+			h.w(raw(`<li class="mono">`), r, raw(`</li>`))
+		}
+		h.w(raw("</ul>\n"))
+	}
+	h.w(raw("<ul>\n"))
 	h.item("", "調べたファイル", s.Files, "")
 	h.item("", "調べたディレクトリ", s.Dirs, "")
 	h.item("", "権限がなく読めなかったもの", s.Permission, "warn")
 	h.item("", "そのほかの理由で読み飛ばしたもの", s.OtherSkips, "warn")
 	h.w(raw(`</ul>
-<p class="sub">調べるのは、決まった起点の下だけです。起点の外にあるものは、このレポートには現れません。</p>
 </div>
 </div>
 `))
 }
 
 // host は、1 ホスト分の詳細。
-func (h *htmlWriter) host(v *view) {
+func (h *htmlWriter) host(v *view, multi bool) {
 	id := func(suffix string) []any { return []any{v.H, "-", suffix} }
 	h.w(raw(`<section class="view" id="`), v.ViewID, raw(`">
 <header class="top"><div class="in">
-<h1>`), v.Host, raw(`</h1>
-<p>1 ホスト分のスキャン結果。設定から分かるのは「受け入れる設定になっている」暗号までで、実際の通信でどれが使われているかを示すものではありません。</p>
-</div></header>
-<nav class="local">
-`))
-	for _, l := range [][2]string{{"summary", "要点"}, {"services", "サービスの設定"}, {"files", "証明書と鍵"}, {"system", "OS とライブラリ"},
-		{"coverage", "探索した範囲"}, {"limits", "分からないこと"}} {
-		h.w(raw(`<a href="#`))
-		h.w(id(l[0])...)
-		h.w(raw(`">`), l[1], raw(`</a>`))
+<h1>`), v.Host)
+	if multi {
+		h.download(v)
 	}
-	h.w(raw(`
-</nav>
+	h.w(raw(`</h1>
+</div></header>
 <div class="block">
 <h2 id="`))
 	h.w(id("overview")...)
@@ -456,11 +460,29 @@ func (h *htmlWriter) host(v *view) {
 		h.w(raw("</details>\n"))
 	}
 	h.w(raw(`</div>
+</section>
+`))
+}
 
+// download は、そのホストの CBOM を保存するためのリンク（中身を埋め込む。スクリプトは使わない）。
+func (h *htmlWriter) download(v *view) {
+	if len(v.CBOM) == 0 {
+		return
+	}
+	h.w(raw(` <a class="dl" title="CBOM（CycloneDX 1.6）を保存" aria-label="CBOM（CycloneDX 1.6）を保存" download="`), v.CBOMName,
+		raw(`" href="data:application/vnd.cyclonedx+json;base64,`))
+	// base64 にした結果は、英数字と + / = だけからなるので、そのまま書き出してよい
+	enc := base64.NewEncoder(base64.StdEncoding, &h.buf)
+	enc.Write(v.CBOM)
+	enc.Close()
+	h.w(raw(`"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3v11m0 0l-4-4m4 4l4-4M5 19h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>`))
+}
+
+// limits は、このレポートでは分からないこと（どのホストにも共通。左の欄の「共通」から開く）。
+func (h *htmlWriter) limits() {
+	h.w(raw(`<section class="common" id="limits">
 <div class="block">
-<h2 id="`))
-	h.w(id("limits")...)
-	h.w(raw(`">このレポートでは分からないこと</h2>
+<h2>このレポートでは分からないこと</h2>
 <ul class="plain">
 <li>実際にネゴシエーションされている暗号。設定から分かるのは「受け入れる設定になっている」ものまでで、相手との間でどれが選ばれているかは通信を観測しないと分かりません。</li>
 <li>サービスが実際に動いているか。「有効」は起動するよう設定されているという意味で、止まっていることも、手動で動かされていることもあり得ます。</li>

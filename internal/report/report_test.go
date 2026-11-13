@@ -138,7 +138,7 @@ func TestReportIsSelfContained(t *testing.T) {
 			t.Errorf("the report contains %q", bad)
 		}
 	}
-	// リンクは、評価の根拠にした文書（https）だけ。参照元を送らない指定を付ける。
+	// リンクは、評価の根拠にした文書（https。参照元を送らない指定を付ける）と、埋め込んだ CBOM を保存するためのもの（data:。外部には出ない）だけ。
 	links := regexp.MustCompile(`<a [^>]*href="([^"]*)"[^>]*>`).FindAllStringSubmatch(html, -1)
 	if len(links) == 0 {
 		t.Error("the references are not linked")
@@ -146,6 +146,9 @@ func TestReportIsSelfContained(t *testing.T) {
 	for _, l := range links {
 		if strings.HasPrefix(l[1], "#") {
 			continue // ページ内の移動
+		}
+		if strings.HasPrefix(l[1], "data:application/vnd.cyclonedx+json;base64,") && strings.Contains(l[0], ` download="`) {
+			continue // 埋め込んだ CBOM の保存
 		}
 		if !strings.HasPrefix(l[1], "https://") || !strings.Contains(l[0], `rel="noopener noreferrer"`) {
 			t.Errorf("unexpected link %s", l[0])
