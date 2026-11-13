@@ -26,7 +26,7 @@ type Result struct {
 	Suites    []string // サーバーで既定で有効な暗号スイート（JDK の並び）
 	Supported []string // アプリが明示的に有効にできる暗号スイート（無効にされたものを除く。プロトコルによる絞り込みはしない）
 	Groups13  []string // TLS 1.3 で受け入れる鍵交換のグループ（本体での正式な名前）
-	Groups12  []string // TLS 1.2 の ECDHE で受け入れる鍵交換のグループ
+	Groups12  []string // TLS 1.2 以下の ECDHE で受け入れる鍵交換のグループ
 	// 空でなければ、鍵交換のグループは求められない（理由）。このとき Groups13 と Groups12 は空
 	GroupsBlocker string
 }
@@ -294,9 +294,6 @@ func (c *Constraints) groups(named string, on map[string]bool, old bool) (g13, g
 	if c.blocker != "" {
 		return nil, nil, c.blocker
 	}
-	if old && !on["TLSv1.2"] {
-		return nil, nil, "groups have not been measured with TLS 1.2 disabled and an older protocol enabled"
-	}
 	var want map[string]bool
 	if strings.TrimSpace(named) != "" {
 		known := map[string]bool{}
@@ -338,7 +335,8 @@ func (c *Constraints) groups(named string, on map[string]bool, old bool) (g13, g
 		if g.TLS13 && on["TLSv1.3"] {
 			g13 = append(g13, g.Name)
 		}
-		if g.TLS12 && on["TLSv1.2"] {
+		// TLS 1.2 以下の鍵交換（ECDHE）のグループは、TLS 1.2 以下のどれかが有効なら受け入れる（実測）
+		if g.TLS12 && old {
 			g12 = append(g12, g.Name)
 		}
 	}
