@@ -151,15 +151,72 @@ func (rs *RuleSet) Policy(id string) (*Policy, bool) {
 
 // SuiteAttributes は、暗号スイートの名前から属性（鍵交換、認証、暗号化、MAC）を返す。
 // 同じ名前のスイートは、どの版の対応表でも同じ属性を持つ（テストで確かめている）。
+// 名前は、OpenSSL での名前でも、標準名（TLS_ECDHE_RSA_WITH_...。Java は古いスイートを SSL_ で始まる名前で呼ぶ）でもよい。
+// 対応表にない標準名は、名前の部品から求める（StandardSuiteAttributes）。
 func (rs *RuleSet) SuiteAttributes(name string) (CipherSuite, bool) {
+	if name == "" {
+		return CipherSuite{}, false
+	}
+	std := name
+	if strings.HasPrefix(name, "SSL_") {
+		std = "TLS_" + name[4:]
+	}
+	var byStandard *CipherSuite
 	for _, tb := range rs.CipherTables {
 		for _, list := range [][]CipherSuite{tb.Suites, tb.TLS13} {
-			for _, s := range list {
+			for i, s := range list {
 				if s.Name == name {
 					return s, true
+				}
+				if byStandard == nil && s.Standard == std {
+					byStandard = &list[i]
 				}
 			}
 		}
 	}
-	return CipherSuite{}, false
+	if byStandard != nil {
+		return *byStandard, true
+	}
+	return StandardSuiteAttributes(name)
+}
+
+// 標準名の部品 → 属性（対応表と同じ語彙）。
+var (
+	stdKx = map[string][2]string{ // 鍵交換と認証
+		"RSA": {"RSA", "RSA"}, "DHE_RSA": {"DH", "RSA"}, "DHE_DSS": {"DH", "DSS"}, "DH_anon": {"DH", "None"},
+		"ECDHE_RSA": {"ECDH", "RSA"}, "ECDHE_ECDSA": {"ECDH", "ECDSA"}, "ECDH_anon": {"ECDH", "None"},
+		"ECDH_RSA": {"ECDH/RSA", "ECDH"}, "ECDH_ECDSA": {"ECDH/ECDSA", "ECDH"},
+	}
+	stdEnc = map[string]string{
+		"AES_128_CBC": "AES(128)", "AES_256_CBC": "AES(256)", "AES_128_GCM": "AESGCM(128)", "AES_256_GCM": "AESGCM(256)",
+		"CHACHA20_POLY1305": "CHACHA20/POLY1305(256)", "3DES_EDE_CBC": "3DES(168)", "RC4_128": "RC4(128)", "DES_CBC": "DES(56)", "NULL": "None",
+	}
+	stdMac = map[string]string{"SHA": "SHA1", "SHA256": "SHA256", "SHA384": "SHA384", "MD5": "MD5"}
+)
+
+// StandardSuiteAttributes は、標準名（TLS_<鍵交換>_WITH_<暗号>_<MAC>）の部品から属性を求める。
+// 求められるのは、部品がすべて上の表にあるスイートだけ。語彙は対応表と同じで、対応表にあるスイートについては
+// 対応表の属性と一致する（テストで全スイートを突き合わせている）。
+func StandardSuiteAttributes(name string) (CipherSuite, bool) {
+	if !strings.HasPrefix(name, "TLS_") && !strings.HasPrefix(name, "SSL_") {
+		return CipherSuite{}, false
+	}
+	kx, rest, ok := strings.Cut(name[4:], "_WITH_")
+	if !ok {
+		return CipherSuite{}, false
+	}
+	i := strings.LastIndexByte(rest, '_')
+	if i < 0 {
+		return CipherSuite{}, false
+	}
+	k, ok1 := stdKx[kx]
+	enc, ok2 := stdEnc[rest[:i]]
+	mac, ok3 := stdMac[rest[i+1:]]
+	if !ok1 || !ok2 || !ok3 {
+		return CipherSuite{}, false
+	}
+	if strings.HasPrefix(enc, "AESGCM") || strings.HasPrefix(enc, "CHACHA20") {
+		mac = "AEAD"
+	}
+	return CipherSuite{Name: name, Standard: "TLS_" + name[4:], Kx: k[0], Au: k[1], Enc: enc, Mac: mac}, true
 }
