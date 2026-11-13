@@ -1399,7 +1399,8 @@ PostgreSQL、Dovecot、BIND、OpenVPN、MariaDB / MySQL、OpenDKIM、OpenLDAP �
 | HAProxy | 済 | 8 ディストリ × 7 場面（1.6 は 5 場面）の 54 場面すべてで、kagiya の実効値と実際に受け入れたスイートが一致 |
 | stunnel | 済 | 8 ディストリの 49 場面すべてで一致（Ubuntu 16.04 の版は TLS 1.3 の指定を受け付けないので、その場面はない） |
 | Postfix（受信側の smtpd） | 済 | 8 ディストリ × 12 場面の 96 の待ち受けすべてで、暗号スイート・TLS 1.3 のスイート・鍵交換のグループが実測と一致（グループは、対応表のない OpenSSL 1.0.2 の 12 件を除く） |
-| PostgreSQL ほか（UBI にないもの） | 未 | RHEL 系の実測をどのイメージで行うかを決める必要がある |
+| PostgreSQL | 済 | 7 ディストリ（AlmaLinux 8 / 9 / 10、Ubuntu 20.04 / 22.04 / 24.04、Debian 13。PostgreSQL 10〜17）の 55 場面すべてで一致 |
+| Dovecot、BIND、OpenVPN、MariaDB / MySQL ほか | 未 | RHEL 系は AlmaLinux の公式イメージで測る（2026-11-12 に決定） |
 
 HAProxy の測定: 各イメージの haproxy を実際に起動し、サーバー名を付けたハンドシェイクで受け入れるスイートを数え上げた。
 場面は、暗号の指定なし、全体の指定（`ssl-default-bind-ciphers`）の引き継ぎと `bind` の行での書き換え、パッケージの設定ファイルが全体に書いている値、
@@ -1445,6 +1446,25 @@ Postfix で分かったこと:
 - **TLS 1.3 のスイートは Postfix が設定しない。** システムの設定（RHEL の暗号ポリシーの 4 個）、なければライブラリの既定（3 個）になる。
 - **証明書なし（`smtpd_tls_cert_file = none`）では、匿名のスイートだけになり、TLS 1.3 は使えない。** TLS 1.3 専用のグループ（有限体 DH）も使われない。
 - **ディストリが配る設定:** RHEL 8 / 9 / 10 と Ubuntu 16.04〜24.04 は、導入しただけで TLS が有効（証明書の指定と、STARTTLS が任意の設定）。Debian 13 は TLS の指定がない。
+
+PostgreSQL の測定（2026-11-13）: RHEL 系は UBI のリポジトリにサーバーのパッケージがないため、AlmaLinux の公式イメージ（8.10、9.8、10.2）で測り、
+出典にそのイメージを記録した。AlmaLinux 9 / 10 の OpenSSL は UBI と版が違う（3.5.8-2）ので、暗号スイートとグループの対応表も AlmaLinux で採って足した
+（AlmaLinux 8 の OpenSSL は UBI 8 と同じ版）。既定値は、起動したサーバー自身の答え（`pg_settings` の `boot_val`）から採り、
+設定ファイルの読み方（後勝ち、`include`、`include_dir`、`postgresql.auto.conf`、引用符の書き方）も、サーバー自身の答えを正解にした。
+接続は `openssl s_client -starttls postgres`。
+
+PostgreSQL で分かったこと:
+
+- **既定の暗号文字列は、10 から 17 まで同じ**（`HIGH:MEDIUM:+3DES:!aNULL`）。セキュリティレベルと TLS 1.3 のスイートは、システムの設定に従う。
+- **鍵交換のグループは `ssl_ecdh_curve` の 1 つだけ（既定は prime256v1）で、TLS 1.3 でもそのグループだけになる。** X25519 も受け入れず、
+  OpenSSL 3.5 の上でも耐量子のハイブリッドを受け入れない。複数のグループを書ける `ssl_groups` は PostgreSQL 18 からで、今回の範囲には 18 がなく測れていない。
+- **DH パラメータの指定がなくても、組み込みのパラメータで DHE を使える。**
+- **ALTER SYSTEM で書かれた値（データディレクトリの `postgresql.auto.conf`）は、`postgresql.conf` より優先される。** 設定ファイルだけを見ると見落とす。
+- **ディストリが配る設定:** Debian・Ubuntu は、導入しただけで `ssl = on`（自己署名の証明書）。RHEL 系は `ssl` の指定がなく、TLS は無効。
+- Ubuntu 16.04（PostgreSQL 9.5、OpenSSL 1.0.2）は、試す側の `openssl` が PostgreSQL の接続開始の手順に対応しておらず、測れていない（既定値表がなく「不明」になる）。
+
+差分テストで分かった、既知の限界の現れ方: 暗号文字列が IDEA のスイート（TLS 1.1 以下でしか使えない）を含み、サーバーが TLS 1.2 未満を受け付けない場合、
+kagiya の一覧にはそのスイートが残る（AlmaLinux 8 で 1 個）。一覧は「いずれかの版が有効なら受け入れ得るもの」で、プロトコルの版による絞り込みはしていないため。
 
 差分テストで見つかった不具合（Postfix）: 証明書のないサービスについて、kagiya が TLS 1.3 専用のグループ（ffdhe）も受け入れると答えていた（3 件）。
 測定側も、証明書を前提にしたスイートでしかグループを試しておらず、最初は実測できていなかった。匿名の ECDH でも試すように測定を直したうえで、実装を直した。
