@@ -43,6 +43,7 @@ type RuleSet struct {
 	CipherTables []*CipherTable
 	Policies     []*Policy
 	GroupTables  []*GroupTable
+	JDKTables    []*JDKTable
 
 	byAlias     map[string]int
 	storePaths  map[string]string // パス → ストア ID
@@ -219,6 +220,16 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 			}
 			for _, t := range gf.GroupTables {
 				if err := rs.addGroupTable(t, ids); err != nil {
+					return nil, fmt.Errorf("%s: %w", f.Path, err)
+				}
+			}
+		case strings.HasPrefix(f.Path, "java/") && strings.HasSuffix(f.Path, ".yaml") && strings.Count(f.Path, "/") == 1:
+			var jf jdkFile
+			if err := decodeStrict(f.Data, &jf); err != nil {
+				return nil, fmt.Errorf("%s: %w", f.Path, err)
+			}
+			for _, t := range jf.JDKTables {
+				if err := rs.addJDKTable(t, ids); err != nil {
 					return nil, fmt.Errorf("%s: %w", f.Path, err)
 				}
 			}
