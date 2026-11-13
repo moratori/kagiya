@@ -189,3 +189,27 @@ func TestAllowed(t *testing.T) {
 		t.Error("a JDK without wildcard support must ignore TLS_RSA_*")
 	}
 }
+
+// TLS 1.2 を無効にしても、それより古いプロトコルが有効なら、ECDHE のグループは受け入れ続ける（古いプロトコルでの鍵交換に使われる）。
+// TLS 1.2 以下がすべて無効なら、TLS 1.2 以下のグループはなくなる。
+// 検証ラボで、Temurin 8 / 11 / 17 / 21 / 25（開発元の版はディストリの表と同じ）にプロトコルを無効にした設定を与え、ハンドシェイクで確かめた。
+func TestGroupsFollowOlderProtocols(t *testing.T) {
+	tb := table(t, "openjdk-21-jre-headless", "21.0.13+9-1~deb13u2")
+	base := Resolve(tb, Input{})
+	for disabled, want := range map[string][2]string{
+		"TLSv1.2":                 {sorted(base.Groups13), sorted(base.Groups12)},
+		"TLSv1.2, TLSv1.3":        {"-", sorted(base.Groups12)},
+		"TLSv1, TLSv1.1, TLSv1.2": {sorted(base.Groups13), "-"},
+		"TLSv1.3":                 {"-", sorted(base.Groups12)},
+	} {
+		r := Resolve(tb, Input{Disabled: disabled})
+		if r.GroupsBlocker != "" || sorted(r.Groups13) != want[0] || sorted(r.Groups12) != want[1] {
+			t.Errorf("%s: blocker=%q TLS 1.3 groups=%s TLS 1.2-and-below groups=%s, want %s / %s", disabled, r.GroupsBlocker, sorted(r.Groups13), sorted(r.Groups12), want[0], want[1])
+		}
+	}
+	// Java 8 は SSLv3 も既定で持つので、TLS 1.0〜1.2 を無効にしても、SSLv3 が残る限りグループを受け入れる
+	old := table(t, "openjdk-8-jre-headless", "8u512-b09~us1-0ubuntu1~24.04.1")
+	if r := Resolve(old, Input{Disabled: "TLSv1, TLSv1.1, TLSv1.2"}); r.GroupsBlocker != "" || sorted(r.Groups12) != "P-256,P-384,P-521" {
+		t.Errorf("Java 8 with only SSLv3 below TLS 1.3: %+v", r)
+	}
+}
