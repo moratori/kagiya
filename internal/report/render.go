@@ -249,7 +249,7 @@ func (h *htmlWriter) cards(v *view) {
 	s, tips := v.Summary, v.Tips
 	h.w(raw(`<div class="cards">
 <div class="card">
-<h3>サービスの設定（`), s.Services, raw(` サービス）</h3>
+<h3>サーバアプリで用いる暗号の状況<span class="nowrap">（`), s.Services, raw(` アプリ）</span></h3>
 <ul>
 <li>`))
 	h.row(tips["quantum"], "量子計算機に弱い方式", s.Quantum, "bad")
