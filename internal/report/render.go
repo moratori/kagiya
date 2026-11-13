@@ -143,8 +143,8 @@ func renderPage(out io.Writer, pg *page) error {
 	} else {
 		for _, v := range pg.Hosts {
 			h.w(raw(`<div class="grp">`), v.Host, raw("</div>\n"))
-			for _, l := range [][2]string{{"overview", "スキャンの概要"}, {"summary", "要点"}, {"services", "サービスの設定"}, {"files", "証明書と鍵"},
-				{"system", "OS とライブラリ"}, {"coverage", "探索した範囲"}} {
+			for _, l := range [][2]string{{"overview", "スキャンの概要"}, {"summary", "要点"}, {"services", "サービスの設定"}, {"files", "ファイルとして見つかった証明書・鍵"},
+				{"stores", "証明書ストア"}, {"system", "OS とライブラリ"}, {"coverage", "読み飛ばしたもの"}} {
 				h.w(raw(`<a href="#`), v.H, "-", l[0], raw(`">`), l[1], raw("</a>\n"))
 			}
 		}
@@ -209,7 +209,6 @@ func (h *htmlWriter) dashboard(pg *page) {
 	h.w(raw(`<section class="dashboard" id="dashboard">
 <header class="top"><div class="in">
 <h1>全体の集計（`), len(pg.Hosts), raw(` ホスト）</h1>
-<p>ホストごとのスキャン結果を足し合わせたものです。ホストの名前を選ぶと、そのホストの詳細に移ります。</p>
 </div></header>
 <div class="block">
 <h2>要点</h2>
@@ -266,7 +265,7 @@ func (h *htmlWriter) cards(v *view) {
 	h.w(raw(`</ul>
 </div>
 <div class="card">
-<h3>ファイルとして見つかった証明書・鍵（証明書ストアを除く）</h3>
+<h3>ファイルとして見つかった証明書・鍵</h3>
 <ul>
 `))
 	h.item(tips["quantum"], "量子計算機に弱い", s.FileQuantum, "bad")
@@ -275,6 +274,21 @@ func (h *htmlWriter) cards(v *view) {
 	h.item("", "期限切れの証明書", s.Expired, "bad")
 	h.item("", strconv.Itoa(v.ExpiringDays)+" 日以内に期限が来る証明書", s.Expiring, "warn")
 	h.item(tips["unconfirmed"], "設定からの参照を確認できなかった秘密鍵", s.Unconfirmed, "warn")
+	h.w(raw(`</ul>
+</div>
+<div class="card">
+<h3>証明書ストア</h3>
+<ul>
+`))
+	// ストアごとの件数（同じ CA 証明書が複数のストアに入っているので、ストアをまたいで足さない）
+	for _, sc := range v.StoreCounts {
+		h.item("", sc.Name, sc.Count, "")
+	}
+	if len(v.StoreCounts) == 0 {
+		h.w(raw("<li>見つかりませんでした</li>\n"))
+	}
+	h.item("", "期限切れの証明書", s.StoreExpired, "bad")
+	h.item("", strconv.Itoa(v.ExpiringDays)+" 日以内に期限が来る証明書", s.StoreExpiring, "warn")
 	h.w(raw(`</ul>
 </div>
 <div class="card">
@@ -377,27 +391,27 @@ func (h *htmlWriter) host(v *view, multi bool) {
 <div class="block">
 <h2 id="`))
 	h.w(id("files")...)
-	h.w(raw("\">証明書と鍵</h2>\n"))
-	if len(v.Unconfirmed) > 0 {
-		h.w(raw(`<h3>設定からの参照を確認できなかった秘密鍵（`), len(v.Unconfirmed), raw(` 件）</h3>
-<div class="alert">このツールが読んだ設定（対応しているサービスの設定ファイル）からは、参照が見つからなかった秘密鍵です。<strong>使われていないことを示すものではありません。</strong>このツールが対応していないアプリや、調べていない場所から使われている可能性があります。この表示だけを根拠に削除しないでください。</div>
-`))
-		h.assets(v.Unconfirmed)
-	}
-	h.w(raw(`<h3>ファイルとして見つかったもの（`), len(v.Files), raw(" 件）</h3>\n"))
+	h.w(raw(`">ファイルとして見つかった証明書・鍵（`), len(v.Files), raw(" 件）</h2>\n"))
 	if len(v.Files) > 0 {
 		h.assets(v.Files)
 	} else {
 		h.w(raw(`<p>証明書ストアの外では、証明書や鍵は見つかりませんでした。</p>`))
 	}
-	h.w(raw("\n"))
+	h.w(raw(`
+</div>
+
+<div class="block">
+<h2 id="`))
+	h.w(id("stores")...)
+	h.w(raw("\">証明書ストア</h2>\n"))
 	if len(v.Stores) > 0 {
-		h.w(raw(`<h3>証明書ストア</h3>
-<p class="sub">OS や実行環境が信頼する CA 証明書の置き場です。件数が多いので畳んでいます。</p>
+		h.w(raw(`<p class="sub">OS や実行環境が信頼する CA 証明書の置き場です。件数が多いので畳んでいます。</p>
 `))
 		for i := range v.Stores {
 			h.store(&v.Stores[i])
 		}
+	} else {
+		h.w(raw("<p>証明書ストアは見つかりませんでした。</p>\n"))
 	}
 	h.w(raw(`</div>
 
@@ -426,18 +440,8 @@ func (h *htmlWriter) host(v *view, multi bool) {
 <div class="block">
 <h2 id="`))
 	h.w(id("coverage")...)
-	h.w(raw(`">探索した範囲と、読み飛ばしたもの</h2>
-<p>探索の起点: <span class="mono">`))
-	if v.Roots != "" {
-		h.w(v.Roots)
-	} else {
-		h.w("（記録なし）")
-	}
-	c := v.Coverage
-	h.w(raw(`</span></p>
-<p class="sub">この起点の外は調べていません（例: 利用者のホームディレクトリ、アプリケーションが独自に使う場所）。起点の下で調べたのは、ファイル `), c.FilesExamined,
-		"、ディレクトリ ", c.DirsExamined, " です（辿らなかったシンボリックリンク ", c.SymlinksIgnored, "、開かなかった特殊ファイル ", c.SpecialIgnored, raw(`）。</p>
-<h3>起点の下で読み飛ばしたもの</h3>
+	h.w(raw(`">読み飛ばしたもの</h2>
+<p class="sub">探索の起点の下で、読めなかったものと、読まなかったものです（辿らなかったシンボリックリンク `), v.Coverage.SymlinksIgnored, "、開かなかった特殊ファイル ", v.Coverage.SpecialIgnored, raw(`）。</p>
 `))
 	if len(v.SkippedBy) > 0 {
 		h.w(raw(`<div class="tablewrap"><table><tr><th>理由</th><th>件数</th></tr>
@@ -487,7 +491,7 @@ func (h *htmlWriter) limits() {
 <li>実際にネゴシエーションされている暗号。設定から分かるのは「受け入れる設定になっている」ものまでで、相手との間でどれが選ばれているかは通信を観測しないと分かりません。</li>
 <li>サービスが実際に動いているか。「有効」は起動するよう設定されているという意味で、止まっていることも、手動で動かされていることもあり得ます。</li>
 <li>どのプロトコルの版（TLS 1.0〜1.3）が実際に通るか。プロトコルは設定に書かれた値を示すにとどめています。暗号スイートは、いずれかの版が有効なら受け入れ得るものの一覧です。</li>
-<li>このツールが対応していないアプリケーションの設定と、そこからの鍵・証明書の利用。対応しているのは一部のサーバーソフトウェアだけです。</li>
+<li>このツールが対応していないアプリケーションの設定と、そこからの鍵・証明書の利用。対応しているのは一部のサーバーソフトウェアだけです。設定からの参照が見つからない鍵や証明書は、使われていないことを意味しません。この表示だけを根拠に削除しないでください。</li>
 <li>クライアントとしての利用。定期実行されるスクリプトなどからの暗号の利用は、サービスとしては見えません。</li>
 <li>探索の起点の外にあるもの、ネットワーク越しのファイルシステム上のもの、権限がなく読めなかったもの、パスワードで保護されたキーストアの中身。</li>
 <li>証明書の信頼性。署名の検証、信頼の連鎖、失効は確認していません。自己署名のルート証明書の署名方式は、判定には出ますが、安全性には影響しません。</li>

@@ -104,6 +104,12 @@ type storeView struct {
 
 type kv struct{ Key, Value, Where string }
 
+// storeCount は、証明書ストア 1 つの件数。
+type storeCount struct {
+	Name  string
+	Count int
+}
+
 type refView struct {
 	ID, Title, URL, Note string
 }
@@ -128,6 +134,9 @@ type summaryView struct {
 	Expiring    int
 	Unconfirmed int // 設定からの参照を確認できなかった秘密鍵
 
+	StoreExpired  int // 証明書ストアの中の、期限切れの証明書
+	StoreExpiring int
+
 	Files      int
 	Dirs       int
 	Permission int // 権限がなく読めなかったもの
@@ -151,6 +160,8 @@ func (s *summaryView) add(o summaryView) {
 	s.Expired += o.Expired
 	s.Expiring += o.Expiring
 	s.Unconfirmed += o.Unconfirmed
+	s.StoreExpired += o.StoreExpired
+	s.StoreExpiring += o.StoreExpiring
 	s.Files += o.Files
 	s.Dirs += o.Dirs
 	s.Permission += o.Permission
@@ -182,6 +193,7 @@ type view struct {
 	Unconfirmed []assetRow
 	Files       []assetRow
 	Stores      []storeView
+	StoreCounts []storeCount // 証明書ストアごとの件数（要点に示す）
 	OSSettings  []kv
 	Packages    []kv
 	Components  []kv

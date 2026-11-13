@@ -43,7 +43,7 @@ p { margin: 6px 0; }
 .meta dt { color: var(--sub); }
 .meta dd { margin: 0; overflow-wrap: anywhere; }
 .alert { border: 2px solid var(--bad); background: var(--badbg); color: var(--fg); padding: 12px 16px; border-radius: 8px; margin: 16px 0; font-size: 15px; }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin: 12px 0 4px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 12px 0 4px; }
 .card { border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: 8px; padding: 12px 16px; background: var(--panel); }
 .card h3 { margin: 0 0 8px; font-size: 14px; }
 .card ul { margin: 0 0 6px; padding: 0; list-style: none; font-size: 14px; }

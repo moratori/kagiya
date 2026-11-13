@@ -124,6 +124,12 @@ func (b *builder) files(v *view) {
 			g.Count++
 			g.Rows = append(g.Rows, row)
 			counts[o.Store]++
+			switch row.ExpiryState {
+			case expiryExpired:
+				v.Summary.StoreExpired++
+			case expiryExpiring:
+				v.Summary.StoreExpiring++
+			}
 			continue
 		}
 		level := ""
@@ -179,6 +185,7 @@ func (b *builder) files(v *view) {
 			return sv.Groups[i].Signature < sv.Groups[j].Signature
 		})
 		v.Stores = append(v.Stores, sv)
+		v.StoreCounts = append(v.StoreCounts, storeCount{Name: name, Count: counts[name]})
 	}
 }
 

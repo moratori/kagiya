@@ -140,6 +140,17 @@ func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy
 		}
 	}
 	sort.Strings(pg.TotalView.RootList)
+	// 証明書ストアの件数は、ストアごとに、ホストをまたいで足す
+	storeTotal := map[string]int{}
+	for _, v := range pg.Hosts {
+		for _, sc := range v.StoreCounts {
+			storeTotal[sc.Name] += sc.Count
+		}
+	}
+	for name, n := range storeTotal {
+		pg.TotalView.StoreCounts = append(pg.TotalView.StoreCounts, storeCount{Name: name, Count: n})
+	}
+	sort.Slice(pg.TotalView.StoreCounts, func(i, j int) bool { return pg.TotalView.StoreCounts[i].Name < pg.TotalView.StoreCounts[j].Name })
 	// 判定の理由として挙げた規則と、出典
 	titles := map[string]string{}
 	for _, r := range p.References {
