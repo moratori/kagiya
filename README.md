@@ -62,7 +62,7 @@ sha256sum -c SHA256SUMS_v0.1.0.txt --ignore-missing
 | ソフトウェア | 求める項目 |
 |---|---|
 | OpenSSH（sshd） | 鍵交換、ホスト鍵、暗号、MAC など |
-| nginx、Apache httpd、HAProxy、stunnel、Postfix（受信側）、PostgreSQL、Dovecot | 暗号スイート（TLS 1.2 以下、TLS 1.3）、鍵交換のグループ |
+| nginx、Apache httpd、HAProxy、stunnel、Postfix（受信側）、PostgreSQL、Dovecot、MariaDB、MySQL | 暗号スイート（TLS 1.2 以下、TLS 1.3）、鍵交換のグループ |
 
 測定した表にない版では、推測で埋めずに「不明」とします。
 
