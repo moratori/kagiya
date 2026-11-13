@@ -49,7 +49,7 @@ func TestLoadSyntax(t *testing.T) {
 	if e, _ := f.Get("jdk.tls.disabledAlgorithms"); e.File != sec || e.Line != 5 {
 		t.Errorf("location = %s:%d", e.File, e.Line)
 	}
-	if e, _ := f.Get("twice"); e.Line != 13 {
+	if e, _ := f.Get("twice"); e.Line != 14 {
 		t.Errorf("the later line must win: line %d", e.Line)
 	}
 	if _, ok := f.Get("no.such"); ok {
