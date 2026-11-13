@@ -122,3 +122,15 @@ func TestReportServiceBodyHasSideMargins(t *testing.T) {
 		t.Error("the rule must come after the scope block rule")
 	}
 }
+
+// 証明書ストアの欄を開いたときも、中身の左右に余白を取る。
+func TestReportStoreBodyHasSideMargins(t *testing.T) {
+	html := render(t, sample())
+	m := regexp.MustCompile(`details\.store > \*:not\(summary\) \{([^}]*)\}`).FindStringSubmatch(html)
+	if m == nil || !regexp.MustCompile(`margin-left: (1[6-9]|2[0-9])px`).MatchString(m[1]) || !regexp.MustCompile(`margin-right: (1[6-9]|2[0-9])px`).MatchString(m[1]) {
+		t.Errorf("no side margins for the body of a store: %v", m)
+	}
+	if !regexp.MustCompile(`(?s)<details class="store">\s*<summary>[^<]*system-trust`).MatchString(html) {
+		t.Error("the store section must carry the class the rule applies to")
+	}
+}
