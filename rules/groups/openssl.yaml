@@ -215,3 +215,45 @@ group_tables:
       - {name: MLKEM512, tls13: true, tls12: false, level: 3}
       - {name: MLKEM768, aliases: "mlkem768", tls13: true, tls12: false, level: 4}
       - {name: MLKEM1024, tls13: true, tls12: false, level: 5}
+  - library: openssl
+    upstream: "3.5.8"
+    builds:
+      - package: openssl-libs
+        version: "3.5.8-2.el9_8"
+        source:
+          image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+          os: "AlmaLinux 9.8 (Olive Jaguar)"
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+      - package: openssl-libs
+        version: "3.5.8-2.el10_2.alma.1"
+        source:
+          image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
+          os: "AlmaLinux 10.2 (Lavender Lion)"
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+    syntax: extended
+    measured_levels: 5
+    groups:
+      - {name: X25519MLKEM768, tls13: true, tls12: false, level: 4, default: true}
+      - {name: X25519, aliases: "x25519", tls13: true, tls12: true, level: 3, default: true}
+      - {name: P-256, aliases: "prime256v1 secp256r1", tls13: true, tls12: true, level: 3, default: true}
+      - {name: X448, aliases: "x448", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-384, aliases: "secp384r1", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-521, aliases: "secp521r1", tls13: true, tls12: true, level: 5, default: true}
+      - {name: ffdhe2048, tls13: true, tls12: false, level: 2, default: true}
+      - {name: ffdhe3072, tls13: true, tls12: false, level: 3, default: true}
+      - {name: P-224, aliases: "secp224r1", tls13: false, tls12: true}
+      - {name: secp256k1, tls13: false, tls12: true}
+      - {name: brainpoolP256r1, tls13: false, tls12: true}
+      - {name: brainpoolP384r1, tls13: false, tls12: true}
+      - {name: brainpoolP512r1, tls13: false, tls12: true}
+      - {name: brainpoolP256r1tls13, tls13: true, tls12: false, level: 3}
+      - {name: brainpoolP384r1tls13, tls13: true, tls12: false, level: 4}
+      - {name: brainpoolP512r1tls13, tls13: true, tls12: false, level: 5}
+      - {name: ffdhe4096, tls13: true, tls12: false, level: 3}
+      - {name: ffdhe6144, tls13: true, tls12: false, level: 3}
+      - {name: ffdhe8192, tls13: true, tls12: false, level: 4}
+      - {name: SecP256r1MLKEM768, tls13: true, tls12: false, level: 4}
+      - {name: SecP384r1MLKEM1024, tls13: true, tls12: false, level: 5}
+      - {name: MLKEM512, tls13: true, tls12: false, level: 3}
+      - {name: MLKEM768, aliases: "mlkem768", tls13: true, tls12: false, level: 4}
+      - {name: MLKEM1024, tls13: true, tls12: false, level: 5}
