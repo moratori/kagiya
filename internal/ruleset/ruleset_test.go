@@ -1024,3 +1024,57 @@ func TestBuiltinJDKTables(t *testing.T) {
 		}
 	}
 }
+
+// 暗号スイートの属性は、標準名（TLS_ECDHE_RSA_WITH_...。Java の設定や結果に出る名前）からも引ける。
+// 対応表にない標準名（OpenSSL が持たないスイート）は、名前の部品から求める。名前から求めた属性は、
+// 対応表にあるスイートについては対応表の属性と一致する（語彙がずれていないことを、全スイートで確かめる）。
+func TestSuiteAttributesByStandardName(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	same := func(a, b CipherSuite) bool { return a.Kx == b.Kx && a.Au == b.Au && a.Enc == b.Enc && a.Mac == b.Mac }
+	for std, openssl := range map[string]string{
+		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256": "ECDHE-RSA-AES128-GCM-SHA256",
+		"SSL_RSA_WITH_3DES_EDE_CBC_SHA":         "DES-CBC3-SHA", // Java は、古いスイートを SSL_ で始まる名前で呼ぶ
+		"TLS_AES_256_GCM_SHA384":                "TLS_AES_256_GCM_SHA384",
+	} {
+		a, ok := rs.SuiteAttributes(std)
+		b, ok2 := rs.SuiteAttributes(openssl)
+		if !ok || !ok2 || !same(a, b) {
+			t.Errorf("%s: %+v (found %v), want the attributes of %s: %+v", std, a, ok, openssl, b)
+		}
+	}
+	for name, want := range map[string]CipherSuite{
+		"TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256": {Kx: "ECDH/ECDSA", Au: "ECDH", Enc: "AESGCM(128)", Mac: "AEAD"},
+		"TLS_ECDH_RSA_WITH_AES_256_CBC_SHA":      {Kx: "ECDH/RSA", Au: "ECDH", Enc: "AES(256)", Mac: "SHA1"},
+		"SSL_RSA_WITH_RC4_128_MD5":               {Kx: "RSA", Au: "RSA", Enc: "RC4(128)", Mac: "MD5"},
+		"SSL_DH_anon_WITH_DES_CBC_SHA":           {Kx: "DH", Au: "None", Enc: "DES(56)", Mac: "SHA1"},
+	} {
+		if got, ok := rs.SuiteAttributes(name); !ok || !same(got, want) {
+			t.Errorf("%s: %+v (found %v), want %+v", name, got, ok, want)
+		}
+	}
+	for _, name := range []string{"TLS_KRB5_WITH_RC4_128_SHA", "TLS_EMPTY_RENEGOTIATION_INFO_SCSV", "TLS_NO_SUCH_WITH_AES_128_GCM_SHA256", "TLS_RSA_WITH_UNKNOWN_SHA", "", "TLS_"} {
+		if a, ok := rs.SuiteAttributes(name); ok {
+			t.Errorf("%q must not be found: %+v", name, a)
+		}
+	}
+	// 名前から求めた属性と、対応表の属性の突き合わせ
+	n := 0
+	for _, tb := range rs.CipherTables {
+		for _, s := range tb.Suites {
+			d, ok := StandardSuiteAttributes(s.Standard)
+			if !ok {
+				continue
+			}
+			n++
+			if !same(d, s) {
+				t.Errorf("%s %s (%s): derived %s/%s/%s/%s, table %s/%s/%s/%s", tb.Upstream, s.Standard, s.Name, d.Kx, d.Au, d.Enc, d.Mac, s.Kx, s.Au, s.Enc, s.Mac)
+			}
+		}
+	}
+	if n < 300 {
+		t.Errorf("too few suites compared: %d", n)
+	}
+}
