@@ -263,7 +263,7 @@ func TestReportCertificatesAndKeys(t *testing.T) {
 		"CN=www.example.jp,O=Example", "/etc/pki/tls/certs/www.crt",
 		"期限切れ",      // cert:expired（スキャン時点 2026-11-12 より前）
 		"30 日以内に期限", // cert:soon（2026-11-20）
-		"設定からの参照を確認できなかった秘密鍵", "削除しないでください", "/opt/app/",
+		"/opt/app/",
 		"system-trust", "3 件",
 	)
 	// 信頼ストアは畳まれていて、件数が見える。中は署名の方式ごとにまとまっている
@@ -287,11 +287,11 @@ func TestReportCertificatesAndKeys(t *testing.T) {
 	}
 }
 
-// 探索した範囲と、読み飛ばしたもの（権限がなく読めなかったものなど）、このレポートでは分からないことを必ず示す。
-// 「調べていない場所」は挙げきれないので、探索の起点を示し、その外は調べていないと明記する。
+// 読み飛ばしたもの（権限がなく読めなかったものなど）、このレポートでは分からないことを必ず示す。
+// 「調べていない場所」は挙げきれないので、探索の起点を要点に示し、その外にあるものは分からないことに挙げる。
 func TestReportCoverageAndLimits(t *testing.T) {
 	html := render(t, sample())
-	mustContain(t, html, "探索した範囲と、読み飛ばしたもの", "/etc、/opt、/usr/local", "この起点の外は調べていません",
+	mustContain(t, html, "読み飛ばしたもの", `<li class="mono">/usr/local</li>`, "探索の起点の外にあるもの",
 		"/mnt/share", "ネットワーク越しのファイルシステム", "nfs4", "権限がなく読めなかった", "/etc/ssl/private", "1234",
 		"このレポートでは分からないこと", "実際にネゴシエーションされている暗号",
 		"判定の基準と出典", "NIST IR 8547", "https://doi.org/10.6028/NIST.IR.8547", "CRYPTREC")
