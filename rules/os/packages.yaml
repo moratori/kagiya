@@ -55,14 +55,17 @@ packages:
         note: "haproxy（/usr/sbin/haproxy を含む）、stunnel4（/usr/bin/stunnel4 を含む）。RHEL 系のパッケージ名は stunnel"
 
   - role: mail-server
-    names: ["postfix"]
+    names: ["postfix", "dovecot", "dovecot-core"]
     sources:
       - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
         os: "Red Hat Enterprise Linux 9.9 (Plow)"
         note: "postfix（/usr/sbin/postfix、/usr/libexec/postfix/smtpd を含む）"
       - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
         os: "Debian GNU/Linux 13 (trixie)"
-        note: "postfix（/usr/sbin/postfix、/usr/lib/postfix/sbin/smtpd を含む）"
+        note: "postfix（/usr/sbin/postfix、/usr/lib/postfix/sbin/smtpd を含む）。dovecot-core（/usr/sbin/dovecot を含む）"
+      - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+        os: "AlmaLinux 9.8 (Olive Jaguar)"
+        note: "dovecot（/usr/sbin/dovecot を含む）。UBI のリポジトリにはないため、AlmaLinux の公式イメージで確認"
 
   - role: database
     # Debian 系は、版ごとのパッケージ名（postgresql-17 など）。postgresql-client-17 などは当てはまらない

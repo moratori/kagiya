@@ -1,0 +1,40 @@
+# Dovecot（IMAP / POP3 サーバー）。
+app:
+  id: dovecot
+  binaries: ["/usr/sbin/dovecot"]
+  packages: ["dovecot", "dovecot-core"]
+  grammar: dovecot
+  config_files: ["/etc/dovecot/dovecot.conf"]
+  units: ["dovecot.service"]
+  direction: inbound
+  # 証明書などの項目は、2.3 までと 2.4 で名前が違う（どちらも読む）。2.3 までは値を「<ファイル」と書く
+  directives:
+    - { name: ssl, parameter: tls.enabled, type: words }
+    - { name: ssl_cipher_list, parameter: tls.ciphers, type: cipher-string }
+    - { name: ssl_cipher_suites, parameter: tls.ciphersuites-tls13, type: colon-list }
+    - { name: ssl_curve_list, parameter: tls.groups, type: colon-list }
+    - { name: ssl_min_protocol, parameter: tls.min-protocol, type: words }
+    - { name: ssl_protocols, parameter: tls.protocols, type: words }
+    - { name: ssl_prefer_server_ciphers, parameter: tls.prefer-server-ciphers, type: words }
+    - { name: ssl_cert, parameter: tls.certificate, type: path, multi: true }
+    - { name: ssl_alt_cert, parameter: tls.certificate, type: path, multi: true }
+    - { name: ssl_key, parameter: tls.private-key, type: path, multi: true }
+    - { name: ssl_alt_key, parameter: tls.private-key, type: path, multi: true }
+    - { name: ssl_dh, parameter: tls.dh-params, type: path }
+    - { name: ssl_ca, parameter: tls.client-ca, type: path }
+    - { name: ssl_server_cert_file, parameter: tls.certificate, type: path, multi: true }
+    - { name: ssl_server_alt_cert_file, parameter: tls.certificate, type: path, multi: true }
+    - { name: ssl_server_key_file, parameter: tls.private-key, type: path, multi: true }
+    - { name: ssl_server_alt_key_file, parameter: tls.private-key, type: path, multi: true }
+    - { name: ssl_server_dh_file, parameter: tls.dh-params, type: path }
+    - { name: ssl_server_ca_file, parameter: tls.client-ca, type: path }
+  sources:
+    - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      note: "dovecot 2.3.16-18.el9_8.8。本体は /usr/sbin/dovecot。設定は /etc/dovecot/dovecot.conf と conf.d/*.conf。配られる conf.d/10-ssl.conf は ssl = required、証明書、ssl_cipher_list = PROFILE=SYSTEM を持つ。ユニットは dovecot.service"
+    - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+      os: "Debian GNU/Linux 13 (trixie)"
+      note: "dovecot-core 1:2.4.1+dfsg1-6+deb13u7。2.4 は ssl_server_cert_file などの名前。配られる conf.d/10-ssl.conf は ssl = yes と証明書の指定を持つ"
+    - image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
+      os: "Ubuntu 16.04.7 LTS"
+      note: "dovecot-core 2.2.22。ssl_protocols、ssl_dh_parameters_length を持ち、ssl_alt_cert、ssl_dh はない"

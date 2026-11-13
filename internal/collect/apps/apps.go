@@ -105,6 +105,8 @@ func (c *Collector) application(app ruleset.AppRule) {
 		c.postfix(app, svc, config)
 	case "postgresql":
 		c.postgresql(app, svc, config)
+	case "dovecot":
+		c.dovecot(app, svc, config)
 	}
 }
 

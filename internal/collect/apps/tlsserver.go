@@ -34,10 +34,11 @@ type tlsScope struct {
 	certsOK bool     // 証明書の記載をすべて解釈できた（変数などを含まない）
 	dhParam bool     // DH パラメータの指定がある
 
-	blocker      string // 空でなければ、この範囲の実効値は求めない（理由）
-	cipherParam  string // 暗号文字列の根拠として示す設定項目の名前（空なら tls.ciphers）
-	noCert       bool   // 証明書を持たないサービス（認証なしのスイートだけを使える。TLS 1.3 は使えない）
-	tls13Blocker string // 空でなければ、TLS 1.3 のスイートだけ求めない（理由）
+	blocker      string   // 空でなければ、この範囲の実効値は求めない（理由）
+	cipherParam  string   // 暗号文字列の根拠として示す設定項目の名前（空なら tls.ciphers）
+	info         []string // 結果に添える説明（実測で確かめた挙動の説明。確度は下げない）
+	noCert       bool     // 証明書を持たないサービス（認証なしのスイートだけを使える。TLS 1.3 は使えない）
+	tls13Blocker string   // 空でなければ、TLS 1.3 のスイートだけ求めない（理由）
 }
 
 const (
@@ -398,6 +399,7 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			if len(notes) > 0 {
 				e.Confidence = model.ConfidenceMedium
 			}
+			e.Notes = append(e.Notes, sc.info...)
 			c.Builder.AddEffective(e)
 
 			// TLS 1.3 のスイート（暗号文字列とは別に決まる）
