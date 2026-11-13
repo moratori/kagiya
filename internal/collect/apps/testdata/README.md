@@ -28,3 +28,9 @@ Ubuntu 24.04.5 は nginx 1.24.0-2ubuntu7.19 と apache2 2.4.58-1ubuntu8.18。イ
 Debian 系で設定を有効にするリンク（`mods-enabled/`、`sites-enabled/`）は、テストコードの中で作る。
 
 ライセンス: nginx の設定ファイルは nginx パッケージ（BSD-2-Clause）、Apache httpd の設定ファイルは httpd / apache2 パッケージ（Apache-2.0）に由来する。OpenSSH の設定ファイルとユニットファイルは openssh パッケージ（BSD ライセンス）、暗号ポリシーの生成物は crypto-policies パッケージ（LGPL-2.1-or-later）に由来する。
+
+`java/alma9-java.config`、`java/alma10-java.config` は、暗号ポリシー（DEFAULT）が生成した Java 用のファイル
+（`/etc/crypto-policies/back-ends/java.config`）から、TLS に関係する 3 行（`jdk.tls.disabledAlgorithms`、`jdk.disabled.namedCurves`、
+`jdk.tls.legacyAlgorithms`）だけを抜き出したもの。AlmaLinux 9.8（`almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2`、
+crypto-policies 20260224-1.gitea0f072.el9_8）と AlmaLinux 10.2（`almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8`）で採取した。
+crypto-policies パッケージ（LGPL-2.1-or-later）に由来する。java.security は、テストコードの中に、関係する行だけを書いている。
