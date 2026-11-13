@@ -97,7 +97,7 @@ func TestPostgreSQLConfigured(t *testing.T) {
 	// 後に書かれたものが効く。include した先も、その位置で読まれる。include_dir は名前の順
 	dir := "/var/lib/pgsql/data/"
 	_, inv = collect(t, "rhel9", pgAlma9(t, map[string]string{
-		pgRHELConf: pgBase + "ssl_ciphers = 'HIGH:!aNULL'\nssl_ciphers = 'HIGH:!aNULL:!kRSA' # later wins\ninclude 'lab-extra.conf'\ninclude_dir 'lab.d'\n",
+		pgRHELConf:             pgBase + "ssl_ciphers = 'HIGH:!aNULL'\nssl_ciphers = 'HIGH:!aNULL:!kRSA' # later wins\ninclude 'lab-extra.conf'\ninclude_dir 'lab.d'\n",
 		dir + "lab-extra.conf": "ssl_prefer_server_ciphers = off\n", dir + "lab.d/10-curve.conf": "ssl_ecdh_curve = 'secp521r1'\n", dir + "lab.d/20-curve.conf": "ssl_ecdh_curve = 'secp384r1'\n"}))
 	checkSuites(t, pgEff(t, inv, "tls.ciphers"), 26, "02de241f6306d23f", "high")
 	if g := groupsOf(t, inv, "svc:postgresql", ""); strings.Join(g.Values, " ") != "P-384" {

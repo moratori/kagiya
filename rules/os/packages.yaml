@@ -64,6 +64,17 @@ packages:
         os: "Debian GNU/Linux 13 (trixie)"
         note: "postfix（/usr/sbin/postfix、/usr/lib/postfix/sbin/smtpd を含む）"
 
+  - role: database
+    # Debian 系は、版ごとのパッケージ名（postgresql-17 など）。postgresql-client-17 などは当てはまらない
+    names: ["postgresql-server", "postgresql-9*", "postgresql-1*", "postgresql-2*"]
+    sources:
+      - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+        os: "AlmaLinux 9.8 (Olive Jaguar)"
+        note: "postgresql-server（/usr/bin/postgres を含む）。UBI のリポジトリにはないため、AlmaLinux の公式イメージで確認"
+      - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+        os: "Debian GNU/Linux 13 (trixie)"
+        note: "postgresql-17（/usr/lib/postgresql/17/bin/postgres を含む）"
+
   - role: crypto-policy
     names: ["crypto-policies", "crypto-policies-scripts"]
     sources:

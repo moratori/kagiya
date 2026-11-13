@@ -10,6 +10,7 @@
 package apps
 
 import (
+	"path"
 	"sort"
 	"strings"
 
@@ -62,7 +63,7 @@ func (c *Collector) application(app ruleset.AppRule) {
 	for _, p := range app.ConfigFiles {
 		if strings.Contains(p, "*") {
 			// 名前が決まっていない設定ファイル（「/etc/stunnel/*.conf」など）。当てはまるもののうち、名前の順で最初のもの
-			if files, _ := (confFS{c}).Glob(p); len(files) > 0 {
+			if files := c.globDeep(p); len(files) > 0 {
 				sort.Strings(files)
 				config = files[0]
 				break
@@ -102,5 +103,47 @@ func (c *Collector) application(app ruleset.AppRule) {
 		c.stunnel(app, svc)
 	case "postfix":
 		c.postfix(app, svc, config)
+	case "postgresql":
+		c.postgresql(app, svc, config)
 	}
+}
+
+// globDeep は、途中のディレクトリにもワイルドカードを含むパターン（「/etc/postgresql/*/*/postgresql.conf」など）に合うファイルを返す。
+// 途中のディレクトリは 1 段ずつ列挙して展開し、最後の要素は Glob に任せる（どちらも、安全なファイルアクセスを通す）。
+func (c *Collector) globDeep(pattern string) []string {
+	const maxDirs = 64
+	parts := strings.Split(strings.TrimPrefix(pattern, "/"), "/")
+	dirs := []string{""}
+	for _, seg := range parts[:len(parts)-1] {
+		if !strings.ContainsAny(seg, "*?[") {
+			for i := range dirs {
+				dirs[i] += "/" + seg
+			}
+			continue
+		}
+		var next []string
+		for _, d := range dirs {
+			real, err := c.Opener.Resolve(c.Prefix + d)
+			if err != nil {
+				continue
+			}
+			ents, err := c.Opener.ListNames(real)
+			if err != nil {
+				continue
+			}
+			for _, e := range ents {
+				if ok, _ := path.Match(seg, e.Name); ok && e.IsDir && len(next) < maxDirs {
+					next = append(next, d+"/"+e.Name)
+				}
+			}
+		}
+		dirs = next
+	}
+	var out []string
+	for _, d := range dirs {
+		files, _ := (confFS{c}).Glob(d + "/" + parts[len(parts)-1])
+		out = append(out, files...)
+	}
+	sort.Strings(out)
+	return out
 }

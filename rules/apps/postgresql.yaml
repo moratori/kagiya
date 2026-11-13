@@ -1,0 +1,34 @@
+# PostgreSQL。
+app:
+  id: postgresql
+  binaries: ["/usr/bin/postgres"]
+  packages: ["postgresql-server", "postgresql-9*", "postgresql-1*", "postgresql-2*"]
+  grammar: postgresql
+  # RHEL 系はデータディレクトリの中、Debian 系は /etc/postgresql/<版>/<クラスタ>/。
+  # クラスタが複数ある場合は、名前の順で最初のものだけを読む
+  config_files: ["/var/lib/pgsql/data/postgresql.conf", "/etc/postgresql/*/*/postgresql.conf"]
+  units: ["postgresql.service"]
+  direction: inbound
+  directives:
+    - { name: ssl, parameter: tls.enabled, type: words }
+    - { name: ssl_ciphers, parameter: tls.ciphers, type: cipher-string }
+    - { name: ssl_tls13_ciphers, parameter: tls.ciphersuites-tls13, type: colon-list }
+    - { name: ssl_ecdh_curve, parameter: tls.groups, type: colon-list }
+    - { name: ssl_groups, parameter: tls.groups, type: colon-list }
+    - { name: ssl_prefer_server_ciphers, parameter: tls.prefer-server-ciphers, type: flag }
+    - { name: ssl_min_protocol_version, parameter: tls.min-protocol, type: words }
+    - { name: ssl_max_protocol_version, parameter: tls.max-protocol, type: words }
+    - { name: ssl_cert_file, parameter: tls.certificate, type: path }
+    - { name: ssl_key_file, parameter: tls.private-key, type: path }
+    - { name: ssl_ca_file, parameter: tls.client-ca, type: path }
+    - { name: ssl_dh_params_file, parameter: tls.dh-params, type: path }
+  sources:
+    - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      note: "postgresql-server 13.23-6.el9_8。本体は /usr/bin/postgres。設定は /var/lib/pgsql/data/postgresql.conf（データディレクトリの中）。ユニットは postgresql.service（PGDATA=/var/lib/pgsql/data）"
+    - image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      note: "postgresql-server 10.23（モジュール）。配置は 9 と同じ"
+    - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+      os: "Debian GNU/Linux 13 (trixie)"
+      note: "postgresql-17 17.12-0+deb13u1。本体は /usr/lib/postgresql/17/bin/postgres。設定は /etc/postgresql/17/main/postgresql.conf で、data_directory がデータディレクトリを指す。配られる設定は ssl = on と証明書の指定を持つ"
