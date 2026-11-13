@@ -302,3 +302,88 @@ func TestJDKUnresolved(t *testing.T) {
 		t.Errorf("ciphers = %+v", e)
 	}
 }
+
+// 配布元の JDK（ディストリのパッケージではないもの）: JDK のディレクトリにある release ファイルの JAVA_VERSION が、
+// 測定した表の開発元の版と同じなら、その表で補う（確度を下げ、注記を付ける）。何を無効にするかは、その JDK 自身の java.security から読む。
+// 期待値は、検証ラボで Amazon Corretto 21（21.0.13）と 8（1.8.0_512）、Eclipse Temurin 25（25.0.5）の公式イメージの JDK を、
+// ディストリの JDK と同じ方法で測った結果。
+func TestJDKOtherDistributor(t *testing.T) {
+	// Corretto 21（/usr/lib/jvm/java-21-amazon-corretto.aarch64。版の付かない名前は、そこへのリンク）
+	home := "/usr/lib/jvm/java-21-amazon-corretto.aarch64"
+	files := map[string]string{
+		home + "/conf/security/java.security": jdkUpstreamDisabled,
+		home + "/release":                     "IMPLEMENTOR=\"Amazon.com Inc.\"\nJAVA_VERSION=\"21.0.13\"\nJAVA_VERSION_DATE=\"2026-10-20\"\nOS_ARCH=\"aarch64\"\n",
+	}
+	_, inv := collect(t, "", func(p string, b *inventory.Builder) {
+		jdkHost(t, files)(p, b)
+		link(t, p, "java-21-amazon-corretto.aarch64", "/usr/lib/jvm/java-21-amazon-corretto")
+	})
+	e := jdkEff(t, inv, "tls.ciphers", home)
+	checkSuites(t, e, 27, jdkDefault12, "medium")
+	notes := strings.Join(e.Notes, " ")
+	if !strings.Contains(notes, "21.0.13") || !strings.Contains(notes, "another distributor") {
+		t.Errorf("notes = %v", e.Notes)
+	}
+	if s := e.Steps[0].Source; s == nil || s.Package == "" || !strings.Contains(s.Image, "@sha256:") {
+		t.Errorf("source = %+v", e.Steps[0].Source)
+	}
+	if g := jdkEff(t, inv, "tls.groups", home); g.Confidence != "medium" || sortedJoin(g.Values) != jdkGroups {
+		t.Errorf("groups = %+v", g)
+	}
+	n := 0
+	for _, v := range inv.EffectiveValues {
+		if v.Service == "svc:openjdk" && v.Parameter == "tls.ciphers" {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("the JDK must be reported once (the unversioned name is a link to it): %d", n)
+	}
+
+	// Temurin 25 の公式イメージの配置（/opt/java/openjdk）。耐量子のハイブリッドを受け入れる
+	tem := "/opt/java/openjdk"
+	_, inv = collect(t, "", jdkHost(t, map[string]string{tem + "/conf/security/java.security": jdkUpstreamDisabled,
+		tem + "/release": "IMPLEMENTOR=\"Eclipse Adoptium\"\nJAVA_VERSION=\"25.0.5\"\n"}))
+	if g := jdkEff(t, inv, "tls.groups", tem); g.Confidence != "medium" || sortedJoin(g.Values) != jdkGroupsHybrid {
+		t.Errorf("Temurin 25 groups = %+v", g)
+	}
+
+	// Corretto 8 は、java.security の既定が違い、TLS 1.0 と 1.1 を無効にしていない（実測）。配布元ごとの違いは、ファイルから読んだ値に現れる
+	c8 := "/usr/lib/jvm/java-1.8.0-amazon-corretto.aarch64"
+	_, inv = collect(t, "", jdkHost(t, map[string]string{
+		c8 + "/jre/lib/security/java.security": "jdk.disabled.namedCurves = secp112r1, secp256k1\n" +
+			"jdk.tls.disabledAlgorithms=SSLv3, RC4, DES, MD5withRSA, DH keySize < 1024, \\\n    EC keySize < 224, anon, NULL, ECDH, \\\n    include jdk.disabled.namedCurves\n",
+		c8 + "/release": "JAVA_VERSION=\"1.8.0_512\"\nIMPLEMENTOR=\"Amazon.com Inc.\"\n"}))
+	if p := jdkEff(t, inv, "tls.protocols", c8); strings.Join(p.Values, ",") != "TLSv1.3,TLSv1.2,TLSv1.1,TLSv1,SSLv2Hello" || p.Confidence != "medium" {
+		t.Errorf("Corretto 8 protocols = %+v", p)
+	}
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", c8), 35, "12681ad093c3755c", "medium")
+
+	// 補わない場合
+	for name, c := range map[string]struct {
+		sec, release, reason string
+	}{
+		"a Java version that has not been measured": {jdkUpstreamDisabled, "JAVA_VERSION=\"21.0.99\"\n", "21.0.99"},
+		"no release file":                      {jdkUpstreamDisabled, "", "package"},
+		"a release file without JAVA_VERSION":  {jdkUpstreamDisabled, "IMPLEMENTOR=\"X\"\n", "package"},
+		"a JAVA_VERSION that is not a version": {jdkUpstreamDisabled, "JAVA_VERSION=\"21.0.13; rm\"\n", "package"},
+		// 暗号ポリシーとのつなぎ方は、測ったディストリの JDK のもの。配布元の違う JDK には当てはめない
+		"the policy switch of another distribution": {"security.useSystemPropertiesFile=true\n" + jdkUpstreamDisabled, "JAVA_VERSION=\"21.0.13\"\n", "security.useSystemPropertiesFile"},
+		"an include": {jdkUpstreamDisabled + "include extra.security\n", "JAVA_VERSION=\"25.0.5\"\n", "include"},
+	} {
+		f := map[string]string{home + "/conf/security/java.security": c.sec, home + "/conf/security/extra.security": "a=b\n", jdkPolicyFile: jdkPolicy(t, "alma9")}
+		if c.release != "" {
+			f[home+"/release"] = c.release
+		}
+		_, inv := collect(t, "", jdkHost(t, f))
+		if e := jdkEff(t, inv, "tls.ciphers", home); e.Status != "unresolved" || !strings.Contains(e.Reason, c.reason) {
+			t.Errorf("%s: %s reason=%q, want unresolved with %q", name, e.Status, e.Reason, c.reason)
+		}
+	}
+
+	// ディストリのパッケージの JDK で、その版の表がなくても、開発元の版が同じ表（別のディストリで測ったもの）があれば補う
+	pkg := model.Package{Manager: "rpm", Name: "java-21-openjdk-headless", Version: "21.0.13.0.9", Release: "1.fc43"}
+	fhome := "/usr/lib/jvm/java-21-openjdk"
+	_, inv = collect(t, "", jdkHost(t, map[string]string{fhome + "/conf/security/java.security": jdkUpstreamDisabled, fhome + "/release": "JAVA_VERSION=\"21.0.13\"\n"}, pkg))
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", fhome), 27, jdkDefault12, "medium")
+}

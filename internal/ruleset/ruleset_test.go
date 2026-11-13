@@ -1078,3 +1078,99 @@ func TestSuiteAttributesByStandardName(t *testing.T) {
 		t.Errorf("too few suites compared: %d", n)
 	}
 }
+
+// 配布元をまたぐ補間（JDK の表だけの扱い）: 開発元の版（release ファイルの JAVA_VERSION）が同じ表で補う。
+// 暗号ポリシーとのつなぎ方（ディストリごとのもの）は引き継がない。同じ版の表の中身が食い違えば、補わない。
+func TestJDKTableForJavaVersion(t *testing.T) {
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	table := func(upstream, pkg, version, javaVersion, flags, suites string) string {
+		return "  - runtime: myjdk\n    upstream: \"" + upstream + "\"\n    builds:\n      - package: " + pkg + "\n        version: \"" + version + "\"\n" +
+			"        source:\n          image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n          os: \"X\"\n" +
+			"    java_version: \"" + javaVersion + "\"\n    wildcard: true\n    disable_groups_by_name: true\n    dhe_default_bits: 2048\n" + flags +
+			"    protocols:\n      - {name: TLSv1.3, default: true}\n    suites:\n" + suites +
+			"    groups:\n      - {name: X25519, jsse: x25519, id: 29, tls13: true, tls12: true}\n"
+	}
+	const s1 = "      - {name: TLS_AES_256_GCM_SHA384, default: true}\n"
+	const s2 = "      - {name: TLS_AES_256_GCM_SHA384, default: true}\n      - {name: TLS_AES_128_GCM_SHA256, default: true}\n"
+	load := func(y string) *RuleSet {
+		m := map[string]string{"java/x.yaml": "jdk_tables:\n" + y}
+		for k, v := range base {
+			m[k] = v
+		}
+		rs, err := Load(mapFS(m))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return rs
+	}
+	// 同じ版の表が 2 つ（片方は暗号ポリシーとつながる版）。中身は同じ
+	rs := load(table("21.0.1.0.9", "java-21-x-headless", "21.0.1.0.9-1.el9", "21.0.1", "    system_properties_file: true\n    security_include: true\n", s1) +
+		table("21.0.1+9", "x-21-jre-headless", "21.0.1+9-1~deb13u1", "21.0.1", "", s1) +
+		table("21.0.2+9", "x-21-jre-headless", "21.0.2+9-1~deb13u1", "21.0.2", "", s2))
+	tb, b, ok := rs.JDKTableForJavaVersion("myjdk", "21.0.1")
+	if !ok || tb.JavaVersion != "21.0.1" || len(tb.Suites) != 1 || b.Package == "" || b.Source.Image == "" {
+		t.Fatalf("ok=%v table=%+v build=%+v", ok, tb, b)
+	}
+	if tb.SystemPropertiesFile || tb.SecurityInclude {
+		t.Error("the links to the system crypto policy belong to the distribution and must not be carried over")
+	}
+	// 元の表は書き換えない（パッケージ版で引いたときは、つなぎ方の印が残っている）
+	if orig, _, _, ok := rs.JDKTableFor("myjdk", "java-21-x-headless", "21.0.1.0.9-1.el9"); !ok || !orig.SystemPropertiesFile || !orig.SecurityInclude {
+		t.Error("the table itself must stay as it is")
+	}
+	for _, c := range [][2]string{{"myjdk", "21.0.3"}, {"myjdk", "21.0"}, {"myjdk", ""}, {"other", "21.0.1"}, {"myjdk", "21.0.1.0.9"}} {
+		if _, _, ok := rs.JDKTableForJavaVersion(c[0], c[1]); ok {
+			t.Errorf("%v must not match", c)
+		}
+	}
+	// 同じ版の表の中身が食い違う場合は、どちらも使わない
+	rs = load(table("21.0.1.0.9", "java-21-x-headless", "21.0.1.0.9-1.el9", "21.0.1", "", s1) +
+		table("21.0.1+9", "x-21-jre-headless", "21.0.1+9-1~deb13u1", "21.0.1", "", s2))
+	if _, _, ok := rs.JDKTableForJavaVersion("myjdk", "21.0.1"); ok {
+		t.Error("tables that disagree must not be used")
+	}
+	// 形のおかしい版は受け付けない
+	m := map[string]string{"java/x.yaml": "jdk_tables:\n" + table("21.0.1+9", "x-21-jre-headless", "21.0.1+9-1~deb13u1", "21 0 1", "", s1)}
+	for k, v := range base {
+		m[k] = v
+	}
+	if _, err := Load(mapFS(m)); err == nil {
+		t.Error("an invalid java_version must be rejected")
+	}
+}
+
+// 内蔵の表: 開発元の版で引ける。この引き方は JDK の表だけのもので、ほかの表（暗号スイート、グループ、アプリの既定値）と
+// パッケージ版での引き方には影響しない。
+func TestBuiltinJDKTableForJavaVersion(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for v, suites := range map[string]int{"21.0.13": 92, "25.0.5": 92, "1.8.0_512": 98, "17.0.21": 92, "21.0.13.0.3": 92} {
+		tb, b, ok := rs.JDKTableForJavaVersion("openjdk", v)
+		if !ok || len(tb.Suites) != suites || tb.SystemPropertiesFile || tb.SecurityInclude || !strings.Contains(b.Source.Image, "@sha256:") {
+			t.Errorf("%s: ok=%v suites=%d build=%+v", v, ok, len(tb.Suites), b)
+		}
+	}
+	for _, v := range []string{"21.0.14", "21", "21.0.13+9", "24.0.2"} {
+		if _, _, ok := rs.JDKTableForJavaVersion("openjdk", v); ok {
+			t.Errorf("%s must not match", v)
+		}
+	}
+	// パッケージ版での引き方は、これまでどおり（パッケージ名・開発元の版・ディストリの系列が同じ場合だけ）
+	for _, c := range [][2]string{{"temurin-21-jdk", "21.0.13.0.0+11-1"}, {"java-21-amazon-corretto", "21.0.13.11-1.amzn2023"}, {"openjdk-21-jre-headless", "21.0.13+9-1ubuntu1"}} {
+		if _, _, _, ok := rs.JDKTableFor("openjdk", c[0], c[1]); ok {
+			t.Errorf("JDKTableFor(%v) must not match", c)
+		}
+	}
+	// ほかの表は、配布元やディストリをまたいで補わない
+	if _, _, _, ok := rs.CipherTableFor("openssl", "libssl3", "3.5.9-1"); ok {
+		t.Error("cipher tables must not be matched across distributions")
+	}
+	if _, _, _, ok := rs.GroupTableFor("openssl", "libssl3", "3.5.9-1"); ok {
+		t.Error("group tables must not be matched across distributions")
+	}
+	if _, _, ok := rs.AppDefaults("postgresql", "postgresql-server", "13.23-1.fc40"); ok {
+		t.Error("application defaults must not be matched across distributions")
+	}
+}
