@@ -926,3 +926,101 @@ func TestBuiltinStunnelGroupsDefault(t *testing.T) {
 		t.Errorf("stunnel groups default = %v %v", v["tls.groups"], ok)
 	}
 }
+
+// JDK の TLS の対応表を読み込める。出典のない表、形のおかしい表は受け付けない。
+func TestLoadJDKTables(t *testing.T) {
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	with := func(y string) map[string]string {
+		m := map[string]string{"java/x.yaml": y}
+		for k, v := range base {
+			m[k] = v
+		}
+		return m
+	}
+	head := "jdk_tables:\n  - runtime: myjdk\n    upstream: \"21.0.1+9\"\n"
+	build := "    builds:\n      - package: myjdk-headless\n        version: \"21.0.1+9-1~deb13u1\"\n        source:\n          image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n          os: \"X\"\n"
+	flags := "    wildcard: true\n    disable_groups_by_name: true\n    dhe_default_bits: 2048\n"
+	protocols := "    protocols:\n      - {name: TLSv1.3, default: true}\n      - {name: TLSv1.2, default: true}\n      - {name: SSLv3}\n"
+	suites := "    suites:\n      - {name: TLS_AES_256_GCM_SHA384, default: true}\n      - {name: SSL_RSA_WITH_RC4_128_MD5}\n"
+	groups := "    groups:\n      - {name: X25519, jsse: x25519, id: 29, tls13: true, tls12: true}\n      - {name: P-256, jsse: secp256r1, id: 23, tls13: true, tls12: true, key: \"EC 256\"}\n"
+	ok := head + build + flags + protocols + suites + groups
+	rs, err := Load(mapFS(with(ok)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tb, b, exact, found := rs.JDKTableFor("myjdk", "myjdk-headless", "21.0.1+9-1~deb13u1")
+	if !found || !exact || b.Source.OS != "X" {
+		t.Fatalf("found=%v exact=%v build=%+v", found, exact, b)
+	}
+	if !tb.Wildcard || !tb.DisableGroupsByName || tb.DHEDefaultBits != 2048 || len(tb.Protocols) != 3 || len(tb.Suites) != 2 || len(tb.Groups) != 2 {
+		t.Errorf("table = %+v", tb)
+	}
+	if !tb.Protocols[0].Default || tb.Protocols[2].Default || !tb.Suites[0].Default || tb.Suites[1].Default {
+		t.Errorf("default flags: %+v %+v", tb.Protocols, tb.Suites)
+	}
+	if g := tb.Groups[1]; g.Name != "P-256" || g.JSSE != "secp256r1" || g.ID != 23 || !g.TLS13 || !g.TLS12 || g.Key != "EC 256" {
+		t.Errorf("group = %+v", g)
+	}
+	// リリースだけが違う版は補間し、上流の版が違うものは代用しない
+	if tb2, _, exact, found := rs.JDKTableFor("myjdk", "myjdk-headless", "21.0.1+9-2~deb13u1"); !found || exact || tb2 != tb {
+		t.Errorf("interpolated lookup: found=%v exact=%v", found, exact)
+	}
+	for _, c := range [][3]string{{"myjdk", "myjdk-headless", "21.0.2+9-1~deb13u1"}, {"myjdk", "other", "21.0.1+9-1~deb13u1"}, {"openjdk", "myjdk-headless", "21.0.1+9-1~deb13u1"}} {
+		if _, _, _, found := rs.JDKTableFor(c[0], c[1], c[2]); found {
+			t.Errorf("%v must not match any table", c)
+		}
+	}
+	for name, y := range map[string]string{
+		"no builds":        head + flags + protocols + suites + groups,
+		"no source":        head + "    builds:\n      - package: myjdk-headless\n        version: \"21.0.1+9-1~deb13u1\"\n" + flags + protocols + suites + groups,
+		"wrong upstream":   "jdk_tables:\n  - runtime: myjdk\n    upstream: \"21.0.2\"\n" + build + flags + protocols + suites + groups,
+		"no protocols":     head + build + flags + suites + groups,
+		"no suites":        head + build + flags + protocols + groups,
+		"no groups":        head + build + flags + protocols + suites,
+		"no default suite": head + build + flags + protocols + "    suites:\n      - {name: TLS_AES_256_GCM_SHA384}\n" + groups,
+		"duplicate suite":  ok[:len(ok)-len(groups)] + "      - {name: TLS_AES_256_GCM_SHA384}\n" + groups,
+		"duplicate group":  ok + "      - {name: X25519, jsse: x25519b, id: 30, tls13: true, tls12: true}\n",
+		"duplicate jsse":   ok + "      - {name: X448, jsse: X25519, id: 30, tls13: true, tls12: true}\n",
+		"bad suite name":   head + build + flags + protocols + "    suites:\n      - {name: \"TLS AES\", default: true}\n" + groups,
+		"bad key":          head + build + flags + protocols + suites + "    groups:\n      - {name: P-256, jsse: secp256r1, id: 23, tls13: true, tls12: true, key: \"EC\"}\n",
+		"unused group":     head + build + flags + protocols + suites + "    groups:\n      - {name: P-256, jsse: secp256r1, id: 23, tls13: false, tls12: false}\n",
+		"bad dhe bits":     head + build + "    wildcard: true\n    disable_groups_by_name: true\n    dhe_default_bits: 7\n" + protocols + suites + groups,
+		"duplicate build":  ok + "  - runtime: myjdk\n    upstream: \"21.0.1+9\"\n" + build + flags + protocols + suites + groups,
+		"unknown key":      head + build + flags + "    surprise: 1\n" + protocols + suites + groups,
+		"bad runtime":      "jdk_tables:\n  - runtime: \"My JDK\"\n    upstream: \"21.0.1+9\"\n" + build + flags + protocols + suites + groups,
+	} {
+		if _, err := Load(mapFS(with(y))); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+}
+
+// 内蔵の JDK の対応表が読め、パッケージ版から引ける。
+func TestBuiltinJDKTables(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tb, b, exact, ok := rs.JDKTableFor("openjdk", "java-21-openjdk-headless", "21.0.13.0.9-1.2.el9.alma.1")
+	if !ok || !exact || !strings.Contains(b.Source.Image, "almalinux@sha256:") || !strings.Contains(b.Source.Note, "java.runtime.version") {
+		t.Fatalf("exact lookup: ok=%v exact=%v build=%+v", ok, exact, b)
+	}
+	if !tb.Wildcard || !tb.DisableGroupsByName || tb.DHEDefaultBits != 2048 || len(tb.Suites) < 80 || len(tb.Protocols) < 4 || len(tb.Groups) < 10 {
+		t.Errorf("table: wildcard=%v groups-by-name=%v dhe=%d suites=%d protocols=%d groups=%d",
+			tb.Wildcard, tb.DisableGroupsByName, tb.DHEDefaultBits, len(tb.Suites), len(tb.Protocols), len(tb.Groups))
+	}
+	// Java 8 は、ワイルドカードもグループ名の無効化も解釈せず、DHE の既定は 1024 ビット
+	old, _, _, ok := rs.JDKTableFor("openjdk", "java-1.8.0-openjdk-headless", "1.8.0.504.b01-1.2.el9.alma.1")
+	if !ok || old.Wildcard || old.DisableGroupsByName || old.DHEDefaultBits != 1024 {
+		t.Errorf("Java 8 table: ok=%v %+v", ok, old)
+	}
+	// 補間（リリースだけが違う）と、代用しない場合（上流の版が違う、ディストリの系列が違う）
+	if tb2, _, exact, ok := rs.JDKTableFor("openjdk", "java-21-openjdk-headless", "21.0.13.0.9-3.el9"); !ok || exact || tb2 != tb {
+		t.Errorf("interpolated lookup: ok=%v exact=%v", ok, exact)
+	}
+	for _, c := range [][3]string{{"openjdk", "java-21-openjdk-headless", "21.0.14.0.9-1.el9"}, {"openjdk", "java-21-openjdk-headless", "21.0.13.0.9-1.el7"}, {"temurin", "java-21-openjdk-headless", "21.0.13.0.9-1.2.el9.alma.1"}} {
+		if _, _, _, ok := rs.JDKTableFor(c[0], c[1], c[2]); ok {
+			t.Errorf("%v must not match any table", c)
+		}
+	}
+}
