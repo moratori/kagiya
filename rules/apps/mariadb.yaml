@@ -1,0 +1,24 @@
+# MariaDB。設定ファイルの形は MySQL と同じ（文法 mycnf）で、既定と挙動が違う。
+app:
+  id: mariadb
+  binaries: ["/usr/libexec/mariadbd", "/usr/sbin/mariadbd"]
+  packages: ["mariadb-server"]
+  grammar: mycnf
+  # RHEL 系は /etc/my.cnf、Debian 系は /etc/mysql/my.cnf（どちらも、そこから conf.d などを取り込む）
+  config_files: ["/etc/my.cnf", "/etc/mysql/my.cnf"]
+  units: ["mariadb.service"]
+  direction: inbound
+  directives:
+    - { name: ssl_cert, parameter: tls.certificate, type: path }
+    - { name: ssl_key, parameter: tls.private-key, type: path }
+    - { name: ssl_ca, parameter: tls.client-ca, type: path }
+    - { name: ssl_cipher, parameter: tls.ciphers, type: cipher-string }
+    - { name: tls_version, parameter: tls.protocols, type: words }
+    - { name: require_secure_transport, parameter: tls.required, type: words }
+  sources:
+    - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      note: "mariadb-server 10.5.29-3.el9_7.alma.1。本体は /usr/libexec/mariadbd。設定は /etc/my.cnf（!includedir /etc/my.cnf.d）。ユニットは mariadb.service"
+    - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+      os: "Debian GNU/Linux 13 (trixie)"
+      note: "mariadb-server 1:11.8.6-0+deb13u1。本体は /usr/sbin/mariadbd。設定は /etc/mysql/my.cnf（!includedir /etc/mysql/conf.d/ と mariadb.conf.d/）"

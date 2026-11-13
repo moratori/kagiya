@@ -80,6 +80,11 @@ func (c *Collector) application(app ruleset.AppRule) {
 	if config == "" && !hasComp && len(units) == 0 {
 		return
 	}
+	// MariaDB と MySQL は同じ設定ファイル（/etc/my.cnf）を使い、このファイルはクライアントだけの環境にもある。
+	// 設定ファイルがあるだけでは、どちらのサーバーがあるとも言えないので、本体・ユニット・パッケージのいずれかがある場合に限る
+	if app.Grammar == "mycnf" && !hasComp && len(units) == 0 && !c.hasPackage(app) {
+		return
+	}
 	svc := model.Service{ID: "svc:" + app.ID, App: app.ID}
 	if hasComp {
 		svc.Component = comp.ID
@@ -107,6 +112,8 @@ func (c *Collector) application(app ruleset.AppRule) {
 		c.postgresql(app, svc, config)
 	case "dovecot":
 		c.dovecot(app, svc, config)
+	case "mycnf":
+		c.mysql(app, svc, config)
 	}
 }
 

@@ -1,0 +1,27 @@
+# MySQL。設定ファイルの形は MariaDB と同じ（文法 mycnf）で、既定と挙動が違う。
+app:
+  id: mysql
+  binaries: ["/usr/libexec/mysqld"]
+  packages: ["mysql-server", "mysql8.4-server"]
+  grammar: mycnf
+  config_files: ["/etc/my.cnf", "/etc/mysql/my.cnf"]
+  units: ["mysqld.service", "mysql.service"]
+  direction: inbound
+  directives:
+    - { name: ssl_cert, parameter: tls.certificate, type: path }
+    - { name: ssl_key, parameter: tls.private-key, type: path }
+    - { name: ssl_ca, parameter: tls.client-ca, type: path }
+    - { name: ssl_cipher, parameter: tls.ciphers, type: cipher-string }
+    - { name: tls_version, parameter: tls.protocols, type: words }
+    - { name: require_secure_transport, parameter: tls.required, type: words }
+    - { name: tls_ciphersuites, parameter: tls.ciphersuites-tls13, type: colon-list }
+  sources:
+    - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      note: "mysql-server 8.0.46-1.el9_8。本体は /usr/libexec/mysqld。設定は /etc/my.cnf（!includedir /etc/my.cnf.d）。ユニットは mysqld.service"
+    - image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
+      os: "AlmaLinux 10.2 (Lavender Lion)"
+      note: "mysql8.4-server 8.4.11-1.el10_2.alma.1（パッケージ名に版が入る）"
+    - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "mysql-server 8.0.46-0ubuntu0.24.04.5。本体は /usr/sbin/mysqld。設定は /etc/mysql/my.cnf。ユニットは mysql.service"

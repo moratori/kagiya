@@ -69,14 +69,17 @@ packages:
 
   - role: database
     # Debian 系は、版ごとのパッケージ名（postgresql-17 など）。postgresql-client-17 などは当てはまらない
-    names: ["postgresql-server", "postgresql-9*", "postgresql-1*", "postgresql-2*"]
+    names: ["postgresql-server", "postgresql-9*", "postgresql-1*", "postgresql-2*", "mariadb-server", "mysql-server", "mysql8.4-server"]
     sources:
       - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
         os: "AlmaLinux 9.8 (Olive Jaguar)"
         note: "postgresql-server（/usr/bin/postgres を含む）。UBI のリポジトリにはないため、AlmaLinux の公式イメージで確認"
       - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
         os: "Debian GNU/Linux 13 (trixie)"
-        note: "postgresql-17（/usr/lib/postgresql/17/bin/postgres を含む）"
+        note: "postgresql-17（/usr/lib/postgresql/17/bin/postgres を含む）。mariadb-server（/usr/sbin/mariadbd を含む）"
+      - image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
+        os: "AlmaLinux 10.2 (Lavender Lion)"
+        note: "mariadb-server（/usr/libexec/mariadbd）、mysql8.4-server（/usr/libexec/mysqld）。AlmaLinux 8 / 9 の MySQL は mysql-server"
 
   - role: crypto-policy
     names: ["crypto-policies", "crypto-policies-scripts"]

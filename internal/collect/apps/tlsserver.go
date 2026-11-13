@@ -37,6 +37,7 @@ type tlsScope struct {
 	blocker      string   // 空でなければ、この範囲の実効値は求めない（理由）
 	cipherParam  string   // 暗号文字列の根拠として示す設定項目の名前（空なら tls.ciphers）
 	info         []string // 結果に添える説明（実測で確かめた挙動の説明。確度は下げない）
+	autoRSA      bool     // 設定に証明書の指定がなく、アプリが自分で用意した RSA の証明書を使う（実測で確かめた挙動）
 	noCert       bool     // 証明書を持たないサービス（認証なしのスイートだけを使える。TLS 1.3 は使えない）
 	tls13Blocker string   // 空でなければ、TLS 1.3 のスイートだけ求めない（理由）
 }
@@ -329,6 +330,9 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			}
 			if sc.noCert {
 				in.Certs, in.CertsKnown = nil, true
+			}
+			if sc.autoRSA {
+				in.Certs, in.CertsKnown = []tlseffective.Cert{{Key: "RSA", Signature: "RSA"}}, true
 			}
 			tls13Default := false // TLS 1.3 のスイートを、アプリの既定が決めている
 			if sc.tls13 != "" {

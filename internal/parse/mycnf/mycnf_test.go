@@ -33,8 +33,8 @@ func (m memFS) Glob(pattern string) ([]string, error) {
 // 項目名の「-」と「_」は同じものとして扱われる。値を囲む引用符と、後ろのコメントは値に含まれない。
 func TestParse(t *testing.T) {
 	fs := memFS{
-		"/etc/my.cnf": "# comment\n[client-server]\n!includedir /etc/my.cnf.d\n",
-		"/etc/my.cnf.d/mariadb-server.cnf": "[server]\n[mysqld]\ndatadir=/var/lib/mysql\nsocket=/var/lib/mysql/mysql.sock\nlog-error=/var/log/mariadb/mariadb.log\n",
+		"/etc/my.cnf":                            "# comment\n[client-server]\n!includedir /etc/my.cnf.d\n",
+		"/etc/my.cnf.d/mariadb-server.cnf":       "[server]\n[mysqld]\ndatadir=/var/lib/mysql\nsocket=/var/lib/mysql/mysql.sock\nlog-error=/var/log/mariadb/mariadb.log\n",
 		"/etc/my.cnf.d/enable_encryption.preset": "[mariadb]\nssl_cipher = IGNORED\n",
 		"/etc/my.cnf.d/zz-lab.cnf": "[mysqld]\nbind-address = 127.0.0.1\nport = 3306\nskip-name-resolve\nssl_cert = /etc/lab/db/rsa.crt\nssl_key = /etc/lab/db/rsa.key\n" +
 			"ssl-cipher = HIGH:!aNULL\nssl_cipher = \"HIGH:!aNULL:!kRSA\"   # later wins\n[mysqldump]\nssl_cipher = IGNORED\n[server]\nssl-cert=/etc/lab/db/ec.crt\nssl-key = /etc/lab/db/ec.key\n",
