@@ -689,7 +689,7 @@ func (h *htmlWriter) assets(rows []assetRow) {
 
 // store は、証明書ストア1つ（署名の方式ごとにまとめる）。
 func (h *htmlWriter) store(s *storeView) {
-	h.w(raw(`<details>
+	h.w(raw(`<details class="store">
 <summary>`), s.Name, "（", s.Count, " 件）", raw(`</summary>
 <p class="sub">署名の方式ごとの件数と、その方式の判定です。判定は署名の方式に対するもので、同じ行の証明書すべてに当てはまります。</p>
 <div class="tablewrap"><table>
