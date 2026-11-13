@@ -1,0 +1,78 @@
+# MariaDB の既定値と、版によって違う挙動。設定に記載のない項目の実効値を求めるのに使う。
+#
+#   tls.ciphers             : ssl_cipher の記載がないときの暗号文字列。「@system」は、MariaDB が何も設定せず、OpenSSL のシステム既定のままになることを表す。
+#   tls.without-certificate : 証明書の指定がないときの TLS。disabled = TLS は無効 / auto-rsa = 起動のたびに自分で用意した証明書（RSA）で有効。
+#   tls.dhe-without-params  : DH パラメータの指定がなくても DHE のスイートを使えるか（builtin = 組み込みのパラメータで使える）。
+#
+# 鍵交換のグループと TLS 1.3 のスイートは、MariaDB 自身の既定を持たない（システムの openssl.cnf、なければライブラリの既定に従う）。
+#
+# 採取方法: 各イメージにディストリのリポジトリから導入し、実際に起動して、同じコンテナ内からのハンドシェイクで受け入れるスイートと
+#           グループを数え上げ、予測と完全に一致することを確かめている。RHEL 系は AlmaLinux の公式イメージで測った（出典に記録）。
+# このファイルは検証ラボの生成スクリプトで作った。手で編集しない。
+defaults:
+  - app: mariadb
+    package: mariadb-server
+    version: "10.3.39-2.module_el8.10.0+4093+5130acef"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "@system"
+      tls.without-certificate: "disabled"
+      tls.dhe-without-params: "builtin"
+  - app: mariadb
+    package: mariadb-server
+    version: "10.5.29-3.el9_7.alma.1"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "@system"
+      tls.without-certificate: "disabled"
+      tls.dhe-without-params: "builtin"
+  - app: mariadb
+    package: mariadb-server
+    version: "10.11.18-1.el10_2.alma.2"
+    source:
+      image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
+      os: "AlmaLinux 10.2 (Lavender Lion)"
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "@system"
+      tls.without-certificate: "disabled"
+      tls.dhe-without-params: "builtin"
+  - app: mariadb
+    package: mariadb-server
+    version: "1:10.6.23-0ubuntu0.22.04.1"
+    source:
+      image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+      os: "Ubuntu 22.04.5 LTS"
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "@system"
+      tls.without-certificate: "disabled"
+      tls.dhe-without-params: "builtin"
+  - app: mariadb
+    package: mariadb-server
+    version: "1:10.11.14-0ubuntu0.24.04.1"
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "@system"
+      tls.without-certificate: "disabled"
+      tls.dhe-without-params: "builtin"
+  - app: mariadb
+    package: mariadb-server
+    version: "1:11.8.6-0+deb13u1"
+    source:
+      image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+      os: "Debian GNU/Linux 13 (trixie)"
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "@system"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
