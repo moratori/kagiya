@@ -109,3 +109,16 @@ func TestReportDashboardTexts(t *testing.T) {
 		t.Error("the dashboard must total the store counts over the hosts")
 	}
 }
+
+// サービスの欄を開いたとき、中身の左右に余白を取る（中身の側の余白の指定に打ち消されない書き方にする）。
+func TestReportServiceBodyHasSideMargins(t *testing.T) {
+	html := render(t, sample())
+	m := regexp.MustCompile(`details\.svc > \*:not\(summary\) \{([^}]*)\}`).FindStringSubmatch(html)
+	if m == nil || !regexp.MustCompile(`margin-left: (1[6-9]|2[0-9])px`).MatchString(m[1]) || !regexp.MustCompile(`margin-right: (1[6-9]|2[0-9])px`).MatchString(m[1]) {
+		t.Errorf("no side margins for the body of a service: %v", m)
+	}
+	// 範囲のブロックの指定（左右 0）より後ろに置く
+	if strings.Index(html, "details.svc > *:not(summary)") < strings.Index(html, ".scope {") {
+		t.Error("the rule must come after the scope block rule")
+	}
+}
