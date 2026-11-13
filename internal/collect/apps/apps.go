@@ -114,6 +114,8 @@ func (c *Collector) application(app ruleset.AppRule) {
 		c.dovecot(app, svc, config)
 	case "mycnf":
 		c.mysql(app, svc, config)
+	case "jdk":
+		c.jdk(app, svc)
 	}
 }
 

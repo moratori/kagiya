@@ -76,6 +76,7 @@ var parameterLabel = map[string]string{
 	"tls.mandatory-exclude-ciphers":     "除外する暗号（TLS が必須のとき）",
 	"tls.mandatory-protocols":           "プロトコル（TLS が必須のとき）",
 	"tls.ffdhe-groups":                  "鍵交換のグループ（有限体 DH）",
+	"tls.disabled-algorithms":           "無効にする方式（Java）",
 	"tls.eecdh-grade":                   "楕円曲線の等級（古い書き方）",
 	"ssh.kex-algorithms":                "鍵交換",
 	"ssh.gssapi-kex-algorithms":         "GSSAPI の鍵交換",

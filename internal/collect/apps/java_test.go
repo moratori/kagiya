@@ -186,7 +186,8 @@ func TestJDKCryptoPolicyIncludeRHEL10(t *testing.T) {
 // Java 8: 鍵交換のグループは P-256 / P-384 / P-521 と ffdhe だけ。DHE の既定の鍵長が 1024 ビットであることを添える。
 func TestJDK8(t *testing.T) {
 	sec := jdkEL9Home8 + "/jre/lib/security/java.security"
-	_, inv := collect(t, "", jdkHost(t, map[string]string{sec: jdk8Disabled}, pkgEL9J8))
+	// 配られた状態（暗号ポリシーとの連動あり）
+	_, inv := collect(t, "", jdkHost(t, map[string]string{sec: "security.useSystemPropertiesFile=true\n" + jdk8Disabled, jdkPolicyFile: jdkPolicy(t, "alma9")}, pkgEL9J8))
 	p := jdkEff(t, inv, "tls.protocols", jdkEL9Home8)
 	if strings.Join(p.Values, ",") != "TLSv1.3,TLSv1.2,SSLv2Hello" {
 		t.Errorf("protocols = %v", p.Values)
@@ -200,6 +201,9 @@ func TestJDK8(t *testing.T) {
 	if g := jdkEff(t, inv, "tls.groups", jdkEL9Home8); sortedJoin(g.Values) != jdkGroupsJava8 {
 		t.Errorf("groups = %+v", g)
 	}
+	// 連動を切った場合（java.security の値のまま）
+	_, inv = collect(t, "", jdkHost(t, map[string]string{sec: jdk8Disabled}, pkgEL9J8))
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkEL9Home8), 30, "f3b54407c1bef775", "high")
 	// 2048 ビットの版では、この注記は出ない
 	_, inv = collect(t, "", jdkHost(t, map[string]string{jdkDeb25Home + "/conf/security/java.security": jdkUpstreamDisabled}, pkgDeb25))
 	if e := jdkEff(t, inv, "tls.ciphers", jdkDeb25Home); strings.Contains(strings.Join(e.Notes, " "), "1024-bit") {

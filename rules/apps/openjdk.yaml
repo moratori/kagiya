@@ -1,0 +1,40 @@
+# OpenJDK（Java の実行環境）。
+# サーバーそのものではなく、Java で書かれたサーバー（Tomcat、Spring Boot など）が TLS に使う土台。
+# ここでは、導入されている JDK ごとに、アプリが何も指定しない場合に受け入れるプロトコル、暗号スイート、鍵交換のグループを求める
+# （対応表は rules/java/openjdk.yaml）。起動時の指定（-D で始まるオプションや、別の設定ファイルの指定）は読まない。
+app:
+  id: openjdk
+  # ディストリが用意する入口（/etc/alternatives 経由のリンク）
+  binaries: ["/usr/bin/java"]
+  # 実行環境の本体と java.security を持つパッケージ
+  packages:
+    - java-1.8.0-openjdk-headless
+    - java-11-openjdk-headless
+    - java-17-openjdk-headless
+    - java-21-openjdk-headless
+    - java-25-openjdk-headless
+    - openjdk-8-jre-headless
+    - openjdk-11-jre-headless
+    - openjdk-17-jre-headless
+    - openjdk-21-jre-headless
+    - openjdk-25-jre-headless
+  grammar: jdk
+  # セキュリティの設定ファイル。Java 9 以降は conf/security、Java 8 は jre/lib/security の下。
+  # ディストリのパッケージは /usr/lib/jvm/<JDK ごとのディレクトリ>/ に入る
+  config_files:
+    - "/usr/lib/jvm/*/conf/security/java.security"
+    - "/usr/lib/jvm/*/jre/lib/security/java.security"
+  direction: inbound
+  sources:
+    - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      note: "java-21-openjdk-headless 21.0.13.0.9-1.2.el9.alma.1 は /usr/lib/jvm/java-21-openjdk-21.0.13.0.9-1.2.el9.alma.1.aarch64/ に入る（ディレクトリ名は、パッケージ名から -headless を除いたものに版とアーキテクチャが続く）。conf/security/java.security は /etc/java/java-21-openjdk/<同じ名前>/conf/security/java.security へのリンク。java-1.8.0-openjdk-headless は jre/lib/security/java.security。security.useSystemPropertiesFile=true で /etc/crypto-policies/back-ends/java.config の値が上書きする"
+    - image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
+      os: "AlmaLinux 10.2 (Lavender Lion)"
+      note: "java-25-openjdk-headless 25.0.5.0.8-1.0.el10.alma.1 は /usr/lib/jvm/java-25-openjdk/ に入る（版の付かないディレクトリ名）。java.security の include redhat/${redhat.crypto-policies}/crypto-policies.properties から、conf/security/redhat の下のファイルを経て /etc/crypto-policies/back-ends/java.config を取り込む"
+    - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+      os: "Debian GNU/Linux 13 (trixie)"
+      note: "openjdk-25-jre-headless 25.0.5+8-1~deb13u1 は /usr/lib/jvm/java-25-openjdk-<アーキテクチャ>/ に入る。conf/security/java.security は /etc/java-25-openjdk/security/java.security へのリンク"
+    - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "openjdk-8-jre-headless 8u512-b09~us1-0ubuntu1~24.04.1 は /usr/lib/jvm/java-8-openjdk-<アーキテクチャ>/ に入り、jre/lib/security/java.security は /etc/java-8-openjdk/security/java.security へのリンク"

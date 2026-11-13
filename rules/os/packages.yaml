@@ -81,6 +81,27 @@ packages:
         os: "AlmaLinux 10.2 (Lavender Lion)"
         note: "mariadb-server（/usr/libexec/mariadbd）、mysql8.4-server（/usr/libexec/mysqld）。AlmaLinux 8 / 9 の MySQL は mysql-server"
 
+  - role: java-runtime
+    # Java の実行環境の本体（java.security を持つパッケージ）。-devel や GUI 用のパッケージは当てはまらない
+    names:
+      - java-1.8.0-openjdk-headless
+      - java-11-openjdk-headless
+      - java-17-openjdk-headless
+      - java-21-openjdk-headless
+      - java-25-openjdk-headless
+      - openjdk-8-jre-headless
+      - openjdk-11-jre-headless
+      - openjdk-17-jre-headless
+      - openjdk-21-jre-headless
+      - openjdk-25-jre-headless
+    sources:
+      - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+        os: "AlmaLinux 9.8 (Olive Jaguar)"
+        note: "java-1.8.0 / 11 / 17 / 21 / 25-openjdk-headless（/usr/lib/jvm/ の下に、実行環境の本体と java.security を持つ）"
+      - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+        os: "Ubuntu 24.04.5 LTS"
+        note: "openjdk-8 / 11 / 17 / 21 / 25-jre-headless（/usr/lib/jvm/ の下に、実行環境の本体と java.security を持つ）"
+
   - role: crypto-policy
     names: ["crypto-policies", "crypto-policies-scripts"]
     sources:
