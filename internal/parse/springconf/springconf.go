@@ -56,6 +56,7 @@ type Config struct {
 var allowed = regexp.MustCompile(`^(` +
 	`server\.(port|ssl\.(enabled|protocol|enabledprotocols(\[\d+\])?|ciphers(\[\d+\])?|keystore|keystoretype|keystoreprovider|keyalias|` +
 	`certificate|certificateprivatekey|truststore|truststoretype|trustcertificate|clientauth|bundle|servernamebundles\[\d+\]\.(servername|bundle)))` +
+	`|management\.server\.(port|ssl\.(enabled|keystore|certificate|bundle))` + // 別ポートの管理用の待ち受けが TLS を使うかを見分けるためだけ
 	`|spring\.profiles\.active(\[\d+\])?` +
 	`|spring\.config\.activate\.onprofile` +
 	`|spring\.ssl\.bundle\.(jks|pem)\.[a-z0-9]+\.(protocol|keystore\.(location|type|provider|certificate|privatekey)|truststore\.(location|type|provider|certificate)|` +

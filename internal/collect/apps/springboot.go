@@ -351,6 +351,7 @@ func (c *Collector) springBoot(app ruleset.AppRule, jar string, launch *javaLaun
 	// TLS を待ち受ける設定か
 	table, known := c.Rules.SpringBootFor(boot)
 	tls := sb.settings(table)
+	sb.management(tls)
 	if !tls.enabled && tls.reason == "" {
 		return true // TLS を待ち受けない（サービスとしてだけ記録する）
 	}
@@ -568,6 +569,33 @@ func (sb *springBootApp) settings(table *ruleset.SpringBootTable) springTLS {
 		sb.record("ciphers", joined, t.cipherAt)
 	}
 	return t
+}
+
+// management は、管理用の待ち受け（management.server.port で、本体と別のポートにしたもの）が TLS を使いうる場合に、
+// 別の待ち受けとして「不明」で記録する。TLS の設定の決まり方（management.server.ssl.*、本体の設定の引き継ぎ）は測っていないので、
+// 値は求めない。待ち受けがあること自体を見落とさないための記録。
+func (sb *springBootApp) management(main springTLS) {
+	cfg := sb.cfg
+	port, ok := cfg.Get("management.server.port")
+	if !ok || !tomcatPort.MatchString(port.Value) || port.Value == "0" || "port "+port.Value == sb.scope {
+		return // 指定なし、本体と同じポート、無効（-1）
+	}
+	if v, ok := cfg.Get("management.server.ssl.enabled"); ok && strings.EqualFold(v.Value, "false") {
+		return
+	}
+	own := false
+	for _, k := range []string{"management.server.ssl.key-store", "management.server.ssl.certificate", "management.server.ssl.bundle"} {
+		if _, ok := cfg.Get(k); ok || cfg.Unresolved[k] || cfg.Inline[k] {
+			own = true
+		}
+	}
+	if !own && !main.enabled && main.reason == "" {
+		return // TLS の設定が、管理用にも本体にもない
+	}
+	sb.c.unresolved(sb.svc, sb.app.Direction, "port "+port.Value,
+		"the management port of Spring Boot (management.server.port) is a separate listener; how its TLS settings are decided "+
+			"(management.server.ssl.*, or the settings of the main port) has not been measured, so whether and how it accepts TLS is not determined",
+		model.ParamTLSProtocols, paramCiphers, paramTLS13, model.ParamTLSGroups)
 }
 
 // outside は、JAR の外から設定が上書きされていることが分かる場合に、その理由を返す。
