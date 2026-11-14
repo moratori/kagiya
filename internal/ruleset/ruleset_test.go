@@ -1445,3 +1445,94 @@ func TestLoadEmbeddedTomcatTables(t *testing.T) {
 		}
 	}
 }
+
+// Spring Boot の版ごとの事実を読み込める。引くのは、版が完全に一致するものだけ。
+func TestLoadSpringBootTables(t *testing.T) {
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	with := func(y string) map[string]string {
+		m := map[string]string{"java/s.yaml": y}
+		for k, v := range base {
+			m[k] = v
+		}
+		return m
+	}
+	src := "    source:\n      image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n      os: \"X\"\n"
+	ok := "spring_boot_tables:\n  - versions: [\"3.1.0\", \"3.1.1\"]\n" + src + "    ssl_bundles: \"yes\"\n    pem_properties: \"yes\"\n" +
+		"  - versions: [\"2.7.0\"]\n" + src + "    ssl_bundles: \"no\"\n    pem_properties: \"unknown\"\n"
+	rs, err := Load(mapFS(with(ok)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tb, found := rs.SpringBootFor("3.1.1"); !found || tb.SSLBundles != "yes" || tb.PEMProperties != "yes" || tb.Source.OS != "X" {
+		t.Errorf("3.1.1: %v %+v", found, tb)
+	}
+	if tb, found := rs.SpringBootFor("2.7.0"); !found || tb.SSLBundles != "no" || tb.PEMProperties != "unknown" {
+		t.Errorf("2.7.0: %v %+v", found, tb)
+	}
+	for _, v := range []string{"3.1.2", "3.1", "", "3.1.1-SNAPSHOT"} {
+		if _, found := rs.SpringBootFor(v); found {
+			t.Errorf("%q must not match", v)
+		}
+	}
+	for name, y := range map[string]string{
+		"no versions":       "spring_boot_tables:\n  - versions: []\n" + src + "    ssl_bundles: \"yes\"\n    pem_properties: \"yes\"\n",
+		"no source":         "spring_boot_tables:\n  - versions: [\"3.1.0\"]\n    ssl_bundles: \"yes\"\n    pem_properties: \"yes\"\n",
+		"bad state":         "spring_boot_tables:\n  - versions: [\"3.1.0\"]\n" + src + "    ssl_bundles: \"maybe\"\n    pem_properties: \"yes\"\n",
+		"missing state":     "spring_boot_tables:\n  - versions: [\"3.1.0\"]\n" + src + "    ssl_bundles: \"yes\"\n",
+		"bad version":       "spring_boot_tables:\n  - versions: [\"three\"]\n" + src + "    ssl_bundles: \"yes\"\n    pem_properties: \"yes\"\n",
+		"duplicate version": ok + "  - versions: [\"3.1.0\"]\n" + src + "    ssl_bundles: \"yes\"\n    pem_properties: \"yes\"\n",
+		"unknown key":       "spring_boot_tables:\n  - versions: [\"3.1.0\"]\n" + src + "    ssl_bundles: \"yes\"\n    pem_properties: \"yes\"\n    surprise: 1\n",
+	} {
+		if _, err := Load(mapFS(with(y))); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+}
+
+// 内蔵の表: Spring Boot 2.7 以降の全パッチ版（117）と、それらに同梱されていた Tomcat（62 版）。
+func TestBuiltinSpringBootTables(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ version, bundles, pem string }{
+		{"4.1.2", "yes", "yes"}, {"3.5.16", "yes", "yes"}, {"3.1.0", "yes", "yes"}, {"3.4.0", "unknown", "yes"},
+		{"3.0.13", "no", "yes"}, {"2.7.18", "no", "yes"}, {"2.7.2", "no", "yes"}, {"2.7.1", "no", "unknown"}, {"2.7.0", "no", "unknown"},
+	} {
+		tb, found := rs.SpringBootFor(c.version)
+		if !found || tb.SSLBundles != c.bundles || tb.PEMProperties != c.pem || !strings.HasPrefix(tb.Source.Image, "ubuntu@sha256:") {
+			t.Errorf("Spring Boot %s: found=%v %+v", c.version, found, tb)
+		}
+	}
+	for _, v := range []string{"2.6.15", "3.5.99", "5.0.0"} {
+		if _, found := rs.SpringBootFor(v); found {
+			t.Errorf("Spring Boot %s has not been measured", v)
+		}
+	}
+	n := 0
+	for _, tb := range rs.SpringBootTables {
+		n += len(tb.Versions)
+	}
+	if n < 117 {
+		t.Errorf("Spring Boot versions = %d", n)
+	}
+	// 同梱の Tomcat
+	for _, v := range []string{"9.0.83", "10.1.55", "11.0.27"} {
+		tb, src, found := rs.EmbeddedTomcatTableFor("tomcat-embed-core", v)
+		if !found || len(tb.Suites) < 200 || !strings.HasPrefix(src.Image, "maven@sha256:") {
+			t.Fatalf("tomcat-embed-core %s: found=%v", v, found)
+		}
+		if got, ok := tb.Word("HIGH"); !ok || len(got) < 100 {
+			t.Errorf("tomcat-embed-core %s: HIGH = %d", v, len(got))
+		}
+	}
+	// 同じ上流の版の、Ubuntu のパッケージの表と中身が同じ（実物で確かめた事実）
+	emb, _, _ := rs.EmbeddedTomcatTableFor("tomcat-embed-core", "10.1.55")
+	pkg, _, _, _ := rs.TomcatTableFor("tomcat", "tomcat10", "10.1.55-1ubuntu2~24.04.1")
+	if emb.DefaultCiphers != pkg.DefaultCiphers || len(emb.Suites) != len(pkg.Suites) || len(emb.Classes) != len(pkg.Classes) || emb.StrengthEnds != pkg.StrengthEnds {
+		t.Error("the embedded 10.1.55 and the Ubuntu package 10.1.55 must have the same contents")
+	}
+	if _, _, found := rs.EmbeddedTomcatTableFor("tomcat-embed-core", "10.1.999"); found {
+		t.Error("an unmeasured version must not match")
+	}
+}
