@@ -301,3 +301,29 @@ func TestCreateDirectUsesFinalNameFromTheStart(t *testing.T) {
 		t.Error("a name with a path separator must be rejected")
 	}
 }
+
+// 出力先の上位のディレクトリに、他の利用者が書き込めるもの（スティッキービットなし）があれば拒否する
+// （出力先そのものを、リンクなどに差し替えられるため。指摘 A-13）。
+func TestEnsureDirChecksAncestors(t *testing.T) {
+	base := t.TempDir()
+	open := filepath.Join(base, "open")
+	if err := os.Mkdir(open, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	os.Chmod(open, 0o777)
+	if err := EnsureDir(filepath.Join(open, "out")); err == nil {
+		t.Error("a directory under a world-writable parent must be rejected")
+	}
+	if _, err := os.Lstat(filepath.Join(open, "out")); err == nil {
+		t.Error("the directory must not be created")
+	}
+	// スティッキービット付き（/tmp と同じ）なら、他人が作ったものを消したり差し替えたりできないので、使える
+	os.Chmod(open, 0o777|os.ModeSticky)
+	out := filepath.Join(open, "out")
+	if err := EnsureDir(out); err != nil {
+		t.Fatalf("a directory under a sticky parent must be accepted: %v", err)
+	}
+	if fi, _ := os.Stat(out); fi.Mode().Perm() != 0o700 {
+		t.Errorf("mode = %o", fi.Mode().Perm())
+	}
+}

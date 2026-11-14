@@ -975,3 +975,46 @@ func TestScanSetsMemoryLimit(t *testing.T) {
 		t.Errorf("the memory limit of the process = %d, want %d", got, 512<<20)
 	}
 }
+
+// 以下は、独立したレビュー（2026-11-14）の指摘 A-6 への対応（利用者と確認して、要件から変えた点）。
+
+// 出力先やログ先が、探索の起点と同じか、起点の上位にある場合は、何も読まずにエラーで終わる
+// （出力先は探索から外すので、起点と重なると、その起点が丸ごと読まれなくなる）。
+func TestScanRefusesOutputDirOverlappingRoots(t *testing.T) {
+	fx := setup(t)
+	for name, args := range map[string][]string{
+		"output dir is a root":            {"scan", "--roots", fx.root, "--output-dir", fx.root, "--log-dir", fx.logs},
+		"output dir is above a root":      {"scan", "--roots", fx.root + "/etc", "--output-dir", fx.root, "--log-dir", fx.logs},
+		"log dir is a root":               {"scan", "--roots", fx.root, "--output-dir", fx.out, "--log-dir", fx.root},
+		"output dir is the root of all":   {"scan", "--roots", fx.root, "--output-dir", "/", "--log-dir", fx.logs},
+		"default log dir is above a root": {"scan", "--roots", fx.out + "/logs/x", "--output-dir", fx.out},
+	} {
+		code, _, stderr := run(args...)
+		if code != 2 || !strings.Contains(stderr, "--output-dir") {
+			t.Errorf("%s: code=%d stderr=%q", name, code, stderr)
+		}
+	}
+	for _, dir := range []string{fx.out, fx.logs} {
+		if _, err := os.Stat(dir); err == nil {
+			t.Errorf("%s must not be created", dir)
+		}
+	}
+	// 起点の下にある出力先は、これまでどおり使える（その場所だけを探索から外す）
+	if code, _, stderr := run("scan", "--roots", fx.root, "--output-dir", fx.root+"/out", "--log-dir", fx.root+"/out/logs", "--cpu-limit", "100", "--io-limit", "0"); code != 0 {
+		t.Errorf("an output directory below a root must work: code=%d stderr=%q", code, stderr)
+	}
+}
+
+// --log-dir を指定しなければ、ログは出力先の下の logs/ に書く（kagiya が書く場所を、指定した 1 か所にまとめる）。
+func TestScanDefaultLogDirIsUnderOutputDir(t *testing.T) {
+	fx := setup(t)
+	cwd := tmp(t)
+	t.Chdir(cwd)
+	if code, _, stderr := run("scan", "--roots", fx.root, "--output-dir", fx.out, "--cpu-limit", "100", "--io-limit", "0"); code != 0 {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	singleFile(t, fx.out+"/logs", ".log")
+	if ents, _ := os.ReadDir(cwd); len(ents) != 0 {
+		t.Errorf("nothing may be written to the current directory: %v", ents)
+	}
+}
