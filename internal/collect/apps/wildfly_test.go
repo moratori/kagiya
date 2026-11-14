@@ -210,7 +210,7 @@ func TestWildFlyElytronDefault(t *testing.T) {
 	if e13 := wfEff(t, inv, "tls.ciphersuites-tls13"); e13.Status != "resolved" || len(e13.Values) != 0 || !strings.Contains(strings.Join(e13.Notes, " "), "cipher-suite-names") {
 		t.Errorf("tls13 = %+v", e13)
 	}
-	if g := wfEff(t, inv, "tls.groups"); g.Status != "resolved" || sortedJoin(g.Values) != "secp256r1:secp384r1:secp521r1:x25519:x448" { // 測定での、TLS 1.2 の ECDHE のグループ
+	if g := wfEff(t, inv, "tls.groups"); g.Status != "resolved" || sortedJoin(g.Values) != "secp256r1,secp384r1,secp521r1,x25519,x448" { // 測定での、TLS 1.2 の ECDHE のグループ
 		t.Errorf("groups = %+v", g)
 	}
 	// キーストアの場所は記録する。パスワードは、どこにも出ない
@@ -236,7 +236,7 @@ func TestWildFlyElytronConfigured(t *testing.T) {
 		t.Errorf("protocols = %+v", p)
 	}
 	e := wfEff(t, inv, "tls.ciphers")
-	if got := sortedJoin(wfKind(e.Values, "RSA")); got != "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384" || e.Confidence != "medium" {
+	if got := sortedJoin(wfKind(e.Values, "RSA")); got != "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384" || e.Confidence != "medium" {
 		t.Errorf("ciphers = %s (%s)", got, e.Confidence)
 	}
 	if l := layers(e); l != "app-config/override library/intersect app-config/remove" || e.Steps[0].Setting == "" {
@@ -250,7 +250,7 @@ func TestWildFlyElytronConfigured(t *testing.T) {
 	wfCheck(t, wfEff(t, inv, "tls.ciphers"), "medium", "RSA", 7, wfECDHE12)
 	// 場面 e-filter-alias: OpenSSL 式の名前
 	_, inv = collect(t, "", wfHost(t, "42.0.0.Final", wfElytron(`cipher-suite-filter="ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-SHA"`, `ssl-context="labSSC"`), nil))
-	if got := sortedJoin(wfEff(t, inv, "tls.ciphers").Values); got != "TLS_DHE_RSA_WITH_AES_128_CBC_SHA:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384" {
+	if got := sortedJoin(wfEff(t, inv, "tls.ciphers").Values); got != "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384" {
 		t.Errorf("ciphers = %s", got)
 	}
 	// 場面 e-names-proto13: TLS 1.3 だけ
@@ -328,7 +328,7 @@ func TestWildFlyLegacyRealm(t *testing.T) {
 	wfCheck(t, wfEff(t, inv, "tls.ciphers"), "medium", "RSA", 14, wfRSA12)
 	// 場面 l-ciphers: engine の enabled-cipher-suites（Java での名前）
 	inv = host("", `<engine enabled-cipher-suites="TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 TLS_DHE_RSA_WITH_AES_256_GCM_SHA384"/>`, "")
-	if got := sortedJoin(wfEff(t, inv, "tls.ciphers").Values); got != "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" {
+	if got := sortedJoin(wfEff(t, inv, "tls.ciphers").Values); got != "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" {
 		t.Errorf("ciphers = %s", got)
 	}
 	// 場面 l-h-protocols13: https-listener の enabled-protocols
@@ -420,7 +420,7 @@ func TestWildFlyUnit(t *testing.T) {
 	if len(svc.ConfigFiles) != 1 || svc.ConfigFiles[0] != prefix+full || svc.Activity.Level != model.ActivityEnabled {
 		t.Errorf("service = %+v", svc)
 	}
-	if got := sortedJoin(wfKind(wfEff(t, inv, "tls.ciphers").Values, "RSA")); got != "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384" {
+	if got := sortedJoin(wfKind(wfEff(t, inv, "tls.ciphers").Values, "RSA")); got != "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384" {
 		t.Errorf("ciphers = %s", got)
 	}
 	// ドメインのモードは、読まない（サービスの注記に残す）
