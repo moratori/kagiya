@@ -59,7 +59,8 @@ func (c *Collector) CollectJavaApps(archives []string) {
 	if !found {
 		return
 	}
-	launches := c.javaLaunches()
+	var launches map[string]*javaLaunch
+	c.Builder.Guard("", "reading the launch definitions of Java applications", func() { launches = c.javaLaunches() })
 	jars := map[string]bool{}
 	var order []string
 	add := func(p string) {
@@ -81,9 +82,11 @@ func (c *Collector) CollectJavaApps(archives []string) {
 			c.Builder.Skip(safefs.Skip{Path: c.Prefix + jar, Reason: "limit", Detail: "more Java applications than the limit; this and the following ones are not examined"})
 			break
 		}
-		if c.springBoot(app, jar, launches[jar]) {
-			n++
-		}
+		c.Builder.Guard(c.Prefix+jar, "reading a Java application", func() {
+			if c.springBoot(app, jar, launches[jar]) {
+				n++
+			}
+		})
 	}
 }
 

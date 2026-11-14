@@ -37,7 +37,7 @@ func (c *Collector) Collect() {
 		if app.Grammar == "" || app.Grammar == "springboot" {
 			continue // Spring Boot は、探索で見つかった JAR を調べる（CollectJavaApps）
 		}
-		c.application(app)
+		c.Builder.Guard("", "reading the settings of "+app.ID, func() { c.application(app) })
 	}
 }
 

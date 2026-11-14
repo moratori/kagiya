@@ -37,6 +37,9 @@ import (
 	"kagiya/internal/throttle"
 )
 
+// メモリの使用量の上限（設計書 6 章）。
+const memoryLimitMiB = 512
+
 var labelPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
 
 type scanOptions struct {
@@ -137,6 +140,7 @@ func runScan(args []string, stderr io.Writer) int {
 
 	// 何かを読む前に、優先度を下げ、通信とプロセス起動を封じる。
 	hardening := platform.Harden()
+	hardening.MemoryLimitMiB = platform.LimitMemory(memoryLimitMiB)
 	started := time.Now().UTC()
 
 	mounts := loadMounts()
@@ -202,7 +206,7 @@ func runScan(args []string, stderr io.Writer) int {
 		"rules_version", rs.Version, "rules_sha256", rs.SHA256, "roots", opts.roots, "excludes", opts.excludes,
 		"output_dir", opts.outputDir, "elevated", platform.Elevated())
 	log.Info("hardening", "priority_lowered", hardening.PriorityLowered, "io_priority", hardening.IOPriority,
-		"core_dump_disabled", hardening.CoreDumpDisabled, "seccomp", hardening.Seccomp, "notes", hardening.Notes)
+		"core_dump_disabled", hardening.CoreDumpDisabled, "seccomp", hardening.Seccomp, "memory_limit_mib", hardening.MemoryLimitMiB, "notes", hardening.Notes)
 	var warnings []string
 	if mounts.table == nil {
 		w := "the mount table is not available on this OS; network filesystem checks are disabled"
@@ -229,12 +233,12 @@ func runScan(args []string, stderr io.Writer) int {
 	}
 	// OS 全体の暗号設定（暗号ポリシー、OpenSSL のシステム既定の設定、FIPS モード）
 	opener.AllowPseudo = []string{"/proc/sys/crypto"}
-	(&osconf.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect()
+	builder.Guard("", "collecting the OS settings", (&osconf.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect)
 
-	(&pkgs.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect()
+	builder.Guard("", "collecting the package records", (&pkgs.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect)
 
 	// アプリケーションのバイナリと、リンクしている暗号ライブラリ
-	(&bins.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect()
+	builder.Guard("", "collecting the libraries of applications", (&bins.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect)
 
 	// アプリケーションの設定値と、サービスの有効化状態
 	(&apps.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect()

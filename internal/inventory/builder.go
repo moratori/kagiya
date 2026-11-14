@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -294,5 +295,21 @@ func (b *Builder) Inventory() *model.Inventory {
 	return inv
 }
 
-// Guard は、1 つのファイル（やアプリ）の処理 f を実行する。
-func (b *Builder) Guard(path, doing string, f func()) { f() }
+// Guard は、1 つのファイル（やアプリ）の処理 f を実行する。f の中で panic が起きても、そこで止めて、スキャンは続ける
+// （敵対的な入力でパーサが止まっても、ほかのファイルの結果を失わないため。設計書 4.7）。
+// path は処理の対象（なければ空）、doing は何をしていたかの説明。panic の値は入力の断片を含みうるので記録せず、
+// 実行時エラー（範囲外の参照など。入力の内容は含まない）の場合だけ、その種類を残す。
+func (b *Builder) Guard(path, doing string, f func()) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		kind := "a panic"
+		if e, ok := r.(runtime.Error); ok {
+			kind = e.Error()
+		}
+		b.Skip(safefs.Skip{Path: path, Reason: "internal-error", Detail: "stopped while " + doing + ": " + kind})
+	}()
+	f()
+}

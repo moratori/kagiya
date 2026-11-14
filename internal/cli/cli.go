@@ -48,6 +48,10 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprint(stderr, usage)
 		return exitUsage
 	}
+	if startedSetID() {
+		fmt.Fprintln(stderr, "kagiya: refusing to run: the program was started setuid or setgid (the real and effective user or group differ)")
+		return exitFatal
+	}
 	switch args[0] {
 	case "scan":
 		return runScan(args[1:], stderr)

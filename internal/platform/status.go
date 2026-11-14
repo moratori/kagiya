@@ -5,6 +5,7 @@ type Status struct {
 	PriorityLowered  bool     `json:"priority_lowered"`
 	IOPriority       string   `json:"io_priority"` // applied | failed | unsupported
 	CoreDumpDisabled bool     `json:"core_dump_disabled"`
-	Seccomp          string   `json:"seccomp"` // applied | failed | unsupported
+	Seccomp          string   `json:"seccomp"`          // applied | failed | unsupported
+	MemoryLimitMiB   int64    `json:"memory_limit_mib"` // メモリの使用量の上限（Go のソフトリミット）
 	Notes            []string `json:"notes,omitempty"`
 }

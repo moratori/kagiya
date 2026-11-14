@@ -83,32 +83,37 @@ func candidate(name string, size int64) (limit int64, ok bool) {
 
 // Visit は通常ファイル1つを調べる（safefs.Walker の visit として渡す）。
 func (c *Collector) Visit(e *safefs.Entry) error {
+	c.b.Guard(e.Path, "reading a file", func() { c.visit(e) })
+	return nil
+}
+
+func (c *Collector) visit(e *safefs.Entry) {
 	if jars.IsArchive(e.Name) {
 		if len(c.archives) < maxArchives {
 			c.archives = append(c.archives, e.Path)
 		} else {
 			c.archivesMore++
 		}
-		return nil
+		return
 	}
 	limit, ok := candidate(e.Name, e.Size)
 	if !ok {
-		return nil
+		return
 	}
 	data, err := e.ReadLimited(limit)
 	if err != nil {
-		return nil // スキップは記録済み
+		return // スキップは記録済み
 	}
 	lower := strings.ToLower(e.Name)
 	sniffOnly := !strings.Contains(strings.TrimPrefix(lower, "."), ".") && !keyNames[lower] &&
 		!strings.HasPrefix(lower, "authorized_keys") && !strings.HasPrefix(lower, "known_hosts") &&
 		!(strings.HasPrefix(lower, "ssh_host_") && strings.HasSuffix(lower, "_key"))
 	if sniffOnly && !bytes.Contains(data, []byte("-----BEGIN ")) {
-		return nil
+		return
 	}
 	if store, ok := keystore.Parse(data); ok {
 		c.addKeystore(store, e.Path)
-		return nil
+		return
 	}
 	items, failed := keymat.Parse(e.Name, data)
 	for _, it := range items {
@@ -125,7 +130,6 @@ func (c *Collector) Visit(e *safefs.Entry) error {
 	if failed > 0 {
 		c.b.Skip(safefs.Skip{Path: e.Path, Reason: "parse-error", Detail: strconv.Itoa(failed) + " item(s) could not be parsed"})
 	}
-	return nil
 }
 
 func (c *Collector) certificate(cert *x509cert.Certificate) string {

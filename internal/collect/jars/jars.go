@@ -56,7 +56,7 @@ func (c *Collector) Collect(paths []string) {
 			c.Builder.Skip(safefs.Skip{Path: p, Reason: "limit", Detail: "more archives than the limit; this and the following ones are not opened"})
 			break
 		}
-		c.archive(p)
+		c.Builder.Guard(p, "reading an archive", func() { c.archive(p) })
 	}
 }
 

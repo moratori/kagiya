@@ -41,6 +41,7 @@ var skipLabel = map[string]string{
 	"not-found":            "指定された場所がなかった",
 	"invalid-root":         "探索の起点として使えなかった",
 	"parse-error":          "形式を解釈できなかった",
+	"internal-error":       "処理の途中で、ツールの内部エラーが起きた",
 	"config-problem":       "設定ファイルの一部を読めなかった",
 	"invalid-value":        "設定値として妥当でなかった",
 	"not-interpreted":      "値を確定できなかった設定（変数を含むなど）",
