@@ -14,6 +14,8 @@ type JavaLibraryRule struct {
 	// 成果物（アーティファクト）の名前。JAR のファイル名は「<成果物の名前>-<版>.jar」。末尾に * を付けると前方一致
 	Artifacts []string `yaml:"artifacts"`
 	Sources   []Source `yaml:"sources"`
+	// 耐量子のアルゴリズムに対応している版の事実（なければ nil）
+	PQC *PQCRule `yaml:"pqc"`
 }
 
 var (

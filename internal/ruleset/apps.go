@@ -73,6 +73,8 @@ type LibraryRule struct {
 	// SystemDefaultKeys は、システム既定の設定として結果に記録してよい項目名（許可リスト）。
 	SystemDefaultKeys []string `yaml:"system_default_keys"`
 	Sources           []Source `yaml:"sources"`
+	// 耐量子のアルゴリズムに対応している版の事実（なければ nil）
+	PQC *PQCRule `yaml:"pqc"`
 
 	re *regexp.Regexp
 }

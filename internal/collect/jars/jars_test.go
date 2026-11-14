@@ -100,6 +100,21 @@ func TestBundledLibraries(t *testing.T) {
 			t.Errorf("%s: %+v", p, c)
 		}
 	}
+	// 版から、耐量子のアルゴリズムに対応しているかを記録する（Bouncy Castle は 1.79 から。測定の結果は、ルールに出典つきで持つ）
+	old := got[dir+"/opt/app/app.jar!/BOOT-INF/lib/bcprov-jdk18on-1.78.1.jar"].PQC
+	if old == nil || len(old.Supported) != 0 || strings.Join(old.NotSupported, ",") != "ML-KEM,ML-DSA,SLH-DSA" || old.Basis != "measured" {
+		t.Errorf("bcprov 1.78.1: %+v", old)
+	}
+	if p := got[dir+"/usr/share/java/bcprov-jdk18on-1.80.jar"].PQC; p == nil || strings.Join(p.Supported, ",") != "ML-KEM,ML-DSA,SLH-DSA" || len(p.NotSupported) != 0 {
+		t.Errorf("bcprov 1.80: %+v", p)
+	}
+	if p := got[dir+"/srv/web/site.war!/WEB-INF/lib/conscrypt-openjdk-uber-2.9.0.jar"].PQC; p == nil || len(p.Supported) != 4 {
+		t.Errorf("conscrypt 2.9.0: %+v", p)
+	}
+	// 事実を持たないライブラリには、何も付けない
+	if p := got[dir+"/opt/app/app.jar!/BOOT-INF/lib/tomcat-embed-core-10.1.55.jar"].PQC; p != nil {
+		t.Errorf("tomcat-embed: %+v", p)
+	}
 	// 同梱されているものは、どの JAR の中かと、成果物の名前を注記する
 	c := got[dir+"/opt/app/app.jar!/BOOT-INF/lib/bcprov-jdk18on-1.78.1.jar"]
 	if n := strings.Join(c.Notes, " "); !strings.Contains(n, "bcprov-jdk18on") || !strings.Contains(n, "bundled") {

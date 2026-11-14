@@ -39,6 +39,17 @@ type Component struct {
 	Package *PackageRef       `json:"package,omitempty"`
 	Links   []Link            `json:"links,omitempty"`
 	Notes   []string          `json:"notes,omitempty"`
+	// 耐量子のアルゴリズムに対応している版か（暗号ライブラリで、版ごとの事実がルールにある場合だけ）
+	PQC *ComponentPQC `json:"pqc,omitempty"`
+}
+
+// ComponentPQC は、暗号ライブラリが、耐量子の方式を持っている版かどうか。使われているかどうかとは別（それは実効値で見る）。
+type ComponentPQC struct {
+	Supported    []string `json:"supported,omitempty"`     // 持っている方式（ML-KEM、ML-DSA、SLH-DSA、TLS-MLKEM、TLS-MLKEM-hybrid）
+	NotSupported []string `json:"not_supported,omitempty"` // 持っていない方式
+	Unknown      []string `json:"unknown,omitempty"`       // 分からない方式（測れなかった版、正式版でない版など）
+	// measured: 実物で確かめた版の範囲 / documented: 開発元の資料から / extrapolated: 確かめた範囲の外の版で、前後から推定
+	Basis string `json:"basis"`
 }
 
 type ComponentVersion struct {

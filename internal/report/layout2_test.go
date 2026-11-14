@@ -181,3 +181,33 @@ func TestReportEffectiveValuesAreTerse(t *testing.T) {
 		t.Error("the description of certificate stores must be the short one")
 	}
 }
+
+// 暗号ライブラリが、耐量子のアルゴリズムに対応している版かどうかを、ソフトの一覧に短く出す。
+func TestReportLibraryPQCSupport(t *testing.T) {
+	inv := sample()
+	inv.Components = append(inv.Components,
+		model.Component{ID: "lib:bouncycastle:/opt/app/app.jar!/BOOT-INF/lib/bcprov-jdk18on-1.78.1.jar", Kind: "library", Name: "bouncycastle",
+			Path: "/opt/app/app.jar!/BOOT-INF/lib/bcprov-jdk18on-1.78.1.jar", Version: &model.ComponentVersion{Value: "1.78.1", Source: "file-name"},
+			PQC: &model.ComponentPQC{NotSupported: []string{"ML-KEM", "ML-DSA", "SLH-DSA"}, Basis: "measured"}},
+		model.Component{ID: "lib:bouncycastle:/opt/b/bctls-jdk18on-1.80.jar", Kind: "library", Name: "bouncycastle",
+			Path: "/opt/b/bctls-jdk18on-1.80.jar", Version: &model.ComponentVersion{Value: "1.80", Source: "file-name"},
+			PQC: &model.ComponentPQC{Supported: []string{"TLS-MLKEM"}, NotSupported: []string{"TLS-MLKEM-hybrid"}, Basis: "measured"}},
+		model.Component{ID: "lib:bouncycastle:/opt/c/bcprov-jdk18on-1.90.jar", Kind: "library", Name: "bouncycastle",
+			Path: "/opt/c/bcprov-jdk18on-1.90.jar", Version: &model.ComponentVersion{Value: "1.90", Source: "file-name"},
+			PQC: &model.ComponentPQC{Supported: []string{"ML-KEM", "ML-DSA", "SLH-DSA"}, Basis: "extrapolated"}},
+		model.Component{ID: "lib:bouncycastle:/opt/d/bc-fips-2.2.0.jar", Kind: "library", Name: "bouncycastle",
+			Path: "/opt/d/bc-fips-2.2.0.jar", Version: &model.ComponentVersion{Value: "2.2.0", Source: "file-name"},
+			PQC: &model.ComponentPQC{Unknown: []string{"ML-KEM", "ML-DSA", "SLH-DSA"}, Basis: "measured"}})
+	html := render(t, inv)
+	for _, want := range []string{
+		"耐量子: 未対応（ML-KEM・ML-DSA・SLH-DSA）",
+		"耐量子: ML-KEM 単独の鍵交換（TLS）に対応、ハイブリッドの鍵交換（TLS）は未対応",
+		"耐量子: ML-KEM・ML-DSA・SLH-DSA に対応（版からの推定）",
+		"耐量子: 不明（ML-KEM・ML-DSA・SLH-DSA）",
+		"ライブラリがその方式を持っているかどうか",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
