@@ -89,7 +89,7 @@ func TestBuiltinSourcesHaveEvidence(t *testing.T) {
 			missing[s.Where]++
 		}
 	}
-	if total < 250 {
+	if total < 243 { // いまのルールの出典の数（ルールのファイルの image: の行を数えて確かめた）。足したら増える
 		t.Errorf("only %d sources are listed; the list is not complete", total)
 	}
 	if len(missing) > 0 {

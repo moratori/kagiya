@@ -383,6 +383,9 @@ func checkSources(sources []Source) error {
 		if src.OS == "" || len(src.OS) > 128 || len(src.Note) > 1024 {
 			return errors.New("source needs an OS name")
 		}
+		if err := src.checkEvidence(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
