@@ -16,6 +16,7 @@ import (
 	"os/signal"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -334,8 +335,27 @@ func runScan(args []string, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "kagiya: scan stopped early (%s); partial result: %s\n", incomplete, resultPath)
 		return exitFatal
 	}
-	fmt.Fprintf(stderr, "kagiya: %d assets, %d occurrences, %d skipped; result: %s\n",
-		len(inv.Assets), len(inv.Occurrences), builder.SkipTotal(), resultPath)
+	// 読み飛ばしがあれば、理由ごとの件数も出す（多い順。何が起きたかを、結果のファイルを開かなくても分かるようにする）
+	reasons := ""
+	if by := inv.Coverage.SkippedByReason; len(by) > 0 {
+		names := make([]string, 0, len(by))
+		for r := range by {
+			names = append(names, r)
+		}
+		sort.Slice(names, func(i, j int) bool {
+			if by[names[i]] != by[names[j]] {
+				return by[names[i]] > by[names[j]]
+			}
+			return names[i] < names[j]
+		})
+		parts := make([]string, 0, len(names))
+		for _, r := range names {
+			parts = append(parts, r+": "+strconv.Itoa(by[r]))
+		}
+		reasons = " (" + strings.Join(parts, ", ") + ")"
+	}
+	fmt.Fprintf(stderr, "kagiya: %d assets, %d occurrences, %d skipped%s; result: %s\n",
+		len(inv.Assets), len(inv.Occurrences), builder.SkipTotal(), reasons, resultPath)
 	if opts.strict && builder.ProblemSkips() > 0 {
 		return exitStrict
 	}
