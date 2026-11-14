@@ -82,11 +82,7 @@ func (c *Collector) tomcat(app ruleset.AppRule, svc model.Service, config string
 	// 環境全体に関わること（どれかが分からなければ、どの Connector の値も求めない）
 	in, common := c.tomcatInstallation(app, svc, config, f)
 	var openssl []tlsScope
-	// OpenSSL の実装での、証明書を複数置いたときの扱い（その版で確かめた事実。既定値表にある）
-	multiCert := ""
-	if defs, _, _, _ := c.appDefaults(app); defs != nil {
-		multiCert = strings.Join(defs[paramTomcatMultiCert], ",")
-	}
+	multiCert := c.tomcatMultipleCertificates(app)
 	for _, conn := range f.Connectors {
 		if v, ok := conn.Attr["SSLEnabled"]; !ok || !strings.EqualFold(strings.TrimSpace(v.Value), "true") {
 			continue
@@ -189,6 +185,11 @@ func tomcatImplementation(conn serverxml.Connector, apr, sslOff bool, native tom
 	return "openssl", "Tomcat Native (" + native.pkg + ") is loaded through the AprLifecycleListener, so the OpenSSL implementation is used", ""
 }
 
+// tomcatCipherString は、ciphers の値の区切り（「:」「,」空白のどれでもよい）を「:」にそろえる。
+func tomcatCipherString(value string) string {
+	return strings.Join(strings.FieldsFunc(value, func(r rune) bool { return r == ':' || r == ',' || r == ' ' }), ":")
+}
+
 // tomcatProtocols は、protocols の値を Tomcat と同じ読み方で解釈する（「+」「-」「,」で区切り、「-」は外す。all は表の一覧）。
 func tomcatProtocols(tb *ruleset.TomcatTable, value string) []string {
 	var out []string
@@ -267,7 +268,7 @@ func (c *Collector) tomcatRecord(in *tomcatInstall, h tomcatHost) (set tomcatSet
 	set.ciphers, set.hasCiphers = h.attr("ciphers")
 	set.protocols, set.hasProtocols = h.attr("protocols")
 	if set.hasCiphers && len(set.ciphers.Value) <= tomcatMaxCiphers && tomcatCiphersValue.MatchString(set.ciphers.Value) {
-		rec("ciphers", strings.Join(strings.FieldsFunc(set.ciphers.Value, func(r rune) bool { return r == ':' || r == ',' || r == ' ' }), ":"), set.ciphers.Line)
+		rec("ciphers", tomcatCipherString(set.ciphers.Value), set.ciphers.Line)
 	} else if set.hasCiphers {
 		reason = "the value of ciphers is not interpreted"
 	}
@@ -473,6 +474,13 @@ func (c *Collector) tomcatHost(in *tomcatInstall, h tomcatHost, why, reason stri
 	}
 }
 
+// tomcatMultipleCertificates は、OpenSSL の実装で証明書を複数置いたときの扱い（その版で確かめた事実。既定値表にある）を返す。
+// 表にない版では空（確かめていない）。
+func (c *Collector) tomcatMultipleCertificates(app ruleset.AppRule) string {
+	defs, _, _, _ := c.appDefaults(app)
+	return strings.Join(defs[paramTomcatMultiCert], ",")
+}
+
 // tomcatOpenSSLScope は、OpenSSL の実装（Tomcat Native 経由）で動く範囲 1 つについて、設定の記載を記録し、
 // OpenSSL を使うサーバーに共通の求め方（opensslServerEffective）に渡す形にする。
 //
@@ -482,7 +490,7 @@ func (c *Collector) tomcatOpenSSLScope(in *tomcatInstall, h tomcatHost, why stri
 	sc := tlsScope{name: h.scope, blocker: bad, certsOK: len(h.certs) > 0,
 		info: []string{"Tomcat runs on OpenSSL here: " + why, "not read: setenv.sh, environment added by systemd drop-ins, and a Tomcat Native library installed without a package"}}
 	if set.hasCiphers {
-		sc.cipher = strings.Join(strings.FieldsFunc(set.ciphers.Value, func(r rune) bool { return r == ':' || r == ',' || r == ' ' }), ":")
+		sc.cipher = tomcatCipherString(set.ciphers.Value)
 		sc.cipherFile, sc.cipherLine = in.config, set.ciphers.Line
 	}
 	// 証明書の種類。すべて分かっていればそれで絞り込み、分からないものがあれば絞り込まない
