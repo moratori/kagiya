@@ -210,7 +210,7 @@ func TestWildFlyElytronDefault(t *testing.T) {
 	if e13 := wfEff(t, inv, "tls.ciphersuites-tls13"); e13.Status != "resolved" || len(e13.Values) != 0 || !strings.Contains(strings.Join(e13.Notes, " "), "cipher-suite-names") {
 		t.Errorf("tls13 = %+v", e13)
 	}
-	if g := wfEff(t, inv, "tls.groups"); g.Status != "resolved" || strings.Join(g.Values, ",") != "x25519,secp256r1,secp384r1,secp521r1,x448,ffdhe2048,ffdhe3072,ffdhe4096,ffdhe6144,ffdhe8192" {
+	if g := wfEff(t, inv, "tls.groups"); g.Status != "resolved" || sortedJoin(g.Values) != "secp256r1:secp384r1:secp521r1:x25519:x448" { // 測定での、TLS 1.2 の ECDHE のグループ
 		t.Errorf("groups = %+v", g)
 	}
 	// キーストアの場所は記録する。パスワードは、どこにも出ない
