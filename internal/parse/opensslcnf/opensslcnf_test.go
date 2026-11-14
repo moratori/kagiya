@@ -8,11 +8,16 @@ import (
 	"testing"
 )
 
-// mapFS はテスト用のファイル群。
+// mapFS はテスト用のファイル群。中身が unreadable のファイルは、存在するが読めない。
+const unreadable = "\x00unreadable"
+
 type mapFS map[string]string
 
 func (m mapFS) ReadFile(p string) ([]byte, error) {
 	if s, ok := m[p]; ok {
+		if s == unreadable {
+			return nil, errors.New("permission denied")
+		}
 		return []byte(s), nil
 	}
 	return nil, fs.ErrNotExist
@@ -122,11 +127,11 @@ func TestSyntaxDetails(t *testing.T) {
 func TestProblemsAreReported(t *testing.T) {
 	base := "openssl_conf = a\n[a]\nssl_conf = b\n[b]\nsystem_default = c\n[c]\n"
 	cases := map[string]mapFS{
-		"missing include":  {"/o.cnf": base + ".include /nope.cnf\nMinProtocol = TLSv1.2\n"},
-		"relative include": {"/o.cnf": base + ".include extra.cnf\n"},
-		"include loop":     {"/o.cnf": base + ".include /o.cnf\n"},
-		"missing section":  {"/o.cnf": "openssl_conf = a\n[a]\nssl_conf = nowhere\n"},
-		"variable":         {"/o.cnf": base + "CipherString = $ENV::CIPHERS\n"},
+		"unreadable include": {"/o.cnf": base + ".include /secret.cnf\nMinProtocol = TLSv1.2\n", "/secret.cnf": unreadable},
+		"relative include":   {"/o.cnf": base + ".include extra.cnf\n"},
+		"include loop":       {"/o.cnf": base + ".include /o.cnf\n"},
+		"missing section":    {"/o.cnf": "openssl_conf = a\n[a]\nssl_conf = nowhere\n"},
+		"variable":           {"/o.cnf": base + "CipherString = $ENV::CIPHERS\n"},
 	}
 	for name, m := range cases {
 		r, err := SystemDefault("/o.cnf", m)
@@ -138,8 +143,16 @@ func TestProblemsAreReported(t *testing.T) {
 			t.Errorf("%s: no problem reported: %+v", name, r)
 		}
 	}
+	// 存在しないファイルやディレクトリの .include は、問題にしない。OpenSSL 自身が無視する（1.1.1k、3.0.13、3.5.5 で確かめた）。
+	// Ubuntu 26.04 の既定の openssl.cnf は、存在しないディレクトリを .include している
+	for _, target := range []string{"/nope.cnf", "/etc/ssl/openssl.conf.d"} {
+		r, err := SystemDefault("/o.cnf", mapFS{"/o.cnf": base + ".include " + target + "\nMinProtocol = TLSv1.2\n"})
+		if err != nil || len(r.Problems) != 0 || values(r)["MinProtocol"] != "TLSv1.2" {
+			t.Errorf("missing include %s: err=%v problems=%v values=%v", target, err, r.Problems, values(r))
+		}
+	}
 	// 読めるところまでは読む
-	r, _ := SystemDefault("/o.cnf", cases["missing include"])
+	r, _ := SystemDefault("/o.cnf", cases["unreadable include"])
 	if values(r)["MinProtocol"] != "TLSv1.2" {
 		t.Errorf("values after a missing include must still be read: %+v", r)
 	}
