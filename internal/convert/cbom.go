@@ -592,6 +592,9 @@ func (b *cbomBuilder) protocols() {
 			continue
 		}
 		g.comp.Properties = append(g.comp.Properties, props("kagiya:confidence:"+e.Parameter, e.Confidence)...)
+		if q := model.KnownQualifiers(e.Qualifiers); len(q) > 0 {
+			g.comp.Properties = append(g.comp.Properties, props("kagiya:qualifiers:"+e.Parameter, strings.Join(q, ","))...)
+		}
 		scheme := assess.SchemeFor(e.Parameter)
 		p := g.comp.Crypto.Protocol
 		switch scheme {

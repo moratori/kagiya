@@ -123,6 +123,16 @@ func (b *builder) services(v *view) {
 				ef.Confidence = "確度: 高"
 			case "medium":
 				ef.Confidence = "確度: 中"
+			case "low":
+				ef.Confidence = "確度: 低"
+			}
+			if ef.Resolved {
+				// 決まった値だけを、利用者が読める文にして出す（結果のファイルにある文字列は、そのままは出さない）
+				for _, q := range e.Qualifiers {
+					if text, ok := qualifierText[q]; ok {
+						ef.Qualifiers = append(ef.Qualifiers, text)
+					}
+				}
 			}
 			if ef.Resolved {
 				var reasons []string
@@ -171,4 +181,11 @@ func (b *builder) services(v *view) {
 	}
 	// 起動するよう設定されているサービスを先に並べる（どれも畳んで示す）
 	sort.SliceStable(v.Services, func(i, j int) bool { return v.Services[i].Active && !v.Services[j].Active })
+}
+
+// qualifierText は、値の読み方についての説明（EffectiveValue.Qualifiers）を、利用者が読む文にしたもの（docs/confidence.md の 6.5〜6.7 節）。
+var qualifierText = map[string]string{
+	model.QualifierAnyCertificateKind: "証明書の種類が分からない（キーストアの中は読まない、または証明書を読めなかった）ため、RSA の証明書の場合と EC の証明書の場合に受け入れるものを、合わせて表示しています。実際に受け入れるのは、このうち、サーバーの持つ証明書の種類に合うものだけです。",
+	model.QualifierAnyJDKFound:        "このサービスがどの JDK で動くかを 1 つに決められないため、このホストで見つかった JDK のどれで動いていても同じになる値を表示しています。",
+	model.QualifierNothingAccepted:    "受け入れるものが 1 つもない設定です。設定の誤りの可能性があります。",
 }

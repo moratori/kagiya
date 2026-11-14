@@ -37,6 +37,7 @@ type effectiveView struct {
 	Parameter  string
 	Resolved   bool
 	Confidence string
+	Qualifiers []string // 値の読み方についての説明（利用者が読む文）
 	Reason     string
 	IsSuite    bool
 	Rows       []valueRow

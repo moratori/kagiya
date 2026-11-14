@@ -652,7 +652,7 @@ func (h *htmlWriter) service(s *serviceView) {
 func (h *htmlWriter) effective(e *effectiveView) {
 	h.w(raw(`<p><strong>`), e.Label, raw(`</strong>`))
 	if e.Resolved {
-		h.w(raw(` — このサービスが受け入れる設定になっている方式です（<span class="tip" data-tip="確度「高」は、導入されている版そのもので実測した表から求めた値。「中」は、近い版の実測を当てはめたか、証明書などを読めずに絞り込みの一部をしていない値">`),
+		h.w(raw(` — このサービスが受け入れる設定になっている方式です（<span class="tip" data-tip="確度は、この値を求めるのに使った事前の測定の表が、このホストにどれだけ合っているかを表します。「高」は、導入されている版そのものの表で、実際の通信（ハンドシェイク）で裏付けたもの。「中」は、近い版の表で補ったか、裏付けのない表を使ったかの、どちらか一方。「低」は、その両方">`),
 			e.Confidence, raw(`</span>）`))
 	} else {
 		h.w(raw(` <span class="badge unk">特定できませんでした</span>`))
@@ -660,6 +660,10 @@ func (h *htmlWriter) effective(e *effectiveView) {
 	h.w(raw("</p>\n"))
 	if !e.Resolved {
 		h.w(raw(`<p class="note">理由: `), e.Reason, raw("</p>\n"))
+	}
+	// 値の読み方についての説明（確度とは別。値が、実際に受け入れるものより広い場合などを伝える）
+	for _, q := range e.Qualifiers {
+		h.w(raw(`<p class="note qualifier">`), q, raw("</p>\n"))
 	}
 	// 値ごとの注意書きと、求め方の手順は出さない（情報量を落とす。結果の JSON には残っている）
 	if !e.Resolved {

@@ -395,8 +395,8 @@ func TestReportConfidenceAndQualifiers(t *testing.T) {
 	}
 	// 決まった値でない説明は、出さない（結果のファイルは、手を加えられたものかもしれない）
 	inv = sample()
-	inv.EffectiveValues[0].Qualifiers = []string{"<script>alert(1)</script>"}
-	if strings.Contains(render(t, inv), "alert(1)") {
+	inv.EffectiveValues[0].Qualifiers = []string{"<b>unknown-qualifier-marker</b>"}
+	if strings.Contains(render(t, inv), "unknown-qualifier-marker") {
 		t.Error("an unknown qualifier is shown")
 	}
 }

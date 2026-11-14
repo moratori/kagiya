@@ -197,7 +197,7 @@ func (b *Builder) Settings() []model.Setting { return b.settings }
 func (b *Builder) AddEffective(e model.EffectiveValue, rules ...confidence.Rule) {
 	if e.Status == model.StatusResolved {
 		e.Confidence = confidence.Of(rules...)
-		e.Qualifiers = orderedQualifiers(e.Qualifiers)
+		e.Qualifiers = model.KnownQualifiers(e.Qualifiers)
 	} else {
 		e.Confidence, e.Qualifiers = "", nil
 	}
@@ -448,18 +448,4 @@ func (b *Builder) NoteUnmeasured(u model.Unmeasured) {
 		return
 	}
 	b.unmeasured[key] = u
-}
-
-// orderedQualifiers は、説明の重複をまとめ、決まった並びにする（決まった値でないものは落とす）。
-func orderedQualifiers(in []string) []string {
-	var out []string
-	for _, q := range []string{model.QualifierAnyCertificateKind, model.QualifierAnyJDKFound, model.QualifierNothingAccepted} {
-		for _, x := range in {
-			if x == q {
-				out = append(out, q)
-				break
-			}
-		}
-	}
-	return out
 }

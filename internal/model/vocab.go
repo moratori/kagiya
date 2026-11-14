@@ -24,6 +24,20 @@ const (
 	QualifierNothingAccepted = "nothing-accepted"
 )
 
+// KnownQualifiers は、決まった説明だけを、決まった並びで返す（結果のファイルは手を加えられたものかもしれないので、表示や変換の前に通す）。
+func KnownQualifiers(in []string) []string {
+	var out []string
+	for _, q := range []string{QualifierAnyCertificateKind, QualifierAnyJDKFound, QualifierNothingAccepted} {
+		for _, x := range in {
+			if x == q {
+				out = append(out, q)
+				break
+			}
+		}
+	}
+	return out
+}
+
 // 利用の確からしさ（Activity.Level）。
 const (
 	ActivityRunning    = "running"    // 稼働中のプロセスが使っている
