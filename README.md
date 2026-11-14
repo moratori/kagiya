@@ -83,6 +83,126 @@ kagiya は、この既定値と解釈を事前に測ってルールとして持�
 
 ファイルとして置かれた証明書・鍵・キーストアの検出と評価は、事前の測定によらず、どの環境でも同じように行います。
 
+## ユースケース
+
+### 多数のサーバーの結果を、Ansible で管理サーバーに集める
+
+kagiya は 1 台のホストの中だけを見るツールなので、複数のサーバーを棚卸しするには、各サーバーで実行して結果を持ち寄ります。
+Ansible を使うと、「実行ファイルを配る → スキャンする → 結果を管理サーバーに集める」を、まとめて行えます。
+
+管理サーバー（Ansible を実行するマシン）に、次の 3 つを置きます。プレイブックとインベントリの例は [examples/ansible/](examples/ansible/) にあります。
+
+```
+kagiya.yml        プレイブック（下記）
+inventory.ini     対象のサーバーの一覧
+files/kagiya      kagiya の実行ファイル（対象のサーバーの OS・CPU 向けのもの）
+```
+
+`inventory.ini`:
+
+```ini
+# 対象のサーバー。接続のしかた（利用者、鍵など）は、環境に合わせて書く
+[servers]
+web01.example.jp
+db01.example.jp
+```
+
+`kagiya.yml`:
+
+```yaml
+- name: kagiya でクリプトインベントリを作り、管理サーバーに集める
+  hosts: all
+  become: true          # 鍵や設定を読むため、root で実行する
+  gather_facts: false
+  vars:
+    kagiya_binary: files/kagiya              # 管理サーバー上の実行ファイル
+    kagiya_dir: /opt/kagiya                  # サーバー上の置き場
+    kagiya_output_dir: /var/lib/kagiya/out   # サーバー上の出力先（探索するディレクトリの外に置く）
+    collect_dir: "{{ playbook_dir }}/results"  # 管理サーバー上の集め先
+
+  tasks:
+    - name: 集め先を作る（管理サーバー側。結果は機密なので、作成者だけが読めるようにする）
+      ansible.builtin.file:
+        path: "{{ collect_dir }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: 置き場と出力先を作る
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      loop:
+        - "{{ kagiya_dir }}"
+        - "{{ kagiya_output_dir }}"
+
+    - name: 実行ファイルを置く
+      ansible.builtin.copy:
+        src: "{{ kagiya_binary }}"
+        dest: "{{ kagiya_dir }}/kagiya"
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: スキャンする（読み取りだけ。通信はしない）
+      ansible.builtin.command:
+        argv:
+          - "{{ kagiya_dir }}/kagiya"
+          - scan
+          - --output-dir
+          - "{{ kagiya_output_dir }}"
+          - --max-duration
+          - 30m
+          - --label
+          - "inventory_hostname={{ inventory_hostname }}"
+      changed_when: true
+
+    - name: 結果のファイルを探す
+      ansible.builtin.find:
+        paths: "{{ kagiya_output_dir }}"
+        patterns: "kagiya-*.json"
+      register: kagiya_results
+
+    - name: 結果を管理サーバーに集める
+      ansible.builtin.fetch:
+        src: "{{ item.path }}"
+        dest: "{{ collect_dir }}/{{ inventory_hostname }}/"
+        flat: true
+      loop: "{{ kagiya_results.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+
+    - name: 集め終えた結果を、サーバーから消す
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ kagiya_results.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+```
+
+実行します。
+
+```sh
+ansible-playbook -i inventory.ini kagiya.yml
+
+# 集まった結果から、全サーバーをまとめたレポートを作る（管理サーバーの OS 向けの kagiya で）
+kagiya report --output-dir report results/*/*.json
+```
+
+結果は、管理サーバーの `results/<サーバー名>/` に集まります。実行のたびに別の名前のファイルが増え、前の結果は上書きしません。
+
+- 対象のサーバーには、Ansible が使う Python が必要です。kagiya 自身は、ほかに何も要りません
+- サーバー上の出力先（`kagiya_output_dir`）は、kagiya 専用のディレクトリにしてください。プレイブックが、作成者だけが読める権限（0700）にします
+- スキャンに失敗したサーバー（時間切れを含む）は、そこで止まり、結果は集めません。`ansible-playbook` の最後の一覧で分かります
+- 集めた結果には、鍵や証明書の場所などが含まれます。管理サーバーでも、機密として扱ってください
+- この手順は、Debian 13 の ansible-core 2.19 で動作を確かめています
+
 ## 注意
 
 - 分かるのは「受け入れる設定になっている」暗号までです。実際の通信でどれが使われているかは分かりません

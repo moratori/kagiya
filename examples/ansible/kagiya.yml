@@ -1,0 +1,79 @@
+# kagiya を各サーバーに配り、スキャンして、結果を管理サーバー（Ansible を実行するマシン）に集める。
+#
+#   ansible-playbook -i inventory.ini kagiya.yml
+#
+# 管理サーバーに置いておくもの: このファイル、インベントリ、kagiya の実行ファイル（files/kagiya。対象のサーバーの OS・CPU 向けのもの）。
+- name: kagiya でクリプトインベントリを作り、管理サーバーに集める
+  hosts: all
+  become: true          # 鍵や設定を読むため、root で実行する
+  gather_facts: false
+  vars:
+    kagiya_binary: files/kagiya              # 管理サーバー上の実行ファイル
+    kagiya_dir: /opt/kagiya                  # サーバー上の置き場
+    kagiya_output_dir: /var/lib/kagiya/out   # サーバー上の出力先（探索するディレクトリの外に置く）
+    collect_dir: "{{ playbook_dir }}/results"  # 管理サーバー上の集め先
+
+  tasks:
+    - name: 集め先を作る（管理サーバー側。結果は機密なので、作成者だけが読めるようにする）
+      ansible.builtin.file:
+        path: "{{ collect_dir }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: 置き場と出力先を作る
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      loop:
+        - "{{ kagiya_dir }}"
+        - "{{ kagiya_output_dir }}"
+
+    - name: 実行ファイルを置く
+      ansible.builtin.copy:
+        src: "{{ kagiya_binary }}"
+        dest: "{{ kagiya_dir }}/kagiya"
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: スキャンする（読み取りだけ。通信はしない）
+      ansible.builtin.command:
+        argv:
+          - "{{ kagiya_dir }}/kagiya"
+          - scan
+          - --output-dir
+          - "{{ kagiya_output_dir }}"
+          - --max-duration
+          - 30m
+          - --label
+          - "inventory_hostname={{ inventory_hostname }}"
+      changed_when: true
+
+    - name: 結果のファイルを探す
+      ansible.builtin.find:
+        paths: "{{ kagiya_output_dir }}"
+        patterns: "kagiya-*.json"
+      register: kagiya_results
+
+    - name: 結果を管理サーバーに集める
+      ansible.builtin.fetch:
+        src: "{{ item.path }}"
+        dest: "{{ collect_dir }}/{{ inventory_hostname }}/"
+        flat: true
+      loop: "{{ kagiya_results.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+
+    - name: 集め終えた結果を、サーバーから消す
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ kagiya_results.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
