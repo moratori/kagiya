@@ -46,6 +46,7 @@ type Builder struct {
 	skipLogged  map[string]int // 読み飛ばしを 1 件ずつログに書いた数（理由ごと）
 	overflowed  map[string]bool
 	skipSummary bool
+	unmeasured  map[string]model.Unmeasured
 }
 
 func NewBuilder(rs *ruleset.RuleSet, log *logx.Logger) *Builder {
@@ -302,7 +303,22 @@ func (b *Builder) Inventory() *model.Inventory {
 		b.log.Info("skip-summary", "by_reason", b.skipByReason, "not_logged_one_by_one", notLogged)
 	}
 	b.assignActivity()
+	var unmeasured []model.Unmeasured
+	for _, u := range b.unmeasured {
+		unmeasured = append(unmeasured, u)
+	}
+	sort.Slice(unmeasured, func(i, j int) bool {
+		x, y := unmeasured[i], unmeasured[j]
+		if x.Kind != y.Kind {
+			return x.Kind < y.Kind
+		}
+		if x.Name != y.Name {
+			return x.Name < y.Name
+		}
+		return x.Version < y.Version
+	})
 	inv := &model.Inventory{Schema: model.Schema, Assets: []model.Asset{}, Occurrences: b.occurrences, Skipped: b.skipped}
+	inv.Unmeasured = unmeasured
 	inv.Services, inv.Settings = b.services, b.settings
 	if inv.Services == nil {
 		inv.Services = []model.Service{}
@@ -406,5 +422,20 @@ func (b *Builder) overflow(what string, max int) {
 	b.Skip(safefs.Skip{Reason: "limit", Detail: "more than " + strconv.Itoa(max) + " " + what + "; the rest are not recorded"})
 }
 
-// NoteUnmeasured は、対応表にその版そのものがなかったことを記録する。
-func (b *Builder) NoteUnmeasured(u model.Unmeasured) {}
+// 測定が要る版の記録の上限（細工した入力で、際限なく増えないように）。
+const maxUnmeasured = 1000
+
+// NoteUnmeasured は、対応表にその版そのものがなかったことを記録する（同じものは 1 つにまとめる）。
+func (b *Builder) NoteUnmeasured(u model.Unmeasured) {
+	if u.Name == "" || u.Version == "" || len(u.Name) > 128 || len(u.Version) > 128 {
+		return
+	}
+	key := u.Kind + "\x00" + u.Name + "\x00" + u.Version
+	if b.unmeasured == nil {
+		b.unmeasured = map[string]model.Unmeasured{}
+	}
+	if _, dup := b.unmeasured[key]; dup || len(b.unmeasured) >= maxUnmeasured {
+		return
+	}
+	b.unmeasured[key] = u
+}

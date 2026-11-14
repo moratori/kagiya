@@ -207,6 +207,8 @@ func (c *Collector) jdkRead(app ruleset.AppRule, svc model.Service, home, sec st
 		var ok bool
 		if tb, build, exact, ok = c.Rules.JDKTableFor(jdkRuntime, pkg.Name, pkg.FullVersion()); !ok {
 			reason = "no JDK table is recorded for " + pkg.Name + " " + pkg.FullVersion()
+		} else if !exact {
+			c.Builder.NoteUnmeasured(model.Unmeasured{Kind: "jdk", Name: pkg.Name, Version: pkg.FullVersion(), Status: "interpolated", Measured: build.Version})
 		}
 	}
 	// 表が見つからない場合（配布元の違う JDK、測っていないパッケージ）は、JDK のディレクトリにある release ファイルの
@@ -219,6 +221,14 @@ func (c *Collector) jdkRead(app ruleset.AppRule, svc model.Service, home, sec st
 			} else {
 				reason += "; no JDK table is recorded for Java " + v + " either"
 			}
+		}
+		// パッケージの版が表にない（開発元の版の表で補えた場合も、その配布元のパッケージとしては測っていない）
+		if pkg.Name != "" {
+			u := model.Unmeasured{Kind: "jdk", Name: pkg.Name, Version: pkg.FullVersion(), Status: "missing"}
+			if reason == "" {
+				u.Status, u.Measured = "interpolated", build.Version
+			}
+			c.Builder.NoteUnmeasured(u)
 		}
 	}
 	f := javasecurity.Load(sec, confFS{c}, map[string]string{"java.home": home, "__redhat_fips__": "false"})

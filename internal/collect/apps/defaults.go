@@ -21,9 +21,11 @@ func (c *Collector) appDefaults(app ruleset.AppRule) (defs map[string][]string, 
 			version := p.FullVersion()
 			d, measured, src, exact, ok := c.Rules.AppDefaultsFor(app.ID, p.Name, version)
 			if !ok {
+				c.Builder.NoteUnmeasured(model.Unmeasured{Kind: "app-defaults", Name: p.Name, Version: version, Status: "missing"})
 				return nil, nil, "", "no default values are recorded for " + p.Name + " " + version
 			}
 			if !exact {
+				c.Builder.NoteUnmeasured(model.Unmeasured{Kind: "app-defaults", Name: p.Name, Version: version, Status: "interpolated", Measured: measured})
 				note = "the default values measured on " + p.Name + " " + measured + " are used for the installed " + p.Name + " " + version + " (same upstream version and distribution, different release)"
 			}
 			return d, &model.Provenance{Image: src.Image, OS: src.OS, Package: p.Name, Version: measured}, note, ""

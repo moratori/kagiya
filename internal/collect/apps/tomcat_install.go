@@ -56,6 +56,9 @@ func (c *Collector) tomcatInstallation(app ruleset.AppRule, svc model.Service, c
 		var ok bool
 		if in.table, in.build, in.exact, ok = c.Rules.TomcatTableFor(tomcatServer, in.pkg.Name, in.pkg.FullVersion()); !ok {
 			reason = "no Tomcat table is recorded for " + in.pkg.Name + " " + in.pkg.FullVersion()
+			c.Builder.NoteUnmeasured(model.Unmeasured{Kind: "tomcat", Name: in.pkg.Name, Version: in.pkg.FullVersion(), Status: "missing"})
+		} else if !in.exact {
+			c.Builder.NoteUnmeasured(model.Unmeasured{Kind: "tomcat", Name: in.pkg.Name, Version: in.pkg.FullVersion(), Status: "interpolated", Measured: in.build.Version})
 		}
 	}
 	// 配置。Debian 系は /etc/<名前>/server.xml で、CATALINA_BASE は /var/lib/<名前>。RHEL 系はどちらも /usr/share/tomcat

@@ -79,8 +79,13 @@ func (c *Collector) libraryTable(library, what string, find func(pkg, version st
 			first = p.Name + " " + version
 		}
 		k, build, exact, ok := find(p.Name, version)
+		kind := strings.ReplaceAll(what, " ", "-") // cipher-table / group-table
 		if !ok {
+			c.Builder.NoteUnmeasured(model.Unmeasured{Kind: kind, Name: p.Name, Version: version, Status: "missing"})
 			continue
+		}
+		if !exact {
+			c.Builder.NoteUnmeasured(model.Unmeasured{Kind: kind, Name: p.Name, Version: version, Status: "interpolated", Measured: build.Version})
 		}
 		if key != nil && (k != key || installed != p.Name+" "+version) {
 			return nil, nil, "", "more than one version of the " + library + " library is installed; which one this server uses is not determined"

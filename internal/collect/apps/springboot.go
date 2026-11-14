@@ -189,6 +189,7 @@ func (c *Collector) springBoot(app ruleset.AppRule, jar string, launch *javaLaun
 	}
 	switch {
 	case !known:
+		c.Builder.NoteUnmeasured(model.Unmeasured{Kind: "spring-boot", Name: "spring-boot", Version: boot, Status: "missing"})
 		return fail("no measurements are recorded for Spring Boot " + boot)
 	case tls.reason != "":
 		return fail(tls.reason)
@@ -203,6 +204,7 @@ func (c *Collector) springBoot(app ruleset.AppRule, jar string, launch *javaLaun
 	}
 	tb, src, ok := c.Rules.EmbeddedTomcatTableFor(springEmbedded, tomcatVersion)
 	if !ok {
+		c.Builder.NoteUnmeasured(model.Unmeasured{Kind: "embedded-tomcat", Name: springEmbedded, Version: tomcatVersion, Status: "missing"})
 		return fail("no table is recorded for the embedded Tomcat " + tomcatVersion)
 	}
 	sb.tomcat, sb.tomcatVersion = tb, tomcatVersion
