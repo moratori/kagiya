@@ -215,6 +215,14 @@ type page struct {
 	Refs                       []refView
 	Tips                       map[string]string
 	TotalView                  *view // 全体の集計（要点の表示に使う）
+	// 測定が要る版（全ホストの分をまとめたもの）と、連絡先（指定された場合）
+	Unmeasured []unmeasuredRow
+	Contact    string
+}
+
+// unmeasuredRow は、測定が要る版の 1 行。
+type unmeasuredRow struct {
+	OS, Kind, Name, Version, Status, Measured string
 }
 
 // tally は、値の一覧を要点の数に数える。

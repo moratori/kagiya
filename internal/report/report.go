@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -75,19 +76,30 @@ type Options struct {
 	Contact string
 }
 
-// CheckContact は、連絡先として使える値かを確かめる。
-func CheckContact(contact string) error { return nil }
+var contactMail = regexp.MustCompile(`^mailto:[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,190}$`)
 
-// RenderAllWith は、指定つきでレポートを書き出す。
-func RenderAllWith(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy string, opt Options) error {
-	return RenderAll(w, invs, rs, policy)
+// CheckContact は、連絡先として使える値かを確かめる。使えるのは「mailto:<アドレス>」（宛先 1 つだけ。件名などの指定は付けられない）と、
+// https:// で始まる URL。空（指定なし）は、そのまま通す。
+func CheckContact(contact string) error {
+	if contact == "" || contactMail.MatchString(contact) || safeURL(contact) {
+		return nil
+	}
+	return errors.New("the contact must be mailto:<address> or an https:// URL")
 }
 
-// RenderAll は、1 つ以上のホストの結果からレポートを書き出す。
-// 複数のホストの場合は、全体の集計の画面と、ホストごとの詳細（1 ホストのときと同じ内容）を 1 つのファイルに入れる。
+// RenderAll は、指定なしでレポートを書き出す。
 func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy string) error {
+	return RenderAllWith(w, invs, rs, policy, Options{})
+}
+
+// RenderAllWith は、1 つ以上のホストの結果からレポートを書き出す。
+// 複数のホストの場合は、全体の集計の画面と、ホストごとの詳細（1 ホストのときと同じ内容）を 1 つのファイルに入れる。
+func RenderAllWith(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy string, opt Options) error {
 	if len(invs) == 0 {
 		return errors.New("no result to report")
+	}
+	if err := CheckContact(opt.Contact); err != nil {
+		return err
 	}
 	ev, err := assess.New(rs, policy)
 	if err != nil {
@@ -144,6 +156,8 @@ func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy
 		pg.Hosts = append(pg.Hosts, v)
 		pg.Total.add(v.Summary)
 	}
+	pg.Contact = opt.Contact
+	pg.Unmeasured = unmeasuredRows(sorted)
 	pg.TotalView = &view{Summary: pg.Total, Tips: pg.Tips, ExpiringDays: expiringDays}
 	// 全体の集計には、どれかのホストで探索した起点を、重複なく並べる
 	seenRoot := map[string]bool{}
@@ -223,4 +237,85 @@ func shortID(id string) string {
 		}
 	}
 	return string(out)
+}
+
+// 測定が要る版の、種類の表示名。
+var unmeasuredKind = map[string]string{
+	"app-defaults": "既定値", "cipher-table": "暗号スイートの表", "group-table": "鍵交換のグループの表", "jdk": "JDK の表",
+	"tomcat": "Tomcat の表", "spring-boot": "Spring Boot", "embedded-tomcat": "同梱の Tomcat",
+}
+
+// unmeasuredRows は、全ホストの「測定が要る版」を、OS・種類・名前・版ごとに 1 行にまとめる。ホスト名や場所は持たない。
+func unmeasuredRows(invs []*model.Inventory) []unmeasuredRow {
+	seen := map[unmeasuredRow]bool{}
+	var out []unmeasuredRow
+	for _, inv := range invs {
+		os := "unknown"
+		if d := inv.Meta.Host.Distribution; d != nil && d.ID != "" {
+			os = d.ID + " " + d.VersionID
+		}
+		for _, u := range inv.Unmeasured {
+			r := unmeasuredRow{OS: os, Kind: u.Kind, Name: u.Name, Version: u.Version, Status: u.Status, Measured: u.Measured}
+			if !seen[r] {
+				seen[r] = true
+				out = append(out, r)
+			}
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		x, y := out[i], out[j]
+		switch {
+		case x.OS != y.OS:
+			return x.OS < y.OS
+		case x.Kind != y.Kind:
+			return x.Kind < y.Kind
+		case x.Name != y.Name:
+			return x.Name < y.Name
+		}
+		return x.Version < y.Version
+	})
+	return out
+}
+
+// line は、コピー用の 1 行（タブ区切り）。
+func (r unmeasuredRow) line() string {
+	return r.OS + "\t" + r.Kind + "\t" + r.Name + "\t" + r.Version + "\t" + r.Status
+}
+
+// メールの本文に入れる行数の上限（メールソフトによっては、リンクに入れられる長さに限りがある）。
+const contactBodyLines = 30
+
+// contactHref は、連絡先へのリンクを返す。mailto の場合は、件名と本文（一覧の先頭の何行か）を入れる。
+func contactHref(contact string, rows []unmeasuredRow) string {
+	if !strings.HasPrefix(contact, "mailto:") {
+		return contact
+	}
+	var body strings.Builder
+	body.WriteString("kagiya: versions that need measurement (os, kind, name, version, status)\r\n")
+	for i, r := range rows {
+		if i >= contactBodyLines {
+			body.WriteString("... and " + strconv.Itoa(len(rows)-i) + " more (please paste the list from the report)\r\n")
+			break
+		}
+		body.WriteString(strings.ReplaceAll(r.line(), "\t", "  ") + "\r\n")
+	}
+	subject := "kagiya: request for measurement (" + strconv.Itoa(len(rows)) + ")"
+	return contact + "?subject=" + percentEncode(subject) + "&body=" + percentEncode(body.String())
+}
+
+// percentEncode は、英数字と - . _ ~ 以外を、すべて %XX にする。
+func percentEncode(s string) string {
+	const hex = "0123456789ABCDEF"
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '.' || c == '_' || c == '~' {
+			b.WriteByte(c)
+		} else {
+			b.WriteByte('%')
+			b.WriteByte(hex[c>>4])
+			b.WriteByte(hex[c&15])
+		}
+	}
+	return b.String()
 }

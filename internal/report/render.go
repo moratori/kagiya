@@ -129,6 +129,43 @@ func (h *htmlWriter) item(tip, label string, n int, class string) {
 	h.w(raw("</li>\n"))
 }
 
+// unmeasured は、「測定が要る版」の一覧を書く（対応表にない版と、近い版の表で補った版）。なければ、何も書かない。
+func (h *htmlWriter) unmeasured(pg *page) {
+	if len(pg.Unmeasured) == 0 {
+		return
+	}
+	h.w(raw(`<section class="common" id="unmeasured">
+<div class="block">
+<h2>測定が要る版</h2>
+<p class="sub">このツールは、あらかじめ実物で測った版の表を使って判定します。下の版は、表にそのものがありませんでした。「表にない」ものは値を求められず「不明」になっており、「近い版の表で補った」ものは確度を下げています。この一覧を kagiya の管理者に渡すと、測定を頼めます。一覧に入っているのは、OS・パッケージの名前・版だけです（ホスト名や場所は入っていません）。</p>
+<div class="tablewrap"><table><tr><th>OS</th><th>種類</th><th>パッケージ</th><th>版</th><th>状態</th></tr>
+`))
+	for _, r := range pg.Unmeasured {
+		kind := unmeasuredKind[r.Kind]
+		if kind == "" {
+			kind = r.Kind
+		}
+		status := "表にない"
+		if r.Status == "interpolated" {
+			status = "近い版の表で補った（" + r.Measured + "）"
+		}
+		h.w(raw(`<tr><td>`), r.OS, raw(`</td><td>`), kind, raw(`</td><td class="mono">`), r.Name, raw(`</td><td class="mono">`), r.Version, raw(`</td><td>`), status, raw("</td></tr>\n"))
+	}
+	h.w(raw("</table></div>\n<h3>コピー用（タブ区切り）</h3>\n<pre class=\"copy\">"))
+	for _, r := range pg.Unmeasured {
+		h.w(r.line(), "\n")
+	}
+	h.w(raw("</pre>\n"))
+	if pg.Contact != "" {
+		label := "kagiya の管理者に連絡する"
+		if strings.HasPrefix(pg.Contact, "mailto:") {
+			label = "kagiya の管理者にメールで連絡する（メールソフトが開きます。送る前に内容を確かめてください）"
+		}
+		h.w(raw(`<p><a class="contact" href="`), contactHref(pg.Contact, pg.Unmeasured), raw(`" rel="noopener noreferrer">`), label, raw("</a></p>\n"))
+	}
+	h.w(raw("</div>\n</section>\n"))
+}
+
 func renderPage(out io.Writer, pg *page) error {
 	h := &htmlWriter{}
 	h.w(raw(`<!DOCTYPE html>
@@ -189,6 +226,7 @@ func renderPage(out io.Writer, pg *page) error {
 		h.dashboard(pg)
 	}
 	h.limits()
+	h.unmeasured(pg)
 	h.w(raw(`<section class="common" id="criteria">
 <div class="block">
 <h2>判定の基準と出典</h2>

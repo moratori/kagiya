@@ -114,3 +114,5 @@ footer { padding: 0 24px 40px; color: var(--sub); font-size: 12px; }
   details { border: 0; }
   tr:hover td { background: transparent; }
 }
+pre.copy { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace; font-size: 12.5px; background: var(--panel, #f6f7f9); border: 1px solid var(--line, #d9dde3); border-radius: 6px; padding: 10px 12px; overflow-x: auto; user-select: all; }
+a.contact { display: inline-block; margin-top: 6px; }

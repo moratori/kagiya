@@ -24,8 +24,13 @@ func runReport(args []string, stdout, stderr io.Writer) int {
 	outDir := fs.String("output-dir", ".", "directory for the report")
 	policy := fs.String("policy", "default", "assessment policy")
 	rulesDir := fs.String("rules", "", "external rule directory (the built-in rules are used when omitted)")
+	contact := fs.String("contact", "", "where to ask for measurements of versions that are not in the tables: mailto:ADDRESS or an https:// URL (shown as a link in the report)")
 	if err := fs.Parse(args); err != nil || fs.NArg() < 1 {
-		fmt.Fprintln(stderr, "usage: kagiya report [--output-dir DIR] [--policy NAME] [--rules DIR] RESULT.json...")
+		fmt.Fprintln(stderr, "usage: kagiya report [--output-dir DIR] [--policy NAME] [--rules DIR] [--contact mailto:ADDRESS] RESULT.json...")
+		return exitUsage
+	}
+	if err := report.CheckContact(*contact); err != nil {
+		fmt.Fprintln(stderr, "kagiya report: --contact:", err)
 		return exitUsage
 	}
 	if fs.NArg() > maxReportInputs {
@@ -92,7 +97,7 @@ func runReport(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fatal(err)
 	}
-	if err := report.RenderAll(w, invs, rs, *policy); err != nil {
+	if err := report.RenderAllWith(w, invs, rs, *policy, report.Options{Contact: *contact}); err != nil {
 		w.Abort()
 		return fatal(err)
 	}
