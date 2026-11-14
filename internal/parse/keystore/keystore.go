@@ -374,3 +374,6 @@ func parseJKS(data []byte, format string) (*Store, bool) {
 	}
 	return s, true
 }
+
+// maxKeyProtections は、1 つのキーストアについて記録する、秘密鍵の保護方式の種類の上限。
+const maxKeyProtections = 64

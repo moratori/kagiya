@@ -286,3 +286,6 @@ func EncodeOID(s string) []byte {
 	}
 	return Encode(0x06, c)
 }
+
+// maxOctetDepth は、分割された形の OCTET STRING の、入れ子の深さの上限。
+const maxOctetDepth = 4
