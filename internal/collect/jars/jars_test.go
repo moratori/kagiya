@@ -146,3 +146,18 @@ func TestIsArchive(t *testing.T) {
 		}
 	}
 }
+
+// 1 つの JAR の処理で panic が起きても、残りの JAR は調べる。
+func TestCollectSurvivesPanic(t *testing.T) {
+	rs, err := ruleset.Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := inventory.NewBuilder(rs, logx.New(io.Discard, time.Now))
+	// ファイルを開く経路を持たない Collector は、開こうとすると panic する（パーサの中での panic の代わり）
+	(&Collector{Builder: b, Rules: rs}).Collect([]string{"/opt/a/one.jar", "/opt/a/two.jar"})
+	inv := b.Inventory()
+	if len(inv.Skipped) != 2 || inv.Skipped[0].Reason != "internal-error" || inv.Skipped[1].Path != "/opt/a/two.jar" {
+		t.Errorf("skipped = %+v", inv.Skipped)
+	}
+}

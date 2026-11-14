@@ -605,3 +605,29 @@ func TestEffectiveWildcardInAppendIsUnresolved(t *testing.T) {
 		t.Errorf("kex = %+v", e)
 	}
 }
+
+// 1 つのアプリ（や JAR）の処理で panic が起きても、残りは調べる。
+func TestCollectSurvivesPanic(t *testing.T) {
+	rs, err := ruleset.Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := inventory.NewBuilder(rs, logx.New(io.Discard, time.Now))
+	// ファイルを開く経路を持たない Collector は、読もうとすると panic する（パーサの中での panic の代わり）
+	c := &Collector{Builder: b, Rules: rs}
+	c.Collect()
+	n := 0
+	for _, s := range b.Inventory().Skipped {
+		if s.Reason == "internal-error" {
+			n++
+		}
+	}
+	if n < 2 {
+		t.Errorf("each application must be guarded on its own: %d internal errors", n)
+	}
+	c.CollectJavaApps([]string{"/opt/a/one.jar"})
+	last := b.Inventory().Skipped
+	if s := last[len(last)-1]; s.Reason != "internal-error" {
+		t.Errorf("CollectJavaApps: %+v", s)
+	}
+}

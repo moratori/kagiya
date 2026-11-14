@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"kagiya/internal/platform"
 	"kagiya/internal/ruleset"
 )
 
@@ -37,6 +38,9 @@ Usage:
 
 Run "kagiya scan -h" for scan options.
 `
+
+// startedSetID は、setuid / setgid で起動されたかを返す（テストで差し替える）。
+var startedSetID = platform.StartedSetID
 
 // Run はコマンドを実行し、終了コードを返す。
 func Run(args []string, stdout, stderr io.Writer) int {

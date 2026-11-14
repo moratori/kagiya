@@ -17,6 +17,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -930,5 +931,47 @@ func TestScanSummaryShowsSkipReasons(t *testing.T) {
 	_, _, stderr := run("scan", "--roots", fx.root+"/no-such-directory", "--output-dir", fx.out, "--log-dir", fx.logs, "--cpu-limit", "100", "--io-limit", "0")
 	if !strings.Contains(stderr, "not-found: 1") {
 		t.Errorf("the summary must show the reasons: %s", stderr)
+	}
+}
+
+// setuid / setgid で起動された場合は、どのコマンドも実行せずに終わる（設計書 4.7）。
+func TestRefusesSetIDStart(t *testing.T) {
+	old := startedSetID
+	startedSetID = func() bool { return true }
+	defer func() { startedSetID = old }()
+	fx := setup(t)
+	for _, args := range [][]string{fx.scanArgs(), {"version"}, {"rules", "export", "--output-dir", filepath.Join(fx.out, "rules")}} {
+		code, stdout, stderr := run(args...)
+		if code != 3 || stdout != "" || !strings.Contains(stderr, "setuid") {
+			t.Errorf("%v: code=%d stdout=%q stderr=%q", args[0], code, stdout, stderr)
+		}
+	}
+	if ents, _ := os.ReadDir(fx.out); len(ents) != 0 {
+		t.Errorf("nothing may be written: %v", ents)
+	}
+}
+
+// スキャンは、メモリの使用量の上限（Go のソフトリミット）を設定し、結果に記録する（設計書 6 章）。
+func TestScanSetsMemoryLimit(t *testing.T) {
+	fx := setup(t)
+	if code, _, stderr := run(fx.scanArgs()...); code != 0 {
+		t.Fatalf("exit code %d, stderr: %s", code, stderr)
+	}
+	raw, _ := os.ReadFile(singleFile(t, fx.out, ".json"))
+	var inv struct {
+		Meta struct {
+			Hardening struct {
+				MemoryLimitMiB int64 `json:"memory_limit_mib"`
+			} `json:"hardening"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(raw, &inv); err != nil {
+		t.Fatal(err)
+	}
+	if inv.Meta.Hardening.MemoryLimitMiB != 512 {
+		t.Errorf("meta.hardening.memory_limit_mib = %d, want 512", inv.Meta.Hardening.MemoryLimitMiB)
+	}
+	if got := debug.SetMemoryLimit(-1); got != 512<<20 {
+		t.Errorf("the memory limit of the process = %d, want %d", got, 512<<20)
 	}
 }

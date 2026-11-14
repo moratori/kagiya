@@ -293,3 +293,6 @@ func (b *Builder) Inventory() *model.Inventory {
 	inv.Coverage.SkippedTruncated = b.skipTotal > len(b.skipped)
 	return inv
 }
+
+// Guard は、1 つのファイル（やアプリ）の処理 f を実行する。
+func (b *Builder) Guard(path, doing string, f func()) { f() }
