@@ -387,3 +387,49 @@ func TestJDKOtherDistributor(t *testing.T) {
 	_, inv = collect(t, "", jdkHost(t, map[string]string{fhome + "/conf/security/java.security": jdkUpstreamDisabled, fhome + "/release": "JAVA_VERSION=\"21.0.13\"\n"}, pkg))
 	checkSuites(t, jdkEff(t, inv, "tls.ciphers", fhome), 27, jdkDefault12, "medium")
 }
+
+// JDK に含まれないセキュリティプロバイダ（BouncyCastle など）が登録されていると、TLS をどの実装が担当するかが変わりうる。
+// その場合は JDK の表を当てはめず、値を求めない。JDK に含まれるプロバイダ（検証ラボの 35 の JDK の既定に現れたもの）は妨げにならない。
+func TestJDKForeignProvider(t *testing.T) {
+	sec := jdkDeb25Home + "/conf/security/java.security"
+	std := "security.provider.1=SUN\nsecurity.provider.2=SunRsaSign\nsecurity.provider.3=SunEC\nsecurity.provider.4=SunJSSE\nsecurity.provider.5=SunJCE\n" +
+		"security.provider.6=SunJGSS\nsecurity.provider.7=SunSASL\nsecurity.provider.8=XMLDSig\nsecurity.provider.9=SunPCSC\nsecurity.provider.10=JdkLDAP\n" +
+		"security.provider.11=JdkSASL\nsecurity.provider.12=SunPKCS11\nfips.provider.1=SunPKCS11 ${java.home}/conf/security/nss.fips.cfg\n"
+	_, inv := collect(t, "", jdkHost(t, map[string]string{sec: std + jdkUpstreamDisabled}, pkgDeb25))
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 27, jdkDefault12, "high")
+
+	java8 := "security.provider.1=sun.security.provider.Sun\nsecurity.provider.2=sun.security.rsa.SunRsaSign\nsecurity.provider.3=sun.security.ec.SunEC\n" +
+		"security.provider.4=com.sun.net.ssl.internal.ssl.Provider\nsecurity.provider.5=com.sun.crypto.provider.SunJCE\nsecurity.provider.6=sun.security.jgss.SunProvider\n" +
+		"security.provider.7=com.sun.security.sasl.Provider\nsecurity.provider.8=org.jcp.xml.dsig.internal.dom.XMLDSigRI\nsecurity.provider.9=sun.security.smartcardio.SunPCSC\n"
+	_, inv = collect(t, "", jdkHost(t, map[string]string{sec: java8 + jdkUpstreamDisabled}, pkgDeb25))
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 27, jdkDefault12, "high")
+
+	for name, c := range map[string][2]string{
+		"bouncy castle":   {"security.provider.13=org.bouncycastle.jce.provider.BouncyCastleProvider\n", "org.bouncycastle.jce.provider.BouncyCastleProvider"},
+		"bc jsse first":   {"security.provider.1=org.bouncycastle.jsse.provider.BouncyCastleJsseProvider\n", "BouncyCastleJsseProvider"},
+		"conscrypt":       {"security.provider.13=org.conscrypt.OpenSSLProvider\n", "org.conscrypt.OpenSSLProvider"},
+		"pkcs11 config":   {"security.provider.12=SunPKCS11 /etc/pkcs11.cfg\n", "SunPKCS11"},
+		"socket factory":  {"ssl.ServerSocketFactory.provider=com.example.Factory\n", "ssl.ServerSocketFactory.provider"},
+		"key manager":     {"ssl.KeyManagerFactory.algorithm=PKIX-custom\n", "ssl.KeyManagerFactory.algorithm"},
+		"unreadable name": {"security.provider.13=bad name here\n", "security.provider.13"},
+	} {
+		_, inv := collect(t, "", jdkHost(t, map[string]string{sec: std + c[0] + jdkUpstreamDisabled}, pkgDeb25))
+		for _, p := range []string{"tls.protocols", "tls.ciphers", "tls.ciphersuites-tls13", "tls.groups"} {
+			e := jdkEff(t, inv, p, jdkDeb25Home)
+			if e.Status != "unresolved" || !strings.Contains(e.Reason, c[1]) {
+				t.Errorf("%s %s: status=%s reason=%q", name, p, e.Status, e.Reason)
+			}
+		}
+	}
+	// 既定の値（SunX509、PKIX）は妨げにならない
+	ok := "ssl.KeyManagerFactory.algorithm=SunX509\nssl.TrustManagerFactory.algorithm=PKIX\n"
+	_, inv = collect(t, "", jdkHost(t, map[string]string{sec: std + ok + jdkUpstreamDisabled}, pkgDeb25))
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 27, jdkDefault12, "high")
+}
+
+// Tomcat を動かす JDK に、JDK に含まれないプロバイダが登録されている場合も、値を求めない。
+func TestTomcatForeignProvider(t *testing.T) {
+	extra := map[string]string{tcDebJava + "/conf/security/java.security": "security.provider.1=SUN\nsecurity.provider.2=org.bouncycastle.jce.provider.BouncyCastleProvider\n" + jdkUpstreamDisabled}
+	_, inv := collect(t, "", tcDebian(t, tcServer(tcAPR, tcNIO, "", tcCertRSA), extra, tcDebPackages...))
+	tcUnresolved(t, inv, "BouncyCastleProvider")
+}
