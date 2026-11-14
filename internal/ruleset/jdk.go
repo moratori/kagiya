@@ -47,8 +47,10 @@ type JDKTable struct {
 	Groups         []JDKGroup `yaml:"groups"`
 }
 
+// jdkFile は、rules/java/ のファイル 1 つ（JDK の表と、Java で動くサーバーの表）。
 type jdkFile struct {
-	JDKTables []*JDKTable `yaml:"jdk_tables"`
+	JDKTables    []*JDKTable    `yaml:"jdk_tables"`
+	TomcatTables []*TomcatTable `yaml:"tomcat_tables"`
 }
 
 var (

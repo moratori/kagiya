@@ -44,6 +44,7 @@ type RuleSet struct {
 	Policies     []*Policy
 	GroupTables  []*GroupTable
 	JDKTables    []*JDKTable
+	TomcatTables []*TomcatTable
 
 	byAlias     map[string]int
 	storePaths  map[string]string // パス → ストア ID
@@ -230,6 +231,11 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 			}
 			for _, t := range jf.JDKTables {
 				if err := rs.addJDKTable(t, ids); err != nil {
+					return nil, fmt.Errorf("%s: %w", f.Path, err)
+				}
+			}
+			for _, t := range jf.TomcatTables {
+				if err := rs.addTomcatTable(t, ids); err != nil {
 					return nil, fmt.Errorf("%s: %w", f.Path, err)
 				}
 			}
