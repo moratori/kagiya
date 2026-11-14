@@ -19,6 +19,8 @@ type Store struct {
 	Certs          []*x509cert.Certificate
 	Opaque         bool // 暗号化されていて中身を確認できない部分がある
 	Truncated      bool // 途中までしか読めなかった
+
+	seenProtections map[keymat.Encryption]struct{}
 }
 
 type MAC struct {
@@ -104,12 +106,20 @@ func explicit(e der.Element) (der.Element, bool) {
 	return inner, err == nil && len(rest) == 0
 }
 
+// addKeyProtection は、秘密鍵の保護方式を、重複を除いて記録する。種類が上限を超えたら、それ以上は記録せず、打ち切りの印を付ける
+// （方式を 1 つずつ変えたエントリを大量に並べたキーストアで、時間と結果が膨らまないように）。
 func (s *Store) addKeyProtection(enc keymat.Encryption) {
-	for _, p := range s.KeyProtections {
-		if p == enc {
-			return
-		}
+	if _, dup := s.seenProtections[enc]; dup {
+		return
 	}
+	if len(s.KeyProtections) >= maxKeyProtections {
+		s.Truncated = true
+		return
+	}
+	if s.seenProtections == nil {
+		s.seenProtections = map[keymat.Encryption]struct{}{}
+	}
+	s.seenProtections[enc] = struct{}{}
 	s.KeyProtections = append(s.KeyProtections, enc)
 }
 

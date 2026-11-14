@@ -126,25 +126,47 @@ func OctetString(e Element) ([]byte, error) {
 }
 
 func octetString(e Element, depth int) ([]byte, error) {
-	if e.Class != ClassUniversal || e.Tag != TagOctetString || depth > maxDepth {
+	if e.Class != ClassUniversal || e.Tag != TagOctetString {
 		return nil, errMalformed
 	}
 	if !e.Constructed {
 		return e.Content, nil
 	}
-	parts, err := Children(e.Content)
-	if err != nil {
+	// 分割された形: 中身をつなげる。つなげた結果は、もとの内容より長くならない
+	out := make([]byte, 0, len(e.Content))
+	if err := appendOctets(&out, e.Content, depth+1); err != nil {
 		return nil, err
 	}
-	var out []byte
-	for _, p := range parts {
-		b, err := octetString(p, depth+1)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, b...)
-	}
 	return out, nil
+}
+
+// appendOctets は、分割された形の OCTET STRING の内容（子の並び）を、1 つずつ読んでつなげる
+// （子をいったん全部並べると、空の子を大量に並べた入力で、入力の何十倍ものメモリを使う）。
+func appendOctets(out *[]byte, content []byte, depth int) error {
+	if depth > maxOctetDepth {
+		return errMalformed
+	}
+	for n := 0; len(content) > 0; n++ {
+		if n >= maxChildren {
+			return errMalformed
+		}
+		e, rest, err := Read(content)
+		if err != nil {
+			return err
+		}
+		if e.Class != ClassUniversal || e.Tag != TagOctetString {
+			return errMalformed
+		}
+		if e.Constructed {
+			if err := appendOctets(out, e.Content, depth+1); err != nil {
+				return err
+			}
+		} else {
+			*out = append(*out, e.Content...)
+		}
+		content = rest
+	}
+	return nil
 }
 
 // Children は構造型の内容を要素の並びとして読む。余りがあればエラー。

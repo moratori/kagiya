@@ -629,7 +629,10 @@ func sshKeyType(s string) bool {
 // parseSSHLines は1行1鍵の形式（*.pub、authorized_keys、known_hosts）を読む。
 // オプションやホスト名の部分は読み捨て、「種別名 Base64」の並びだけを見る。
 func parseSSHLines(data []byte) (items []Item, failed int) {
-	for _, line := range bytes.Split(data, []byte("\n")) {
+	// 1 行ずつ切り出す（全体を行に分けた並びは作らない）
+	for len(data) > 0 {
+		var line []byte
+		line, data, _ = bytes.Cut(data, []byte("\n"))
 		line = bytes.TrimSpace(line)
 		if len(line) == 0 || line[0] == '#' || len(items) >= maxItems {
 			continue
