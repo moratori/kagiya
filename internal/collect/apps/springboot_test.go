@@ -69,6 +69,8 @@ type sbHost struct {
 	unitEnv string            // ユニットの [Service] に足す行
 	files   map[string]string // そのほかのファイル
 	jdks    []model.Package   // 導入されている JDK（既定は Ubuntu の 21）
+	// supervisord のサービスを「起動するよう設定された」状態にする
+	enableSupervisor bool
 }
 
 func sbCollect(t *testing.T, h sbHost) (string, *model.Inventory) {
@@ -113,6 +115,9 @@ func sbCollect(t *testing.T, h sbHost) (string, *model.Inventory) {
 	}
 	for name, content := range h.files {
 		write(name, []byte(content))
+	}
+	if h.enableSupervisor {
+		link(t, prefix, "/usr/lib/systemd/system/supervisor.service", "/etc/systemd/system/multi-user.target.wants/supervisor.service")
 	}
 	c := &Collector{Prefix: prefix, Opener: &safefs.Opener{OnSkip: b.Skip}, Builder: b, Rules: rs}
 	c.CollectJavaApps([]string{prefix + sbJar})
@@ -338,5 +343,57 @@ func TestSpringBootIgnoresOtherArchives(t *testing.T) {
 	c.CollectJavaApps([]string{prefix + "/opt/x/plain.jar", prefix + "/opt/x/broken.jar"})
 	if inv := b.Inventory(); len(inv.Services) != 0 || len(inv.EffectiveValues) != 0 {
 		t.Errorf("services = %+v", inv.Services)
+	}
+}
+
+// supervisord から起動される Spring Boot のアプリ: プログラムの定義（command）の Java から JDK を決める。
+// 読み方は、実物の supervisord（Ubuntu 24.04 の supervisor 4.2.5）で確かめた。
+func TestSpringBootFromSupervisor(t *testing.T) {
+	conf := map[string]string{"application.properties": sbBase + sbKS, "application-prod.properties": "server.ssl.enabled-protocols=TLSv1.3\n"}
+	const file = "/etc/supervisor/conf.d/portal.conf"
+	program := func(body string) map[string]string {
+		return map[string]string{file: "[program:portal]\n" + body}
+	}
+	_, inv := sbCollect(t, sbHost{config: conf, files: program("command=/usr/bin/java -Xmx256m -jar " + sbJar + " ; the portal\ndirectory=/opt/portal\n"), enableSupervisor: true})
+	e := sbEff(t, inv, "tls.ciphersuites-tls13")
+	checkSuites(t, e, 3, jdkTLS13, "high")
+	notes := strings.Join(e.Notes, " ")
+	if !strings.Contains(notes, "supervisord") || !strings.Contains(notes, "portal") || !strings.Contains(notes, sbJava21) {
+		t.Errorf("notes = %v", e.Notes)
+	}
+	for _, s := range inv.Services {
+		if s.ID == sbSvc && s.Activity.Level != "enabled" {
+			t.Errorf("activity = %+v", s.Activity)
+		}
+	}
+	// supervisord が起動するよう設定されていない、またはプログラムが autostart=false なら、「起動するよう設定されている」とは言えない
+	for name, h := range map[string]sbHost{
+		"supervisor not enabled": {config: conf, files: program("command=/usr/bin/java -jar " + sbJar + "\n")},
+		"autostart off":          {config: conf, files: program("command=/usr/bin/java -jar " + sbJar + "\nautostart=false\n"), enableSupervisor: true},
+	} {
+		_, inv := sbCollect(t, h)
+		for _, s := range inv.Services {
+			if s.ID == sbSvc && s.Activity.Level == "enabled" {
+				t.Errorf("%s: activity = %+v", name, s.Activity)
+			}
+		}
+		checkSuites(t, sbEff(t, inv, "tls.ciphersuites-tls13"), 3, jdkTLS13, "high")
+	}
+	// プロファイルは、environment の指定を読む
+	_, inv = sbCollect(t, sbHost{config: conf, files: program("command=/usr/bin/java -jar " + sbJar + "\nenvironment=SPRING_PROFILES_ACTIVE=\"prod\",APP_HOME=\"/opt/portal\"\n"), enableSupervisor: true})
+	if p := sbEff(t, inv, "tls.protocols"); strings.Join(p.Values, ",") != "TLSv1.3" {
+		t.Errorf("profile from the environment: %+v", p)
+	}
+	// TLS の設定を上書きする環境変数、置き換え（%(...)s）で値が分からないプロファイルの指定があれば、求めない
+	_, inv = sbCollect(t, sbHost{config: conf, files: program("command=/usr/bin/java -jar " + sbJar + "\nenvironment=SERVER_SSL_CIPHERS=TLS_AES_128_GCM_SHA256\n")})
+	sbUnresolved(t, inv, "environment")
+	_, inv = sbCollect(t, sbHost{config: conf, files: program("command=/usr/bin/java -jar " + sbJar + "\nenvironment=SPRING_PROFILES_ACTIVE=%(ENV_PROFILE)s\n")})
+	sbUnresolved(t, inv, "SPRING_PROFILES_ACTIVE")
+	// command に置き換えがあると、どの JAR を起動するのか決まらない。起動の定義が読めない JAR として扱う
+	_, inv = sbCollect(t, sbHost{config: conf, files: program("command=/usr/bin/java -jar %(ENV_APP_JAR)s\n")})
+	e = sbEff(t, inv, "tls.ciphersuites-tls13")
+	checkSuites(t, e, 3, jdkTLS13, "medium")
+	if !strings.Contains(strings.Join(e.Notes, " "), "every JDK") {
+		t.Errorf("notes = %v", e.Notes)
 	}
 }
