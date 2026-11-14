@@ -135,7 +135,7 @@ func TestStunnelDebianFamily(t *testing.T) {
 	// 証明書の指定がないサービスは、種類による絞り込みをしない（確度は一段下）
 	_, inv = collect(t, "", prepare("3:5.72-1build2", "libssl3t64", "3.0.13-0ubuntu3.16", map[string]string{
 		stunnelConf: stunnelHead + "[nocert]\naccept = 127.0.0.1:8443\nconnect = 127.0.0.1:9\n"}))
-	if e := eff(t, inv, "svc:stunnel", "tls.ciphers", "stunnel.conf [nocert]"); e.Status != "resolved" || e.Confidence != "medium" {
+	if e := eff(t, inv, "svc:stunnel", "tls.ciphers", "stunnel.conf [nocert]"); e.Status != "resolved" || e.Confidence != "high" || !hasQualifier(e, model.QualifierAnyCertificateKind) {
 		t.Errorf("no certificate: %+v", e)
 	}
 }

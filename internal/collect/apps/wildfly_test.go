@@ -198,13 +198,13 @@ func TestWildFlyElytronDefault(t *testing.T) {
 		t.Errorf("service = %+v", svc)
 	}
 	p := wfEff(t, inv, "tls.protocols")
-	// どの JDK で動くかは決められない（JAVA_HOME の指定がない）ので、見つかった JDK で同じになる値として、確度は中
-	if p.Status != "resolved" || strings.Join(p.Values, ",") != "TLSv1.2" || p.Confidence != "medium" || p.Direction != "inbound" {
+	// どの JDK で動くかは決められない（JAVA_HOME の指定がない）。見つかった JDK で同じになる値を出し、そのことを説明として付ける（確度は下げない）
+	if p.Status != "resolved" || strings.Join(p.Values, ",") != "TLSv1.2" || p.Confidence != "high" || !hasQualifier(p, model.QualifierAnyJDKFound) || p.Direction != "inbound" {
 		t.Errorf("protocols = %+v", p)
 	}
 	e := wfEff(t, inv, "tls.ciphers")
-	wfCheck(t, e, "medium", "RSA", 14, wfRSA12)
-	wfCheck(t, e, "medium", "EC", 7, wfEC12) // 場面 e-eccert
+	wfCheck(t, e, "high", "RSA", 14, wfRSA12)
+	wfCheck(t, e, "high", "EC", 7, wfEC12) // 場面 e-eccert
 	if l := layers(e); l != "app-default/default library/intersect app-config/remove" {
 		t.Errorf("steps = %s", l)
 	}
@@ -246,7 +246,7 @@ func TestWildFlyElytronConfigured(t *testing.T) {
 		t.Errorf("protocols = %+v", p)
 	}
 	e := wfEff(t, inv, "tls.ciphers")
-	if got := sortedJoin(wfKind(e.Values, "RSA")); got != "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384" || e.Confidence != "medium" {
+	if got := sortedJoin(wfKind(e.Values, "RSA")); got != "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384" || e.Confidence != "high" {
 		t.Errorf("ciphers = %s (%s)", got, e.Confidence)
 	}
 	if l := layers(e); l != "app-config/override library/intersect app-config/remove" || e.Steps[0].Setting == "" {
@@ -257,7 +257,7 @@ func TestWildFlyElytronConfigured(t *testing.T) {
 	}
 	// 場面 e-filter-openssl: 「ECDHE+CHACHA20」の CHACHA20 は Elytron の知らない語で、無視される（ECDHE すべてになる）
 	_, inv = collect(t, "", wfHost(t, "42.0.0.Final", wfElytron(`cipher-suite-filter="ECDHE+AESGCM:ECDHE+CHACHA20:!aNULL"`, `ssl-context="labSSC"`), nil))
-	wfCheck(t, wfEff(t, inv, "tls.ciphers"), "medium", "RSA", 7, wfECDHE12)
+	wfCheck(t, wfEff(t, inv, "tls.ciphers"), "high", "RSA", 7, wfECDHE12)
 	// 場面 e-filter-alias: OpenSSL 式の名前
 	_, inv = collect(t, "", wfHost(t, "42.0.0.Final", wfElytron(`cipher-suite-filter="ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-SHA"`, `ssl-context="labSSC"`), nil))
 	if got := sortedJoin(wfEff(t, inv, "tls.ciphers").Values); got != "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384" {
@@ -295,14 +295,14 @@ func TestWildFlyJDK(t *testing.T) {
 	if p := wfEff(t, inv, "tls.protocols"); p.Status != "resolved" || p.Confidence != "high" || !strings.Contains(strings.Join(p.Notes, " "), wfJava17) {
 		t.Errorf("protocols = %+v", p)
 	}
-	// 証明書の種類は分からないので、暗号スイートの確度は中のまま
-	if e := wfEff(t, inv, "tls.ciphers"); e.Confidence != "medium" || e.Steps[1].Source.Package != "openjdk-17-jre-headless" {
+	// 証明書の種類は分からないが、そのことでは確度を下げない（合わせた一覧を出し、説明を付ける）
+	if e := wfEff(t, inv, "tls.ciphers"); e.Confidence != "high" || e.Steps[1].Source.Package != "openjdk-17-jre-headless" {
 		t.Errorf("ciphers = %s %+v", e.Confidence, e.Steps)
 	}
 	// JAVA_HOME の指定がなく、JDK が 2 つある: どちらでも同じ結果なので確定（確度は中）
 	_, inv = collect(t, "", wfHost(t, "42.0.0.Final", wfElytron("", `ssl-context="labSSC"`), nil, pkgJava17Ubu, pkgJava11Ubu))
 	e := wfEff(t, inv, "tls.ciphers")
-	wfCheck(t, e, "medium", "RSA", 14, wfRSA12)
+	wfCheck(t, e, "high", "RSA", 14, wfRSA12)
 	if !strings.Contains(strings.Join(e.Notes, " "), wfJava11) || !strings.Contains(strings.Join(e.Notes, " "), wfJava17) {
 		t.Errorf("notes = %v", e.Notes)
 	}
@@ -326,7 +326,7 @@ func TestWildFlyLegacyRealm(t *testing.T) {
 	if p := wfEff(t, inv, "tls.protocols"); strings.Join(p.Values, ",") != "TLSv1.2" {
 		t.Errorf("protocols = %+v", p)
 	}
-	wfCheck(t, wfEff(t, inv, "tls.ciphers"), "medium", "RSA", 14, wfRSA12)
+	wfCheck(t, wfEff(t, inv, "tls.ciphers"), "high", "RSA", 14, wfRSA12)
 	if e13 := wfEff(t, inv, "tls.ciphersuites-tls13"); e13.Status != "resolved" || len(e13.Values) != 0 {
 		t.Errorf("tls13 = %+v", e13)
 	}
@@ -335,7 +335,7 @@ func TestWildFlyLegacyRealm(t *testing.T) {
 	if p, e13 := wfEff(t, inv, "tls.protocols"), wfEff(t, inv, "tls.ciphersuites-tls13"); strings.Join(p.Values, ",") != "TLSv1.3,TLSv1.2" || len(e13.Values) != 3 || setDigest(e13.Values) != wfTLS13All {
 		t.Errorf("protocols=%v tls13=%v", p.Values, e13.Values)
 	}
-	wfCheck(t, wfEff(t, inv, "tls.ciphers"), "medium", "RSA", 14, wfRSA12)
+	wfCheck(t, wfEff(t, inv, "tls.ciphers"), "high", "RSA", 14, wfRSA12)
 	// 場面 l-ciphers: engine の enabled-cipher-suites（Java での名前）
 	inv = host("", `<engine enabled-cipher-suites="TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 TLS_DHE_RSA_WITH_AES_256_GCM_SHA384"/>`, "")
 	if got := sortedJoin(wfEff(t, inv, "tls.ciphers").Values); got != "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" {

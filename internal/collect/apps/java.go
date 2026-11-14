@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"kagiya/internal/confidence"
 	"path"
 	"regexp"
 	"sort"
@@ -186,13 +187,14 @@ func jdkForeignProvider(f *javasecurity.File) string {
 
 // jdkContext は、ある JDK について、対応表と、無効にする方式の設定を読んだ結果。
 type jdkContext struct {
-	table      *ruleset.JDKTable
-	input      jsse.Input // 無効にする方式の値と、include で取り込まれる値
-	prov       *model.Provenance
-	layer      string // 無効にする方式の記載がある層（app-config か os-policy）
-	settingID  string // その記載を記録した設定値の ID
-	confidence string
-	notes      []string // 補間したことの注記
+	table     *ruleset.JDKTable
+	input     jsse.Input // 無効にする方式の値と、include で取り込まれる値
+	prov      *model.Provenance
+	layer     string // 無効にする方式の記載がある層（app-config か os-policy）
+	settingID string // その記載を記録した設定値の ID
+	// 確度の材料。JDK の表は、項目によって裏付けが違う: 暗号スイートとプロトコル（suites）は JDK 自身の報告、グループ（groups）は数え上げ
+	suites, groups confidence.Rule
+	notes          []string // 補ったことの注記
 }
 
 // jdkRead は、JDK のディレクトリ（home）と java.security（sec）から、対応表と設定を読む。根拠になる記載は、svc の設定値として記録する。
@@ -325,15 +327,15 @@ func (c *Collector) jdkRead(app ruleset.AppRule, svc model.Service, home, sec st
 	if reason != "" {
 		return jdkContext{}, reason
 	}
-	ctx = jdkContext{table: tb, input: jsse.Input{Disabled: disabled.Value, Properties: props}, layer: layer, settingID: settingID, confidence: model.ConfidenceHigh,
+	matched := exact && other == "" // ホストの版そのものの表か（別の配布元の表や、近い版の表で補ったなら false）
+	ctx = jdkContext{table: tb, input: jsse.Input{Disabled: disabled.Value, Properties: props}, layer: layer, settingID: settingID,
+		suites: ruleOf(build.Source, "suites", matched), groups: ruleOf(build.Source, "groups", matched),
 		prov: &model.Provenance{Image: build.Source.Image, OS: build.Source.OS, Package: build.Package, Version: build.Version}}
 	switch {
 	case other != "":
-		ctx.confidence = model.ConfidenceMedium
 		ctx.notes = append(ctx.notes, "the JDK table measured on "+build.Package+" "+build.Version+" is used for this JDK because its release file reports the same upstream Java version ("+
 			other+"); the table comes from another distributor's build of that version")
 	case !exact:
-		ctx.confidence = model.ConfidenceMedium
 		ctx.notes = append(ctx.notes, interpolatedNote("JDK", build, pkg))
 	}
 	return ctx, ""
@@ -349,15 +351,14 @@ func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec st
 	tb := ctx.table
 	r := jsse.Resolve(tb, ctx.input)
 	steps := []model.ResolutionStep{{Layer: "library", Op: "default", Source: ctx.prov}, {Layer: ctx.layer, Op: "remove", Setting: ctx.settingID}}
-	confidence := ctx.confidence
 	notes := append([]string{"these are the defaults of this JDK, used unless the application chooses its own protocols, cipher suites or groups; " +
 		"options given when Java is started (-D options, an extra security properties file) are not read"}, ctx.notes...)
-	emit := func(param string, values, extra []string) {
+	emit := func(param string, values, extra []string, rule confidence.Rule) {
 		c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: param, Direction: app.Direction, Scope: home,
-			Status: model.StatusResolved, Values: values, Confidence: confidence, Steps: steps,
-			Notes: append(append([]string{}, notes...), extra...)})
+			Status: model.StatusResolved, Values: values, Steps: steps,
+			Notes: append(append([]string{}, notes...), extra...)}, rule)
 	}
-	emit(model.ParamTLSProtocols, r.Protocols, nil)
+	emit(model.ParamTLSProtocols, r.Protocols, nil, ctx.suites)
 	var tls12, tls13, dheNote []string
 	for _, s := range r.Suites {
 		switch {
@@ -371,13 +372,13 @@ func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec st
 			tls13 = append(tls13, s)
 		}
 	}
-	emit(paramCiphers, tls12, dheNote)
-	emit(paramTLS13, tls13, nil)
+	emit(paramCiphers, tls12, dheNote, ctx.suites)
+	emit(paramTLS13, tls13, nil, ctx.suites)
 	if r.GroupsBlocker != "" {
 		c.unresolved(svc, app.Direction, home, r.GroupsBlocker, model.ParamTLSGroups)
 		return
 	}
-	emit(model.ParamTLSGroups, jsseGroups(r), nil)
+	emit(model.ParamTLSGroups, jsseGroups(r), nil, ctx.groups)
 }
 
 // unresolved は、指定した項目を「求められない」として、理由とともに記録する。

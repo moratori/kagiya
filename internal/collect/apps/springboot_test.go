@@ -173,7 +173,7 @@ func TestSpringBootFromUnit(t *testing.T) {
 	}
 	// キーストアの中は読まないので、証明書の種類では絞り込まない（確度を下げる）
 	e := sbEff(t, inv, "tls.ciphers")
-	checkSuites(t, e, 27, tcAny12, "medium")
+	checkSuites(t, e, 21, tcBoth12, "high")
 	notes := strings.Join(e.Notes, " ")
 	for _, want := range []string{"3.5.16", "10.1.55", sbJava21, "portal.service", "outside the JAR"} {
 		if !strings.Contains(notes, want) {
@@ -217,7 +217,7 @@ func TestSpringBootConfigured(t *testing.T) {
 	if p := sbEff(t, inv, "tls.protocols"); strings.Join(p.Values, ",") != "TLSv1.2" {
 		t.Errorf("protocols = %+v", p)
 	}
-	checkSuites(t, sbEff(t, inv, "tls.ciphers"), 27, tcAny12, "medium")
+	checkSuites(t, sbEff(t, inv, "tls.ciphers"), 21, tcBoth12, "high")
 	if e := sbEff(t, inv, "tls.ciphersuites-tls13"); e.Status != "resolved" || len(e.Values) != 0 {
 		t.Errorf("TLS 1.3 suites = %+v", e)
 	}
@@ -240,11 +240,11 @@ func TestSpringBootWithoutLaunchDefinition(t *testing.T) {
 	// JDK が 1 つ: その JDK の結果で確定（探していない場所の JDK で動いている可能性は残るので、確度は下げる）
 	_, inv := sbCollect(t, sbHost{config: conf})
 	e := sbEff(t, inv, "tls.ciphers")
-	checkSuites(t, e, 27, tcAny12, "medium")
+	checkSuites(t, e, 21, tcBoth12, "high")
 	if !strings.Contains(strings.Join(e.Notes, " "), "every JDK") {
 		t.Errorf("notes = %v", e.Notes)
 	}
-	checkSuites(t, sbEff(t, inv, "tls.ciphersuites-tls13"), 3, jdkTLS13, "medium")
+	checkSuites(t, sbEff(t, inv, "tls.ciphersuites-tls13"), 3, jdkTLS13, "high")
 	for _, s := range inv.Services {
 		if s.ID == sbSvc && s.Activity.Level == "enabled" {
 			t.Errorf("without a launch definition the application is not known to be enabled: %+v", s.Activity)
@@ -252,7 +252,7 @@ func TestSpringBootWithoutLaunchDefinition(t *testing.T) {
 	}
 	// JDK が 2 つ（21 と 25）: 暗号スイートは同じなので確定。鍵交換のグループは違う（25 は X25519MLKEM768 を受け入れる）ので「不明」
 	_, inv = sbCollect(t, sbHost{config: conf, jdks: []model.Package{pkgJava21Ubu, pkgDeb25}})
-	checkSuites(t, sbEff(t, inv, "tls.ciphers"), 27, tcAny12, "medium")
+	checkSuites(t, sbEff(t, inv, "tls.ciphers"), 21, tcBoth12, "medium")
 	g := sbEff(t, inv, "tls.groups")
 	if g.Status != "unresolved" || !strings.Contains(g.Reason, sbJava21) || !strings.Contains(g.Reason, jdkDeb25Home) {
 		t.Errorf("groups = %+v", g)
@@ -334,7 +334,7 @@ func TestSpringBootUnresolved(t *testing.T) {
 		_, inv := sbCollect(t, c.host)
 		if name == "script" {
 			// 起動スクリプトは解釈しない。起動の定義が読めない JAR として扱う（JDK が 1 つなので確定する）
-			checkSuites(t, sbEff(t, inv, "tls.ciphers"), 27, tcAny12, "medium")
+			checkSuites(t, sbEff(t, inv, "tls.ciphers"), 21, tcBoth12, "high")
 			continue
 		}
 		t.Run(name, func(t *testing.T) { sbUnresolved(t, inv, c.want) })
@@ -407,7 +407,7 @@ func TestSpringBootFromSupervisor(t *testing.T) {
 	// command に置き換えがあると、どの JAR を起動するのか決まらない。起動の定義が読めない JAR として扱う
 	_, inv = sbCollect(t, sbHost{config: conf, files: program("command=/usr/bin/java -jar %(ENV_APP_JAR)s\n")})
 	e = sbEff(t, inv, "tls.ciphersuites-tls13")
-	checkSuites(t, e, 3, jdkTLS13, "medium")
+	checkSuites(t, e, 3, jdkTLS13, "high")
 	if !strings.Contains(strings.Join(e.Notes, " "), "every JDK") {
 		t.Errorf("notes = %v", e.Notes)
 	}
@@ -468,7 +468,7 @@ func TestSpringBootExecutableJar(t *testing.T) {
 	} {
 		_, inv := sbCollect(t, h)
 		e := sbEff(t, inv, "tls.ciphersuites-tls13")
-		checkSuites(t, e, 3, jdkTLS13, "medium")
+		checkSuites(t, e, 3, jdkTLS13, "high")
 		if n := strings.Join(e.Notes, " "); !strings.Contains(n, "PATH") || !strings.Contains(n, "every JDK") {
 			t.Errorf("%s: notes = %v", name, e.Notes)
 		}
@@ -543,7 +543,7 @@ func TestSpringBootExecutableJarWithoutDirectLaunch(t *testing.T) {
 	// 起動の定義がない: スクリプトとして起動されているかは分からない。.conf に結果を変える指定がなければ、ない場合と同じ（JAVA_HOME は使わない）
 	_, inv := sbCollect(t, sbHost{config: conf, script: true, files: map[string]string{sbConf: sbConfJava + "JAVA_OPTS=-Xmx1g\n"}})
 	e := sbEff(t, inv, "tls.ciphersuites-tls13")
-	checkSuites(t, e, 3, jdkTLS13, "medium")
+	checkSuites(t, e, 3, jdkTLS13, "high")
 	if !strings.Contains(strings.Join(e.Notes, " "), "every JDK") {
 		t.Errorf("notes = %v", e.Notes)
 	}
@@ -558,7 +558,7 @@ func TestSpringBootExecutableJarWithoutDirectLaunch(t *testing.T) {
 	// 先頭にスクリプトのない JAR は、そのままでは起動できない。JAR そのものを起動する定義は使わず、.conf も読まない
 	_, inv = sbCollect(t, sbHost{config: conf, unit: sbJar, files: map[string]string{sbConf: risky}})
 	e = sbEff(t, inv, "tls.ciphersuites-tls13")
-	checkSuites(t, e, 3, jdkTLS13, "medium")
+	checkSuites(t, e, 3, jdkTLS13, "high")
 	if !strings.Contains(strings.Join(e.Notes, " "), "every JDK") {
 		t.Errorf("notes = %v", e.Notes)
 	}
@@ -668,7 +668,7 @@ func TestSpringBootExecutableJarUnknownJavaHome(t *testing.T) {
 	}})
 	e := sbEff(t, inv, "tls.ciphersuites-tls13")
 	// 見つかっている JDK（21）の結果になる。偽の JDK の設定（TLS 1.3 を無効にする）は使われない
-	checkSuites(t, e, 3, jdkTLS13, "medium")
+	checkSuites(t, e, 3, jdkTLS13, "high")
 	if n := strings.Join(e.Notes, " "); !strings.Contains(n, "every JDK") || strings.Contains(n, "fakejdk/conf") {
 		t.Errorf("notes = %v", e.Notes)
 	}

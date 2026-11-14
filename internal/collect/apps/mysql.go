@@ -49,7 +49,7 @@ func (c *Collector) mysql(app ruleset.AppRule, svc model.Service, config string)
 			c.record(app, svc, rule, o.Value, o.File, o.Line, "", dirOf(config))
 		}
 	}
-	defs, _, _, _ := c.appDefaults(app)
+	defs, _, _, _, _ := c.appDefaults(app)
 
 	// TLS を切る指定
 	if _, off := last["skip_ssl"]; off {
@@ -81,11 +81,15 @@ func (c *Collector) mysql(app ruleset.AppRule, svc model.Service, config string)
 		} else {
 			sc.autoRSA = without == "auto-rsa"
 			sc.certsOK = sc.autoRSA
+			if sc.autoRSA {
+				sc.usedDefaults = append(sc.usedDefaults, "tls.without-certificate")
+			}
 		}
 	case without == "disabled":
 		return // この版は、証明書の指定がなければ TLS が無効
 	case without == "auto-rsa":
 		sc.autoRSA = true // 起動のたびに自分で用意する証明書（ファイルにはない）
+		sc.usedDefaults = append(sc.usedDefaults, "tls.without-certificate")
 	default:
 		sc.certsOK = false
 	}
@@ -93,6 +97,7 @@ func (c *Collector) mysql(app ruleset.AppRule, svc model.Service, config string)
 		sc.cipher, sc.cipherFile, sc.cipherLine = o.Value, o.File, o.Line
 		if suffix := strings.Join(defs["tls.cipher-suffix"], ","); suffix != "" {
 			sc.cipher += ":" + suffix // MySQL は、拒否する暗号の並びを後ろに足す
+			sc.usedDefaults = append(sc.usedDefaults, "tls.cipher-suffix")
 		}
 		if !validCipherString(sc.cipher) {
 			sc.blocker = "the configured cipher string (ssl_cipher) is not interpreted"

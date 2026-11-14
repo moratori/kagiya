@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"kagiya/internal/confidence"
 	"strings"
 
 	"kagiya/internal/model"
@@ -45,6 +46,8 @@ type tlsScope struct {
 	certKinds []string
 	// 設定で、TLS 1.2 以下（または TLS 1.3）が有効にされていない。そのスイートは空として記録する
 	tls12Off, tls13Off bool
+	// この範囲を組み立てるのに、アプリごとの処理が使った、アプリの既定値表の項目（確度の材料として申告する）
+	usedDefaults []string
 }
 
 const (
@@ -61,7 +64,7 @@ const (
 // libraryTable は、導入されている暗号ライブラリのパッケージ版に対応する、実測の表を探す。
 // find は、パッケージ名と版から表を引く（暗号スイートの対応表か、鍵交換のグループの対応表か）。what は、理由の文に入れる表の呼び名。
 // 見つからない、または複数の版が導入されていてどれを使うか決められない場合は、ok = false で、reason に理由が入る。
-func (c *Collector) libraryTable(library, what string, find func(pkg, version string) (key any, build ruleset.CipherBuild, exact, ok bool)) (key any, prov *model.Provenance, note, reason string) {
+func (c *Collector) libraryTable(library, what string, find func(pkg, version string) (key any, build ruleset.CipherBuild, exact, ok bool)) (key any, prov *model.Provenance, note, reason string, rule confidence.Rule) {
 	var patterns []string
 	for _, l := range c.Rules.Libraries {
 		if l.ID == library {
@@ -88,10 +91,11 @@ func (c *Collector) libraryTable(library, what string, find func(pkg, version st
 			c.Builder.NoteUnmeasured(model.Unmeasured{Kind: kind, Name: p.Name, Version: version, Status: "interpolated", Measured: build.Version})
 		}
 		if key != nil && (k != key || installed != p.Name+" "+version) {
-			return nil, nil, "", "more than one version of the " + library + " library is installed; which one this server uses is not determined"
+			return nil, nil, "", "more than one version of the " + library + " library is installed; which one this server uses is not determined", rule
 		}
 		key, installed = k, p.Name+" "+version
 		prov = &model.Provenance{Image: build.Source.Image, OS: build.Source.OS, Package: build.Package, Version: build.Version}
+		rule = ruleOf(build.Source, "", exact)
 		note = ""
 		if !exact {
 			note = "the " + what + " measured on " + build.Package + " " + build.Version + " is used for the installed " + installed + " (same upstream version and distribution, different release)"
@@ -99,23 +103,23 @@ func (c *Collector) libraryTable(library, what string, find func(pkg, version st
 	}
 	switch {
 	case key != nil:
-		return key, prov, note, ""
+		return key, prov, note, "", rule
 	case first == "":
-		return nil, nil, "", "no package information for the " + library + " library; the " + what + " to use is unknown"
+		return nil, nil, "", "no package information for the " + library + " library; the " + what + " to use is unknown", rule
 	}
-	return nil, nil, "", "no " + what + " is recorded for " + first
+	return nil, nil, "", "no " + what + " is recorded for " + first, rule
 }
 
 // cipherTable は、導入されている暗号ライブラリのパッケージ版に対応する、暗号スイートの対応表を返す。
-func (c *Collector) cipherTable(library string) (t *ruleset.CipherTable, prov *model.Provenance, note, reason string) {
-	key, prov, note, reason := c.libraryTable(library, "cipher table", func(pkg, version string) (any, ruleset.CipherBuild, bool, bool) {
+func (c *Collector) cipherTable(library string) (t *ruleset.CipherTable, prov *model.Provenance, note, reason string, rule confidence.Rule) {
+	key, prov, note, reason, rule := c.libraryTable(library, "cipher table", func(pkg, version string) (any, ruleset.CipherBuild, bool, bool) {
 		tb, build, exact, ok := c.Rules.CipherTableFor(library, pkg, version)
 		return tb, build, exact, ok
 	})
 	if key == nil {
-		return nil, nil, "", reason
+		return nil, nil, "", reason, rule
 	}
-	return key.(*ruleset.CipherTable), prov, note, ""
+	return key.(*ruleset.CipherTable), prov, note, "", rule
 }
 
 // profileString は、「PROFILE=SYSTEM」が指す暗号文字列を、ライブラリが読むファイルから取り出す。
@@ -214,8 +218,8 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 	if len(scopes) == 0 {
 		return
 	}
-	table, libProv, libNote, noTable := c.cipherTable("openssl")
-	defs, appProv, appNote, noDefaults := c.appDefaults(app)
+	table, libProv, libNote, noTable, libRule := c.cipherTable("openssl")
+	defs, appProv, appNote, noDefaults, defRule := c.appDefaults(app)
 
 	// システムの openssl.cnf の既定（RHEL 系では暗号ポリシーが生成した内容）
 	sysCipher, sysTLS13 := "", ""
@@ -255,19 +259,19 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 		sysLevel, appLevel = int(v[0]-'0'), true
 		sysStep = model.ResolutionStep{Layer: "app-default", Op: "security-level", Source: appProv}
 	}
-	groups := c.newGroupResolver(app, svc, appProv, appNote, defs)
+	groups := c.newGroupResolver(app, svc, appProv, appNote, defs, defRule)
 	groups.levelUnknown = sysUnread == "CipherString"
 	for _, sc := range scopes {
 		// 暗号スイート（TLS 1.2 以下と TLS 1.3）。適用されたセキュリティレベルを返す（鍵交換のグループの絞り込みにも使う）
 		level, levelStep := func() (int, model.ResolutionStep) {
-			e := model.EffectiveValue{Service: svc.ID, Parameter: paramCiphers, Direction: app.Direction, Scope: sc.name, Status: model.StatusResolved, Confidence: model.ConfidenceHigh}
+			e := model.EffectiveValue{Service: svc.ID, Parameter: paramCiphers, Direction: app.Direction, Scope: sc.name, Status: model.StatusResolved}
 			e13 := e
 			e13.Parameter = paramTLS13
 			fail := func(reason string) {
-				e.Status, e.Confidence, e.Reason = model.StatusUnresolved, "", reason
+				e.Status, e.Reason = model.StatusUnresolved, reason
 				c.Builder.AddEffective(e)
 				if table == nil || len(table.TLS13) > 0 {
-					e13.Status, e13.Confidence, e13.Reason = model.StatusUnresolved, "", reason
+					e13.Status, e13.Reason = model.StatusUnresolved, reason
 					c.Builder.AddEffective(e13)
 				}
 			}
@@ -288,7 +292,20 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 				in.SystemTLS13 = strings.Split(sysTLS13, ":")
 			}
 
-			usedAppDefault := false // アプリの既定値表の値を使ったか（補間した表なら、確度を下げる）
+			usedAppDefault := false // アプリの既定値表の値を使ったか（補った表なら、その旨の注記を付ける）
+			// 確度の材料: この実効値の計算に使ったルール。暗号スイートの対応表は、暗号文字列の展開に必ず使う
+			rules := []confidence.Rule{libRule}
+			use := func(item string) { // アプリの既定値表の項目を使った
+				usedAppDefault = true
+				if defRule != nil {
+					rules = append(rules, defRule(item))
+				}
+			}
+			for _, item := range sc.usedDefaults {
+				if !groupOnlyItem(item) {
+					use(item)
+				}
+			}
 
 			// 1. 暗号文字列: 設定の記載、なければアプリの既定
 			cipherParam := paramCiphers
@@ -309,7 +326,7 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 				}
 				in.CipherString = strings.Join(def, ",")
 				first = model.ResolutionStep{Layer: "app-default", Op: "default", Source: appProv}
-				usedAppDefault = true
+				use(paramCiphers)
 			}
 			e.Steps = []model.ResolutionStep{first}
 			levelFrom := first // 暗号文字列にセキュリティレベルの指定が含まれるとき、それがどの層のものか
@@ -334,7 +351,7 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 				certs := sc.certs
 				if strings.Join(defs[paramCertSel], ",") == "first" && len(certs) > 1 {
 					certs = certs[:1] // この版は、同じ名前の証明書を複数指定しても最初の1つしか使わない
-					usedAppDefault = true
+					use(paramCertSel)
 				}
 				in.Certs, in.CertsKnown = c.certKinds(certs)
 			}
@@ -354,6 +371,11 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			if sc.autoRSA {
 				in.Certs, in.CertsKnown = []tlseffective.Cert{{Key: "RSA", Signature: "RSA"}}, true
 			}
+			// 証明書の種類を判定できない場合は、RSA の証明書の場合と EC の証明書の場合を合わせた一覧を求める（確度は下げない。DSA の分は入れない）
+			anyKind := false
+			if !in.CertsKnown {
+				in.Certs, in.CertsKnown, anyKind = []tlseffective.Cert{{Key: "RSA", Signature: "RSA"}, {Key: "EC", Signature: "ECDSA"}}, true, true
+			}
 			tls13Default := false // TLS 1.3 のスイートを、アプリの既定が決めている
 			if sc.tls13 != "" {
 				in.AppTLS13 = strings.Split(sc.tls13, ":")
@@ -368,10 +390,10 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 				in.DHE, in.DHEKnown = true, true
 			case v == "builtin":
 				in.DHE, in.DHEKnown, dheLayer, dheSource = true, true, "app-default", appProv
-				usedAppDefault = true
+				use(paramDHE)
 			case v == "disabled":
 				in.DHE, in.DHEKnown, dheLayer, dheSource = false, true, "app-default", appProv
-				usedAppDefault = true
+				use(paramDHE)
 			}
 
 			out, err := tlseffective.Resolve(in)
@@ -388,7 +410,7 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 				levelStep.Layer = "os-policy"
 				if appLevel {
 					levelStep.Layer, levelStep.Source = "app-default", appProv
-					usedAppDefault = true
+					use(paramAppLevel)
 				}
 			case "library-default":
 				levelStep.Layer, levelStep.Source = "library", libProv
@@ -396,7 +418,7 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			if levelStep.Layer != "" {
 				e.Steps = append(e.Steps, levelStep)
 			}
-			if in.CertsKnown {
+			if in.CertsKnown && !anyKind {
 				e.Steps = append(e.Steps, model.ResolutionStep{Layer: "app-config", Op: "filter-certificates"})
 			}
 			if in.DHEKnown {
@@ -408,36 +430,41 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			if appNote != "" && usedAppDefault {
 				notes = append(notes, appNote)
 			}
+			dheUnknown := false
 			for _, u := range out.Unfiltered {
-				switch u {
-				case "certificates":
-					notes = append(notes, "the server certificate could not be read, so suites are not narrowed down by the certificate type")
-				case "dh-parameters":
-					notes = append(notes, "whether this application version can use DHE without DH parameters is not recorded, so DHE suites are kept")
+				if u == "dh-parameters" {
+					dheUnknown = true
 				}
+			}
+			if anyKind {
+				e.Qualifiers = append(e.Qualifiers, model.QualifierAnyCertificateKind)
+				notes = append(notes, "the kind of the server certificate is not known (the certificate could not be read), so the suites usable with an RSA certificate and those usable with an EC certificate are listed together")
 			}
 			if len(out.Suites) == 0 {
 				notes = append(notes, "no suite is usable with this configuration")
+				e.Qualifiers = append(e.Qualifiers, model.QualifierNothingAccepted)
 			}
 			if sc.tls12Off {
-				out.Suites, notes = nil, []string{"TLS 1.2 and older are not enabled in the configuration"}
+				out.Suites, notes, e.Qualifiers = nil, []string{"TLS 1.2 and older are not enabled in the configuration"}, nil
 			}
 			e.Values, e.Notes = out.Suites, notes
-			if len(notes) > 0 {
-				e.Confidence = model.ConfidenceMedium
-			}
 			e.Notes = append(e.Notes, sc.info...)
-			if sc.tls12Blocker != "" {
-				e = model.EffectiveValue{Service: e.Service, Parameter: e.Parameter, Direction: e.Direction, Scope: e.Scope, Status: model.StatusUnresolved, Reason: sc.tls12Blocker}
+			blocker := sc.tls12Blocker
+			if blocker == "" && dheUnknown && !sc.tls12Off {
+				// DH パラメータの指定がないときに DHE を使えるかは、起動して確かめないと分からない。その版のルールにこの項目がなければ、求めない
+				blocker = "whether this application version can use DHE suites without DH parameters is not recorded (it is not measured for this version), and no DH parameters are configured"
 			}
-			c.Builder.AddEffective(e)
+			if blocker != "" {
+				e = model.EffectiveValue{Service: e.Service, Parameter: e.Parameter, Direction: e.Direction, Scope: e.Scope, Status: model.StatusUnresolved, Reason: blocker}
+			}
+			c.Builder.AddEffective(e, rules...)
 
 			// TLS 1.3 のスイート（暗号文字列とは別に決まる）
 			if len(table.TLS13) == 0 {
 				return out.Level, levelStep
 			}
 			if sc.tls13Blocker != "" {
-				e13.Status, e13.Confidence, e13.Reason = model.StatusUnresolved, "", sc.tls13Blocker
+				e13.Status, e13.Reason = model.StatusUnresolved, sc.tls13Blocker
 				c.Builder.AddEffective(e13)
 				return out.Level, levelStep
 			}
@@ -463,15 +490,23 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			if sc.noCert {
 				e13.Values, e13.Notes = nil, []string{"TLS 1.3 needs a certificate, and this service has none"}
 			}
+			// TLS 1.3 のスイートの計算に使ったルール: 暗号スイートの対応表と、アプリの既定が決めている場合は、その項目
+			rules13 := []confidence.Rule{libRule}
+			for _, item := range sc.usedDefaults {
+				if defRule != nil && !groupOnlyItem(item) {
+					rules13 = append(rules13, defRule(item))
+				}
+			}
+			if tls13Default && defRule != nil {
+				rules13 = append(rules13, defRule(paramTLS13))
+			}
 			if libNote != "" {
 				e13.Notes = append(e13.Notes, libNote)
-				e13.Confidence = model.ConfidenceMedium
 			}
 			if appNote != "" && tls13Default {
 				e13.Notes = append(e13.Notes, appNote)
-				e13.Confidence = model.ConfidenceMedium
 			}
-			c.Builder.AddEffective(e13)
+			c.Builder.AddEffective(e13, rules13...)
 			return out.Level, levelStep
 		}()
 		groups.resolve(sc, level, levelStep)

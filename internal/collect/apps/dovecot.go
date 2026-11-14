@@ -38,7 +38,7 @@ func (c *Collector) dovecot(app ruleset.AppRule, svc model.Service, config strin
 	for _, pr := range problems {
 		c.Builder.Skip(safefs.Skip{Path: c.Prefix + config, Reason: "config-problem", Detail: pr})
 	}
-	defs, _, _, _ := c.appDefaults(app)
+	defs, _, _, _, _ := c.appDefaults(app)
 
 	// プロトコルごとに範囲を分けるもの: 「protocol X { }」の中に TLS の指定がある、または「service X-login { chroot = }」で chroot を外している
 	protos := map[string]bool{}
@@ -105,6 +105,7 @@ func (c *Collector) dovecot(app ruleset.AppRule, svc model.Service, config strin
 			sc.cipher, sc.cipherFile, sc.cipherLine = d.Value, d.File, d.Line
 			const profile = "PROFILE=SYSTEM"
 			if strings.HasPrefix(d.Value, profile) && !unchrooted[proto] {
+				sc.usedDefaults = append(sc.usedDefaults, "tls.profile-in-chroot")
 				if strings.Join(defs["tls.profile-in-chroot"], ",") == "library-default" {
 					sc.cipher = "DEFAULT" + d.Value[len(profile):]
 					sc.info = append(sc.info, "PROFILE=SYSTEM is configured, but the login process runs in a chroot where the system crypto policy file is not readable, so the library default (DEFAULT) is used instead")

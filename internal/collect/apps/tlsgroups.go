@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"kagiya/internal/confidence"
 	"regexp"
 	"strings"
 
@@ -31,16 +32,18 @@ type groupResolver struct {
 	appProv      *model.Provenance
 	appNote      string
 	defs         map[string][]string
+	defRule      defaultsRule    // アプリの既定値表の項目を使ったときの、確度の材料
+	rule         confidence.Rule // 鍵交換のグループの対応表の、確度の材料
 }
 
-func (c *Collector) newGroupResolver(app ruleset.AppRule, svc model.Service, appProv *model.Provenance, appNote string, defs map[string][]string) *groupResolver {
-	g := &groupResolver{c: c, app: app, svc: svc, appProv: appProv, appNote: appNote, defs: defs}
-	key, prov, note, reason := c.libraryTable("openssl", "group table", func(pkg, version string) (any, ruleset.CipherBuild, bool, bool) {
+func (c *Collector) newGroupResolver(app ruleset.AppRule, svc model.Service, appProv *model.Provenance, appNote string, defs map[string][]string, defRule defaultsRule) *groupResolver {
+	g := &groupResolver{c: c, app: app, svc: svc, appProv: appProv, appNote: appNote, defs: defs, defRule: defRule}
+	key, prov, note, reason, rule := c.libraryTable("openssl", "group table", func(pkg, version string) (any, ruleset.CipherBuild, bool, bool) {
 		tb, build, exact, ok := c.Rules.GroupTableFor("openssl", pkg, version)
 		return tb, build, exact, ok
 	})
 	if key != nil {
-		g.table, g.prov, g.note = key.(*ruleset.GroupTable), prov, note
+		g.table, g.prov, g.note, g.rule = key.(*ruleset.GroupTable), prov, note, rule
 	} else {
 		g.noTable = reason
 	}
@@ -65,9 +68,9 @@ func (c *Collector) newGroupResolver(app ruleset.AppRule, svc model.Service, app
 // level は、その範囲に適用されるセキュリティレベル（なければ負）。levelStep は、そのレベルがどこから来たかを表す段。
 func (g *groupResolver) resolve(sc tlsScope, level int, levelStep model.ResolutionStep) {
 	e := model.EffectiveValue{Service: g.svc.ID, Parameter: model.ParamTLSGroups, Direction: g.app.Direction, Scope: sc.name,
-		Status: model.StatusResolved, Confidence: model.ConfidenceHigh}
+		Status: model.StatusResolved}
 	fail := func(reason string) {
-		e.Status, e.Confidence, e.Reason = model.StatusUnresolved, "", reason
+		e.Status, e.Reason = model.StatusUnresolved, reason
 		g.c.Builder.AddEffective(e)
 	}
 	switch {
@@ -79,6 +82,16 @@ func (g *groupResolver) resolve(sc tlsScope, level int, levelStep model.Resoluti
 		return
 	}
 	var notes []string
+	// 確度の材料: 鍵交換のグループの対応表と、使ったアプリの既定値表の項目
+	rules := []confidence.Rule{g.rule}
+	use := func(item string) {
+		if g.defRule != nil {
+			rules = append(rules, g.defRule(item))
+		}
+	}
+	for _, item := range sc.usedDefaults {
+		use(item)
+	}
 	spec := ""
 	appDefault := strings.Join(g.defs[model.ParamTLSGroups], ",")
 	switch {
@@ -92,6 +105,7 @@ func (g *groupResolver) resolve(sc tlsScope, level int, levelStep model.Resoluti
 	case appDefault != "":
 		// アプリ自身が既定のグループを持つ（システムの設定やライブラリの既定には従わない）
 		spec = appDefault
+		use(model.ParamTLSGroups)
 		e.Steps = []model.ResolutionStep{{Layer: "app-default", Op: "default", Source: g.appProv}}
 		if g.appNote != "" {
 			notes = append(notes, g.appNote)
@@ -121,7 +135,9 @@ func (g *groupResolver) resolve(sc tlsScope, level int, levelStep model.Resoluti
 				e.Steps = append(e.Steps, levelStep)
 			}
 		} else {
-			notes = append(notes, "the effect of this security level on groups is not measured for this OpenSSL version, so groups are not narrowed down by it")
+			// セキュリティレベルがグループに及ぼす効果は、起動して確かめないと分からない。その版の表にこの項目がなければ、求めない
+			fail("the effect of this security level on groups is not measured for this OpenSSL version")
+			return
 		}
 	}
 	if sc.noCert || sc.tls13Off {
@@ -139,19 +155,18 @@ func (g *groupResolver) resolve(sc tlsScope, level int, levelStep model.Resoluti
 		values = kept
 	}
 	if g.levelUnknown {
-		notes = append(notes, "the security level is not known (the system cipher string could not be read), so groups are not narrowed down by it")
+		fail("the security level is not known (the system cipher string could not be read), so the groups it allows cannot be determined")
+		return
 	}
 	if g.note != "" {
 		notes = append(notes, g.note)
 	}
 	if len(values) == 0 {
 		notes = append(notes, "no group is usable with this configuration")
+		e.Qualifiers = append(e.Qualifiers, model.QualifierNothingAccepted)
 	}
 	e.Values, e.Notes = values, notes
-	if len(notes) > 0 {
-		e.Confidence = model.ConfidenceMedium
-	}
-	g.c.Builder.AddEffective(e)
+	g.c.Builder.AddEffective(e, rules...)
 }
 
 // groupList は、解釈の対象にするグループの指定の形（名前、区切り、OpenSSL 3.5 の接頭辞）。

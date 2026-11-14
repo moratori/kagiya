@@ -243,7 +243,7 @@ func TestPostfixLimits(t *testing.T) {
 	}
 	// 証明書の指定を追えない書き方（鍵と証明書をまとめたファイルの並び）→ 証明書による絞り込みをせず、確度を下げる
 	_, inv = collect(t, "rhel9", postfixRHEL9(t, postfixFiles("smtpd_tls_chain_files = /etc/lab/all.pem\nsmtpd_tls_security_level = may\n", postfixSMTP)))
-	if e := eff(t, inv, "svc:postfix", "tls.ciphers", smtpScope); e.Status != "resolved" || e.Confidence != "medium" {
+	if e := eff(t, inv, "svc:postfix", "tls.ciphers", smtpScope); e.Status != "resolved" || e.Confidence != "high" || !hasQualifier(e, model.QualifierAnyCertificateKind) {
 		t.Errorf("chain files: %+v", e)
 	}
 	// 補間（リリースだけが違う）→ 確度を一段下げ、実測した版を注記に残す

@@ -35,7 +35,6 @@ defaults:
         tls.cipherlist.null: { method: reported-by-software, verified-by-handshake: false }
         tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
         tls.eecdh-grade: { method: enumerated-by-handshake, verified-by-handshake: true }
-        tls.eecdh-grade-default: { method: reported-by-software, verified-by-handshake: false }
         tls.eecdh-strong-curve: { method: reported-by-software, verified-by-handshake: false }
         tls.security-level: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
@@ -70,7 +69,6 @@ defaults:
         tls.cipherlist.null: { method: reported-by-software, verified-by-handshake: false }
         tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
         tls.eecdh-grade: { method: enumerated-by-handshake, verified-by-handshake: true }
-        tls.eecdh-grade-default: { method: reported-by-software, verified-by-handshake: false }
         tls.eecdh-strong-curve: { method: reported-by-software, verified-by-handshake: false }
         tls.security-level: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
@@ -103,7 +101,6 @@ defaults:
         tls.cipherlist.null: { method: reported-by-software, verified-by-handshake: false }
         tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
         tls.eecdh-grade: { method: enumerated-by-handshake, verified-by-handshake: true }
-        tls.eecdh-grade-default: { method: reported-by-software, verified-by-handshake: false }
         tls.security-level: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
     values:
@@ -160,7 +157,6 @@ defaults:
         tls.cipherlist.null: { method: reported-by-software, verified-by-handshake: false }
         tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
         tls.eecdh-grade: { method: enumerated-by-handshake, verified-by-handshake: true }
-        tls.eecdh-grade-default: { method: reported-by-software, verified-by-handshake: false }
         tls.eecdh-strong-curve: { method: reported-by-software, verified-by-handshake: false }
         tls.security-level: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
@@ -195,7 +191,6 @@ defaults:
         tls.cipherlist.null: { method: reported-by-software, verified-by-handshake: false }
         tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
         tls.eecdh-grade: { method: enumerated-by-handshake, verified-by-handshake: true }
-        tls.eecdh-grade-default: { method: reported-by-software, verified-by-handshake: false }
         tls.security-level: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
     values:
@@ -225,7 +220,6 @@ defaults:
         tls.cipherlist.null: { method: reported-by-software, verified-by-handshake: false }
         tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
         tls.eecdh-grade: { method: enumerated-by-handshake, verified-by-handshake: true }
-        tls.eecdh-grade-default: { method: reported-by-software, verified-by-handshake: false }
         tls.security-level: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
     values:
@@ -254,7 +248,6 @@ defaults:
         tls.cipherlist.null: { method: reported-by-software, verified-by-handshake: false }
         tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
         tls.eecdh-grade: { method: enumerated-by-handshake, verified-by-handshake: true }
-        tls.eecdh-grade-default: { method: reported-by-software, verified-by-handshake: false }
         tls.security-level: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
     values:

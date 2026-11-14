@@ -8,10 +8,10 @@ const (
 	StatusUnresolved = "unresolved" // 求められなかった（理由を Reason に残す）
 )
 
-// 確度（EffectiveValue.Confidence、Occurrence.Confidence）。
+// 証明書・鍵などの出現（Occurrence.Confidence）の確度。ファイルを実際に読んで見つけたものは、高。
+// 実効値（EffectiveValue.Confidence）の確度は、別の尺度で、internal/confidence だけが決める（docs/confidence.md）。
 const (
-	ConfidenceHigh   = "high"
-	ConfidenceMedium = "medium" // 近い版の実測を当てはめた、または絞り込みの一部をしていない
+	ConfidenceHigh = "high"
 )
 
 // 実効値の読み方についての説明（EffectiveValue.Qualifiers）。確度を下げる理由にはしない（docs/confidence.md の 6.5〜6.7 節）。

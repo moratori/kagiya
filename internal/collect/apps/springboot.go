@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"kagiya/internal/confidence"
 	"path"
 	"sort"
 	"strconv"
@@ -177,6 +178,9 @@ func (c *Collector) springBoot(app ruleset.AppRule, jar string, launch *javaLaun
 
 	// TLS を待ち受ける設定か
 	table, known := c.Rules.SpringBootFor(boot)
+	if known {
+		sb.rules = append(sb.rules, ruleOf(table.Source, "", true))
+	}
 	tls := sb.settings(table)
 	sb.management(tls)
 	if !tls.enabled && tls.reason == "" {
@@ -209,6 +213,7 @@ func (c *Collector) springBoot(app ruleset.AppRule, jar string, launch *javaLaun
 	}
 	sb.tomcat, sb.tomcatVersion = tb, tomcatVersion
 	sb.tomcatProv = &model.Provenance{Image: src.Image, OS: src.OS, Package: springEmbedded, Version: tomcatVersion}
+	sb.rules = append(sb.rules, ruleOf(src, "", true))
 	if r := sb.outside(a); r != "" {
 		return fail(r)
 	}
@@ -247,6 +252,8 @@ type springBootApp struct {
 	tomcat        *ruleset.TomcatTable
 	tomcatVersion string
 	tomcatProv    *model.Provenance
+	// 確度の材料: Spring Boot の版ごとの表と、同梱の Tomcat の表（どちらも、その版そのものの表だけを使う）
+	rules []confidence.Rule
 }
 
 // springTLS は、設定から読んだ TLS の指定。
@@ -565,6 +572,8 @@ func (sb *springBootApp) resolve(t springTLS) {
 				case !strings.Contains(s, "_WITH_"):
 					res.tls13 = append(res.tls13, s)
 				case kind != "" && tomcatSuiteAuth(s) != "" && tomcatSuiteAuth(s) != kind:
+				case kind == "" && tomcatSuiteAuth(s) == "DSA":
+					// 証明書の種類が分からない場合は、RSA の場合と EC の場合を合わせた一覧にする（DSA の証明書の分は入れない）
 				default:
 					res.tls12 = append(res.tls12, s)
 				}
@@ -584,16 +593,17 @@ func (sb *springBootApp) resolve(t springTLS) {
 		results = append(results, res)
 	}
 
-	confidence := model.ConfidenceHigh
+	// JDK を 1 つに決められない場合は、見つけた JDK のどれでも同じ値になった項目だけを出す（そのことでは、確度を下げない）
+	var anyJDK []string
 	if !certain {
-		confidence = model.ConfidenceMedium
+		anyJDK = []string{model.QualifierAnyJDKFound}
 	}
 	notes := []string{
 		"Spring Boot " + sb.boot + " with the embedded Tomcat " + sb.tomcatVersion + ", on the JDK's TLS implementation (JSSE): " + why,
 		"the settings come from the configuration inside the JAR; settings given outside the JAR (environment variables, command-line arguments, configuration files in other places, a configuration server) are not confirmed",
 	}
 	// 項目ごとに、すべての JDK で同じ結果なら確定、違えば「不明」
-	emit := func(param string, pick func(springResult) []string, firstStep model.ResolutionStep, conf string, blocker func(springResult) string, extra ...string) {
+	emit := func(param string, pick func(springResult) []string, firstStep model.ResolutionStep, qualifiers []string, blocker func(springResult) string, extra ...string) {
 		var agreed []string
 		for i, res := range results {
 			reason := res.reason
@@ -624,23 +634,28 @@ func (sb *springBootApp) resolve(t springTLS) {
 		}
 		jdk := results[0].jdk
 		n := append(append(append([]string{}, notes...), jdk.notes...), extra...)
-		if jdk.confidence == model.ConfidenceMedium {
-			conf = model.ConfidenceMedium
+		// 確度の材料: アプリの側の表と、候補の JDK それぞれの表（最も低いものになる）
+		rules := append([]confidence.Rule{}, sb.rules...)
+		for _, res := range results {
+			rules = append(rules, res.jdk.suites)
+			if param == model.ParamTLSGroups {
+				rules = append(rules, res.jdk.groups)
+			}
 		}
 		steps := []model.ResolutionStep{firstStep, {Layer: "library", Op: "intersect", Source: jdk.prov}, {Layer: jdk.layer, Op: "remove", Setting: jdk.settingID}}
 		c.Builder.AddEffective(model.EffectiveValue{Service: sb.svc.ID, Parameter: param, Direction: sb.app.Direction, Scope: sb.scope,
-			Status: model.StatusResolved, Values: agreed, Confidence: conf, Steps: steps, Notes: n})
+			Status: model.StatusResolved, Values: agreed, Qualifiers: append(append([]string{}, anyJDK...), qualifiers...), Steps: steps, Notes: n}, rules...)
 	}
-	emit(model.ParamTLSProtocols, func(r springResult) []string { return r.r.Protocols }, protoFirst, confidence, nil)
-	conf12, extra := confidence, []string(nil)
+	emit(model.ParamTLSProtocols, func(r springResult) []string { return r.r.Protocols }, protoFirst, nil, nil)
+	var extra, qualifiers12 []string
 	if kind == "" {
-		conf12 = model.ConfidenceMedium
-		extra = []string{"the kind of the server certificate is not known (a keystore whose contents are not read), so the suites are not narrowed by certificate kind; " +
+		qualifiers12 = []string{model.QualifierAnyCertificateKind}
+		extra = []string{"the kind of the server certificate is not known (the contents of a keystore are not read), so the suites usable with an RSA certificate and those usable with an EC certificate are listed together; " +
 			"suites that need a kind of certificate the server does not have are not usable"}
 	}
-	emit(paramCiphers, func(r springResult) []string { return r.tls12 }, first, conf12, nil, extra...)
-	emit(paramTLS13, func(r springResult) []string { return r.tls13 }, first, confidence, nil)
-	emit(model.ParamTLSGroups, func(r springResult) []string { return r.groups }, model.ResolutionStep{Layer: "library", Op: "default"}, confidence,
+	emit(paramCiphers, func(r springResult) []string { return r.tls12 }, first, qualifiers12, nil, extra...)
+	emit(paramTLS13, func(r springResult) []string { return r.tls13 }, first, nil, nil)
+	emit(model.ParamTLSGroups, func(r springResult) []string { return r.groups }, model.ResolutionStep{Layer: "library", Op: "default"}, nil,
 		func(r springResult) string { return r.r.GroupsBlocker })
 }
 

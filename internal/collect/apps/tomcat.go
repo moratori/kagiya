@@ -384,24 +384,24 @@ func (c *Collector) tomcatHost(in *tomcatInstall, h tomcatHost, why, reason stri
 	}
 	r := jsse.ResolveExplicit(in.jdk.table, in.jdk.input, protos, names)
 
-	confidence := in.jdk.confidence
+	// 確度の材料: Tomcat の表と、Tomcat を動かす JDK の表
+	tomcatRule := ruleOf(in.build.Source, "", in.exact)
 	notes := []string{"Tomcat runs on the JDK's TLS implementation (JSSE) with the JDK in " + in.jdkDir + ": " + why,
 		"Tomcat's own cipher table decides what the ciphers value means; of those, the suites that this JDK supports and has not disabled are accepted",
 		"not read: setenv.sh, environment added by systemd drop-ins, and a Tomcat Native library installed without a package"}
 	notes = append(notes, in.jdk.notes...)
 	if !in.exact {
-		confidence = model.ConfidenceMedium
 		notes = append(notes, interpolatedNote("Tomcat", in.build, in.pkg))
 	}
 	byJDK := model.ResolutionStep{Layer: "library", Op: "intersect", Source: in.jdk.prov}
 	disabled := model.ResolutionStep{Layer: in.jdk.layer, Op: "remove", Setting: in.jdk.settingID}
-	emit := func(param string, values []string, conf string, first model.ResolutionStep, extra ...string) {
+	emit := func(param string, values []string, qualifiers []string, first model.ResolutionStep, extra ...string) {
 		if values == nil {
 			values = []string{}
 		}
 		c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: param, Direction: app.Direction, Scope: h.scope,
-			Status: model.StatusResolved, Values: values, Confidence: conf, Steps: []model.ResolutionStep{first, byJDK, disabled},
-			Notes: append(append([]string{}, notes...), extra...)})
+			Status: model.StatusResolved, Values: values, Qualifiers: qualifiers, Steps: []model.ResolutionStep{first, byJDK, disabled},
+			Notes: append(append([]string{}, notes...), extra...)}, tomcatRule, in.jdk.suites)
 	}
 
 	// プロトコル
@@ -409,7 +409,7 @@ func (c *Collector) tomcatHost(in *tomcatInstall, h tomcatHost, why, reason stri
 	if set.hasProtocols {
 		protoFirst = model.ResolutionStep{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, model.ParamTLSProtocols, in.config, set.protocols.Line)}
 	}
-	emit(model.ParamTLSProtocols, r.Protocols, confidence, protoFirst)
+	emit(model.ParamTLSProtocols, r.Protocols, nil, protoFirst)
 
 	// 暗号スイート（TLS 1.2 以下と TLS 1.3）
 	var tls12, tls13 []string
@@ -419,15 +419,20 @@ func (c *Collector) tomcatHost(in *tomcatInstall, h tomcatHost, why, reason stri
 			continue
 		}
 		// サーバーの証明書の種類で成り立たないスイートは除く
-		if a := tomcatSuiteAuth(s); set.kindsKnown && a != "" && !set.kinds[a] {
+		a := tomcatSuiteAuth(s)
+		if set.kindsKnown && a != "" && !set.kinds[a] {
+			continue
+		}
+		// 証明書の種類が分からない場合は、RSA の証明書の場合と EC の証明書の場合を合わせた一覧にする（DSA の証明書の分は入れない）
+		if !set.kindsKnown && a == "DSA" {
 			continue
 		}
 		tls12 = append(tls12, s)
 	}
-	conf12, extra := confidence, []string(nil)
+	var extra, qualifiers12 []string
 	if !set.kindsKnown {
-		conf12 = model.ConfidenceMedium
-		extra = append(extra, "the kind of the server certificate is not known (a keystore whose contents are not read, or no type attribute), so the suites are not narrowed by certificate kind; "+
+		qualifiers12 = []string{model.QualifierAnyCertificateKind}
+		extra = append(extra, "the kind of the server certificate is not known (the contents of a keystore are not read), so the suites usable with an RSA certificate and those usable with an EC certificate are listed together; "+
 			"suites that need a kind of certificate the server does not have are not usable")
 	}
 	if len(h.certs) > 1 {
@@ -437,17 +442,17 @@ func (c *Collector) tomcatHost(in *tomcatInstall, h tomcatHost, why, reason stri
 		// EC の証明書の曲線が groups に含まれないと、ECDSA で認証するスイートは成り立たない（実測）。曲線は読んでいない
 		unresolved("the groups attribute is set and the server has (or may have) an EC certificate; whether the ECDSA suites work depends on the curve of that certificate, which is not read", paramCiphers)
 	} else {
-		emit(paramCiphers, tls12, conf12, first, extra...)
+		emit(paramCiphers, tls12, qualifiers12, first, extra...)
 	}
 	switch {
 	case tls13Reason != "":
 		unresolved(tls13Reason, paramTLS13)
 	case tb.CipherSuitesAttribute && tls13Note != "":
-		emit(paramTLS13, tls13, confidence, appDefault, tls13Note)
+		emit(paramTLS13, tls13, nil, appDefault, tls13Note)
 	case tb.CipherSuitesAttribute:
-		emit(paramTLS13, tls13, confidence, appDefault)
+		emit(paramTLS13, tls13, nil, appDefault)
 	default:
-		emit(paramTLS13, tls13, confidence, first)
+		emit(paramTLS13, tls13, nil, first)
 	}
 
 	// 鍵交換のグループ
@@ -469,15 +474,15 @@ func (c *Collector) tomcatHost(in *tomcatInstall, h tomcatHost, why, reason stri
 			}
 		}
 		c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: model.ParamTLSGroups, Direction: app.Direction, Scope: h.scope,
-			Status: model.StatusResolved, Values: jsseGroups(used), Confidence: confidence, Notes: append([]string{}, notes...),
-			Steps: []model.ResolutionStep{{Layer: "library", Op: "default", Source: in.jdk.prov}, disabled}})
+			Status: model.StatusResolved, Values: jsseGroups(used), Notes: append([]string{}, notes...),
+			Steps: []model.ResolutionStep{{Layer: "library", Op: "default", Source: in.jdk.prov}, disabled}}, tomcatRule, in.jdk.suites, in.jdk.groups)
 	}
 }
 
 // tomcatMultipleCertificates は、OpenSSL の実装で証明書を複数置いたときの扱い（その版で確かめた事実。既定値表にある）を返す。
 // 表にない版では空（確かめていない）。
 func (c *Collector) tomcatMultipleCertificates(app ruleset.AppRule) string {
-	defs, _, _, _ := c.appDefaults(app)
+	defs, _, _, _, _ := c.appDefaults(app)
 	return strings.Join(defs[paramTomcatMultiCert], ",")
 }
 

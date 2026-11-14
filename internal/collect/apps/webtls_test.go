@@ -248,7 +248,7 @@ func TestNginxEffectiveCiphersLimits(t *testing.T) {
 		nginxConf: "server { listen 127.0.0.1:8443 ssl; server_name default.lab.test; ssl_certificate /etc/lab/missing.crt; ssl_certificate_key /etc/lab/missing.key; }\n"}))
 	e = eff(t, inv, "svc:nginx", "tls.ciphers", scope)
 	// （この構成では、証明書の種類で落ちるはずの DSA 認証のスイートはすべて DHE で、DH パラメータがないために既に落ちている。数は変わらない）
-	if e.Status != "resolved" || e.Confidence != "medium" || len(e.Values) < 38 || !strings.Contains(strings.Join(e.Notes, " "), "certificate") {
+	if e.Status != "resolved" || e.Confidence != "high" || !hasQualifier(e, model.QualifierAnyCertificateKind) || len(e.Values) < 38 || !strings.Contains(strings.Join(e.Notes, " "), "certificate") {
 		t.Errorf("unreadable certificate: %d suites, %+v", len(e.Values), e)
 	}
 	// RSA の証明書だけ → ECDSA で認証するスイートは使えない
@@ -311,7 +311,7 @@ Listen 127.0.0.1:8444
 
 	// パッケージ既定の VirtualHost（_default_:443）は、証明書がまだ作られていないので、種類による絞り込みなしで求まる（確度は一段下）
 	d := eff(t, inv, "svc:httpd", "tls.ciphers", "VirtualHost _default_:443")
-	if d.Status != "resolved" || d.Confidence != "medium" || len(d.Values) < 31 {
+	if d.Status != "resolved" || d.Confidence != "high" || !hasQualifier(d, model.QualifierAnyCertificateKind) || len(d.Values) < 31 {
 		t.Errorf("packaged default vhost: %+v", d)
 	}
 
@@ -374,7 +374,7 @@ func TestEffectiveInterpolatedDefaults(t *testing.T) {
 	}))
 	// 記載のない項目: 実測した版（13.20）の既定値
 	e := effectiveValue(t, inv, "ssh.kex-algorithms")
-	if e.Status != "resolved" || strings.Join(e.Values, ",") != ubuntu2404DefaultKex || e.Confidence != "medium" {
+	if e.Status != "resolved" || strings.Join(e.Values, ",") != ubuntu2404DefaultKex || e.Confidence != "low" {
 		t.Errorf("kex = %+v", e)
 	}
 	if len(e.Notes) != 1 || !strings.Contains(e.Notes[0], ubuntu2404Version) || !strings.Contains(e.Notes[0], "1:9.6p1-3ubuntu13.99") {
@@ -384,7 +384,7 @@ func TestEffectiveInterpolatedDefaults(t *testing.T) {
 		t.Errorf("the source must be the measured version: %+v", e.Steps[0].Source)
 	}
 	// 既定の一覧を加工する項目も、補間した既定値を使うので確度が下がる
-	if m := effectiveValue(t, inv, "ssh.macs"); m.Status != "resolved" || strings.Join(m.Values, ",") != ubuntu2404ModifiedMACs || m.Confidence != "medium" || len(m.Notes) != 1 {
+	if m := effectiveValue(t, inv, "ssh.macs"); m.Status != "resolved" || strings.Join(m.Values, ",") != ubuntu2404ModifiedMACs || m.Confidence != "low" || len(m.Notes) != 1 {
 		t.Errorf("macs = %+v", m)
 	}
 	// 一覧が明記されている項目は、既定値を使わないので確度は下がらない

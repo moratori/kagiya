@@ -172,7 +172,7 @@ func TestHAProxyEffectiveCiphersUbuntu2404(t *testing.T) {
 	_, inv = collect(t, "", prepare("2.8.30-0ubuntu0.24.04.2", "libssl3t64", "3.0.13-0ubuntu3.16",
 		"global\n"+haproxyBase+"frontend fe_default\n    bind 127.0.0.1:8443 ssl crt /etc/lab/\n"))
 	e = eff(t, inv, "svc:haproxy", "tls.ciphers", scope)
-	if e.Status != "resolved" || e.Confidence != "medium" || !strings.Contains(strings.Join(e.Notes, " "), "certificate") {
+	if e.Status != "resolved" || e.Confidence != "high" || !hasQualifier(e, model.QualifierAnyCertificateKind) || !strings.Contains(strings.Join(e.Notes, " "), "certificate") {
 		t.Errorf("certificate directory: %+v", e)
 	}
 	// 既定の表にない版 → 暗号の指定がない bind は求めない。指定がある bind は求められるが、DHE の可否が分からないので確度は一段下
@@ -181,7 +181,7 @@ func TestHAProxyEffectiveCiphersUbuntu2404(t *testing.T) {
 	if e := eff(t, inv, "svc:haproxy", "tls.ciphers", scope); e.Status != "unresolved" || !strings.Contains(e.Reason, "haproxy 9.9.9-1ubuntu1") {
 		t.Errorf("unknown haproxy version: %+v", e)
 	}
-	if e := eff(t, inv, "svc:haproxy", "tls.ciphers", "frontend fe_set bind 127.0.0.1:8444"); e.Status != "resolved" || e.Confidence != "medium" || len(e.Values) != 7 {
+	if e := eff(t, inv, "svc:haproxy", "tls.ciphers", "frontend fe_set bind 127.0.0.1:8444"); e.Status != "unresolved" || !strings.Contains(e.Reason, "DHE") {
 		t.Errorf("unknown haproxy version, explicit ciphers: %+v", e)
 	}
 }

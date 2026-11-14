@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"kagiya/internal/confidence"
 	"regexp"
 	"strconv"
 	"strings"
@@ -640,6 +641,9 @@ func wildflyWith(in *wildflyInstall, plan wildflyPlan, jdk jdkContext) (res wild
 	}
 	r := jsse.ResolveExplicit(jdk.table, jdk.input, protocols, want)
 	for _, s := range r.Suites {
+		if tomcatSuiteAuth(s) == "DSA" {
+			continue // キーストアの中は読まないので、RSA の証明書の場合と EC の証明書の場合を合わせた一覧にする（DSA の証明書の分は入れない）
+		}
 		if strings.Contains(s, "_WITH_") {
 			res.tls12 = append(res.tls12, s)
 		} else {
@@ -683,15 +687,17 @@ func (c *Collector) wildflyResolve(in *wildflyInstall, plan wildflyPlan, scope s
 		}
 		results = append(results, res)
 	}
-	confidence := model.ConfidenceHigh
+	// JDK を 1 つに決められない場合は、見つけた JDK のどれでも同じ値になった項目だけを出す（そのことでは、確度を下げない）
+	var anyJDK []string
 	if !in.certain {
-		confidence = model.ConfidenceMedium
+		anyJDK = []string{model.QualifierAnyJDKFound}
 	}
+	wildflyRule := ruleOf(in.table.Source, "", true) // WildFly の表は、その版そのもののものだけを使う
 	notes := []string{
 		"WildFly " + in.version + ", on the JDK's TLS implementation (JSSE): " + in.why,
 		"not read: system properties given when the server is started (they can change values written as expressions, and the settings of Java) and the management interface",
 	}
-	emit := func(param string, pick func(wildflyResult) []string, steps func(jdkContext) []model.ResolutionStep, conf string, blocker func(wildflyResult) string, extra ...string) {
+	emit := func(param string, pick func(wildflyResult) []string, steps func(jdkContext) []model.ResolutionStep, qualifiers []string, blocker func(wildflyResult) string, extra ...string) {
 		var agreed []string
 		for i, res := range results {
 			reason := res.reason
@@ -721,12 +727,21 @@ func (c *Collector) wildflyResolve(in *wildflyInstall, plan wildflyPlan, scope s
 			agreed = []string{}
 		}
 		jdk := results[0].jdk
-		if jdk.confidence == model.ConfidenceMedium {
-			conf = model.ConfidenceMedium
+		// 確度の材料: WildFly の表と、候補の JDK それぞれの表（最も低いものになる）
+		rules := []confidence.Rule{wildflyRule}
+		for _, res := range results {
+			rules = append(rules, res.jdk.suites)
+			if param == model.ParamTLSGroups {
+				rules = append(rules, res.jdk.groups)
+			}
+		}
+		q := append(append([]string{}, anyJDK...), qualifiers...)
+		if param == model.ParamTLSProtocols && len(agreed) == 0 {
+			q = append(q, model.QualifierNothingAccepted) // どのプロトコルも受け入れない設定
 		}
 		c.Builder.AddEffective(model.EffectiveValue{Service: in.svc.ID, Parameter: param, Direction: in.app.Direction, Scope: scope,
-			Status: model.StatusResolved, Values: agreed, Confidence: conf, Steps: steps(jdk),
-			Notes: append(append(append([]string{}, notes...), jdk.notes...), extra...)})
+			Status: model.StatusResolved, Values: agreed, Qualifiers: q, Steps: steps(jdk),
+			Notes: append(append(append([]string{}, notes...), jdk.notes...), extra...)}, rules...)
 	}
 	appDefault := model.ResolutionStep{Layer: "app-default", Op: "default", Source: in.prov}
 	configured := func(param string, line int) model.ResolutionStep {
@@ -743,7 +758,7 @@ func (c *Collector) wildflyResolve(in *wildflyInstall, plan wildflyPlan, scope s
 	if plan.hasProtocols {
 		first = configured(model.ParamTLSProtocols, plan.protocolsAt)
 	}
-	emit(model.ParamTLSProtocols, func(r wildflyResult) []string { return r.protocols }, through(first), confidence, nil)
+	emit(model.ParamTLSProtocols, func(r wildflyResult) []string { return r.protocols }, through(first), nil, nil)
 
 	// TLS 1.2 以下の暗号スイート。キーストアの中は読まないので、証明書の種類では絞り込まない
 	first = appDefault
@@ -753,8 +768,8 @@ func (c *Collector) wildflyResolve(in *wildflyInstall, plan wildflyPlan, scope s
 	case plan.hasSuites:
 		first = configured(paramCiphers, plan.suitesAt)
 	}
-	emit(paramCiphers, func(r wildflyResult) []string { return r.tls12 }, through(first), model.ConfidenceMedium, nil,
-		"the kind of the server certificate is not known (the keystore's contents are not read), so the suites are not narrowed by certificate kind; "+
+	emit(paramCiphers, func(r wildflyResult) []string { return r.tls12 }, through(first), []string{model.QualifierAnyCertificateKind}, nil,
+		"the kind of the server certificate is not known (the contents of a keystore are not read), so the suites usable with an RSA certificate and those usable with an EC certificate are listed together; "+
 			"suites that need a kind of certificate the server does not have are not usable")
 
 	// TLS 1.3 の暗号スイート
@@ -766,10 +781,10 @@ func (c *Collector) wildflyResolve(in *wildflyInstall, plan wildflyPlan, scope s
 	case plan.elytron:
 		extra = []string{"TLS 1.3 is accepted only when cipher-suite-names is set on the ssl-context (measured); it is not set"}
 	}
-	emit(paramTLS13, func(r wildflyResult) []string { return r.tls13 }, through(first), confidence, nil, extra...)
+	emit(paramTLS13, func(r wildflyResult) []string { return r.tls13 }, through(first), nil, nil, extra...)
 
 	// 鍵交換のグループ（JDK の既定のまま）
 	emit(model.ParamTLSGroups, func(r wildflyResult) []string { return r.groups }, func(jdk jdkContext) []model.ResolutionStep {
 		return []model.ResolutionStep{{Layer: "library", Op: "default", Source: jdk.prov}, {Layer: jdk.layer, Op: "remove", Setting: jdk.settingID}}
-	}, confidence, func(r wildflyResult) string { return r.groupsBlocker })
+	}, nil, func(r wildflyResult) string { return r.groupsBlocker })
 }

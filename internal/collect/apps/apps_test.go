@@ -514,7 +514,7 @@ const (
 func TestEffectiveDefaults(t *testing.T) {
 	_, inv := collect(t, "ubuntu2404", withPackage(ubuntu2404Version, nil))
 	e := effectiveValue(t, inv, "ssh.kex-algorithms")
-	if e.Status != "resolved" || strings.Join(e.Values, ",") != ubuntu2404DefaultKex || e.Confidence != "high" || e.Direction != "inbound" {
+	if e.Status != "resolved" || strings.Join(e.Values, ",") != ubuntu2404DefaultKex || e.Confidence != "medium" || e.Direction != "inbound" {
 		t.Errorf("kex = %+v", e)
 	}
 	if len(e.Steps) != 1 || e.Steps[0].Layer != "app-default" || e.Steps[0].Op != "default" || e.Steps[0].Source == nil ||

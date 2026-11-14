@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"kagiya/internal/confidence"
 	"path"
 	"regexp"
 	"strings"
@@ -124,7 +125,7 @@ func (c *Collector) sshdCommandLine(u unitInfo) []directive {
 // パッケージ名・上流の版・ディストリの系列が同じ実測版の表で補間し、確度を一段下げて、その旨を注記に残す。
 // それもなければ「不明」とし、理由を残す（上流の版やディストリが違う表では代用しない）。
 func (c *Collector) sshdEffective(app ruleset.AppRule, svc model.Service) {
-	defs, prov, defNote, noDefaults := c.appDefaults(app)
+	defs, prov, defNote, noDefaults, defRule := c.appDefaults(app)
 
 	configured := map[string]*model.Setting{}
 	settings := c.Builder.Settings()
@@ -141,9 +142,9 @@ func (c *Collector) sshdEffective(app ruleset.AppRule, svc model.Service) {
 		}
 		done[rule.Parameter] = true
 		conf, def := configured[rule.Parameter], defs[rule.Parameter]
-		e := model.EffectiveValue{Service: svc.ID, Parameter: rule.Parameter, Direction: app.Direction, Status: model.StatusResolved, Confidence: model.ConfidenceHigh}
+		e := model.EffectiveValue{Service: svc.ID, Parameter: rule.Parameter, Direction: app.Direction, Status: model.StatusResolved}
 		unresolved := func(reason string) {
-			e.Status, e.Confidence, e.Values, e.Reason = model.StatusUnresolved, "", nil, reason
+			e.Status, e.Values, e.Reason = model.StatusUnresolved, nil, reason
 		}
 		defaultStep := model.ResolutionStep{Layer: "app-default", Op: "default", Source: prov}
 		switch {
@@ -172,16 +173,18 @@ func (c *Collector) sshdEffective(app ruleset.AppRule, svc model.Service) {
 			e.Values = values
 			e.Steps = []model.ResolutionStep{defaultStep, {Layer: conf.Layer, Op: op, Setting: conf.ID}}
 		}
-		// 補間した既定値を使った項目は、確度を一段下げる（一覧が明記されている項目は既定値を使わないので下げない）
-		if defNote != "" && e.Status == model.StatusResolved {
-			for _, st := range e.Steps {
-				if st.Layer == "app-default" {
-					e.Confidence, e.Notes = model.ConfidenceMedium, []string{defNote}
-					break
+		// 確度の材料: 既定値表の項目を使った場合は、その項目。設定に一覧がそのまま書かれている場合は、ルールを使っていない
+		used := confidence.ConfigurationOnly
+		for _, st := range e.Steps {
+			if st.Layer == "app-default" && defRule != nil {
+				used = defRule(rule.Parameter)
+				if defNote != "" && e.Status == model.StatusResolved {
+					e.Notes = []string{defNote} // 補った既定値を使ったことの注記
 				}
+				break
 			}
 		}
-		c.Builder.AddEffective(e)
+		c.Builder.AddEffective(e, used)
 	}
 }
 

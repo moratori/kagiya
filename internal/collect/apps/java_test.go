@@ -90,11 +90,11 @@ func TestJDKDefaultsDebian13(t *testing.T) {
 		t.Errorf("service = %+v", svc)
 	}
 	p := jdkEff(t, inv, "tls.protocols", jdkDeb25Home)
-	if p.Status != "resolved" || strings.Join(p.Values, ",") != "TLSv1.3,TLSv1.2" || p.Confidence != "high" || p.Direction != "inbound" {
+	if p.Status != "resolved" || strings.Join(p.Values, ",") != "TLSv1.3,TLSv1.2" || p.Confidence != "medium" || p.Direction != "inbound" {
 		t.Errorf("protocols = %+v", p)
 	}
 	e := jdkEff(t, inv, "tls.ciphers", jdkDeb25Home)
-	checkSuites(t, e, 27, jdkDefault12, "high")
+	checkSuites(t, e, 27, jdkDefault12, "medium")
 	if contains(e.Values, "TLS_EMPTY_RENEGOTIATION_INFO_SCSV") {
 		t.Error("the renegotiation marker is not a cipher suite and must not be listed")
 	}
@@ -104,7 +104,7 @@ func TestJDKDefaultsDebian13(t *testing.T) {
 	if s := e.Steps[0].Source; s == nil || s.Package != "openjdk-25-jre-headless" || s.Version != "25.0.5+8-1~deb13u1" || !strings.HasPrefix(s.Image, "debian@sha256:") {
 		t.Errorf("source = %+v", e.Steps[0].Source)
 	}
-	checkSuites(t, jdkEff(t, inv, "tls.ciphersuites-tls13", jdkDeb25Home), 3, jdkTLS13, "high")
+	checkSuites(t, jdkEff(t, inv, "tls.ciphersuites-tls13", jdkDeb25Home), 3, jdkTLS13, "medium")
 	g := jdkEff(t, inv, "tls.groups", jdkDeb25Home)
 	if g.Status != "resolved" || sortedJoin(g.Values) != jdkGroupsHybrid || g.Confidence != "high" {
 		t.Errorf("groups = %+v", g)
@@ -133,7 +133,7 @@ func TestJDKCryptoPolicyRHEL9(t *testing.T) {
 	}
 	prefix, inv := collect(t, "", jdkHost(t, files, pkgEL9J21))
 	e := jdkEff(t, inv, "tls.ciphers", jdkEL9Home21)
-	checkSuites(t, e, 27, "955590d039a4c6df", "high")
+	checkSuites(t, e, 27, "955590d039a4c6df", "medium")
 	if l := layers(e); l != "library/default os-policy/remove" {
 		t.Errorf("steps = %s", l)
 	}
@@ -151,7 +151,7 @@ func TestJDKCryptoPolicyRHEL9(t *testing.T) {
 	files[sec] = "security.useSystemPropertiesFile=false\n" + jdkUpstreamDisabled
 	_, inv = collect(t, "", jdkHost(t, files, pkgEL9J21))
 	e = jdkEff(t, inv, "tls.ciphers", jdkEL9Home21)
-	checkSuites(t, e, 27, jdkDefault12, "high")
+	checkSuites(t, e, 27, jdkDefault12, "medium")
 	if l := layers(e); l != "library/default app-config/remove" {
 		t.Errorf("steps = %s", l)
 	}
@@ -171,7 +171,7 @@ func TestJDKCryptoPolicyIncludeRHEL10(t *testing.T) {
 	}
 	prefix, inv := collect(t, "", jdkHost(t, files, pkgEL10))
 	e := jdkEff(t, inv, "tls.ciphers", jdkEL10Home25)
-	checkSuites(t, e, 21, "ac7fad05bc5bcf16", "high")
+	checkSuites(t, e, 21, "ac7fad05bc5bcf16", "medium")
 	if l := layers(e); l != "library/default os-policy/remove" {
 		t.Errorf("steps = %s", l)
 	}
@@ -241,7 +241,7 @@ func TestJDKInterpolated(t *testing.T) {
 	pkg := model.Package{Manager: "rpm", Name: "java-21-openjdk-headless", Version: "21.0.13.0.9", Release: "5.el9"}
 	_, inv := collect(t, "", jdkHost(t, map[string]string{home + "/conf/security/java.security": jdkUpstreamDisabled}, pkg))
 	e := jdkEff(t, inv, "tls.ciphers", home)
-	checkSuites(t, e, 27, jdkDefault12, "medium")
+	checkSuites(t, e, 27, jdkDefault12, "low")
 	if !strings.Contains(strings.Join(e.Notes, " "), "21.0.13.0.9-1.2.el9.alma.1") {
 		t.Errorf("notes = %v", e.Notes)
 	}
@@ -396,13 +396,13 @@ func TestJDKForeignProvider(t *testing.T) {
 		"security.provider.6=SunJGSS\nsecurity.provider.7=SunSASL\nsecurity.provider.8=XMLDSig\nsecurity.provider.9=SunPCSC\nsecurity.provider.10=JdkLDAP\n" +
 		"security.provider.11=JdkSASL\nsecurity.provider.12=SunPKCS11\nfips.provider.1=SunPKCS11 ${java.home}/conf/security/nss.fips.cfg\n"
 	_, inv := collect(t, "", jdkHost(t, map[string]string{sec: std + jdkUpstreamDisabled}, pkgDeb25))
-	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 27, jdkDefault12, "high")
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 27, jdkDefault12, "medium")
 
 	java8 := "security.provider.1=sun.security.provider.Sun\nsecurity.provider.2=sun.security.rsa.SunRsaSign\nsecurity.provider.3=sun.security.ec.SunEC\n" +
 		"security.provider.4=com.sun.net.ssl.internal.ssl.Provider\nsecurity.provider.5=com.sun.crypto.provider.SunJCE\nsecurity.provider.6=sun.security.jgss.SunProvider\n" +
 		"security.provider.7=com.sun.security.sasl.Provider\nsecurity.provider.8=org.jcp.xml.dsig.internal.dom.XMLDSigRI\nsecurity.provider.9=sun.security.smartcardio.SunPCSC\n"
 	_, inv = collect(t, "", jdkHost(t, map[string]string{sec: java8 + jdkUpstreamDisabled}, pkgDeb25))
-	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 27, jdkDefault12, "high")
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 27, jdkDefault12, "medium")
 
 	for name, c := range map[string][2]string{
 		"bouncy castle":   {"security.provider.13=org.bouncycastle.jce.provider.BouncyCastleProvider\n", "org.bouncycastle.jce.provider.BouncyCastleProvider"},
@@ -424,7 +424,7 @@ func TestJDKForeignProvider(t *testing.T) {
 	// 既定の値（SunX509、PKIX）は妨げにならない
 	ok := "ssl.KeyManagerFactory.algorithm=SunX509\nssl.TrustManagerFactory.algorithm=PKIX\n"
 	_, inv = collect(t, "", jdkHost(t, map[string]string{sec: std + ok + jdkUpstreamDisabled}, pkgDeb25))
-	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 27, jdkDefault12, "high")
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 27, jdkDefault12, "medium")
 }
 
 // Tomcat を動かす JDK に、JDK に含まれないプロバイダが登録されている場合も、値を求めない。

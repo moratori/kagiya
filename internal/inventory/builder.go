@@ -191,7 +191,16 @@ func (b *Builder) AddService(s model.Service) { b.services = append(b.services, 
 func (b *Builder) Settings() []model.Setting { return b.settings }
 
 // AddEffective は実効値を記録する。
+//
+// 確度は、ここで決める（docs/confidence.md）。rules は、その実効値の計算に使ったルールごとの材料で、呼び出し側が入れた確度は使わない。
+// 求められなかった値（unresolved）には、確度も、読み方についての説明も付けない。
 func (b *Builder) AddEffective(e model.EffectiveValue, rules ...confidence.Rule) {
+	if e.Status == model.StatusResolved {
+		e.Confidence = confidence.Of(rules...)
+		e.Qualifiers = orderedQualifiers(e.Qualifiers)
+	} else {
+		e.Confidence, e.Qualifiers = "", nil
+	}
 	key := e.Service + "\x00" + e.Parameter + "\x00" + e.Direction
 	if e.Scope != "" {
 		key += "\x00" + e.Scope
@@ -439,4 +448,18 @@ func (b *Builder) NoteUnmeasured(u model.Unmeasured) {
 		return
 	}
 	b.unmeasured[key] = u
+}
+
+// orderedQualifiers は、説明の重複をまとめ、決まった並びにする（決まった値でないものは落とす）。
+func orderedQualifiers(in []string) []string {
+	var out []string
+	for _, q := range []string{model.QualifierAnyCertificateKind, model.QualifierAnyJDKFound, model.QualifierNothingAccepted} {
+		for _, x := range in {
+			if x == q {
+				out = append(out, q)
+				break
+			}
+		}
+	}
+	return out
 }

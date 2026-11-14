@@ -3,6 +3,7 @@ package apps
 import (
 	"errors"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -68,6 +69,8 @@ type postfixService struct {
 	main     map[string]postfixconf.Param
 	defs     map[string][]string
 	confDir  string
+	// 値を求めるのに使った、既定値表の項目（確度の材料として申告する）
+	used map[string]bool
 }
 
 // explicit は、設定に書かれている記載を返す（サービスごとの上書きが優先）。
@@ -92,6 +95,9 @@ func (p *postfixService) raw(name string) (string, bool) {
 	}
 	if key, ok := postfixTable[name]; ok {
 		if v, found := p.defs[key]; found {
+			if p.used != nil {
+				p.used[key] = true
+			}
 			// 表では、空白で区切られた値を「:」でつないである（等級の暗号文字列は、もとから「:」区切り）
 			s := strings.Join(v, ",")
 			if key == "tls.eecdh-curves" || key == "tls.ffdhe-groups" {
@@ -143,7 +149,7 @@ func (c *Collector) postfix(app ruleset.AppRule, svc model.Service, config strin
 	for _, p := range params {
 		main[p.Name] = p // 同じ項目は、後に書かれたものが効く
 	}
-	defs, _, _, _ := c.appDefaults(app)
+	defs, _, _, _, _ := c.appDefaults(app)
 	global := &postfixService{main: main, defs: defs, confDir: confDir}
 	for _, p := range params {
 		if main[p.Name] == p {
@@ -183,7 +189,12 @@ func (c *Collector) postfix(app ruleset.AppRule, svc model.Service, config strin
 				c.postfixRecord(app, svc, p, o, scope, confDir)
 			}
 		}
+		p.used = map[string]bool{} // ここから先で使った項目だけを数える（記載の記録のために引いた分は含めない）
 		if sc, ok := c.postfixScope(app, p, scope); ok {
+			for item := range p.used {
+				sc.usedDefaults = append(sc.usedDefaults, item)
+			}
+			sort.Strings(sc.usedDefaults)
 			scopes = append(scopes, sc)
 		}
 	}
@@ -343,6 +354,9 @@ func (c *Collector) postfixScope(app ruleset.AppRule, p *postfixService, scope s
 			sc.groupsParam = d.Parameter
 		}
 		honored := strings.Join(p.defs["tls.eecdh-grade"], ",")
+		if p.used != nil {
+			p.used["tls.eecdh-grade"] = true
+		}
 		_, gradeSet := p.explicit("smtpd_tls_eecdh_grade")
 		if grade != "auto" {
 			switch {

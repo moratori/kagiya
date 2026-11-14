@@ -173,7 +173,7 @@ func TestTomcatCertificateKinds(t *testing.T) {
 	ks := `<Certificate certificateKeystoreFile="conf/server.p12" certificateKeystorePassword="s3cret-tomcat" certificateKeystoreType="PKCS12"/>`
 	prefix, inv := collect(t, "", tcDebian(t, tcServer(tcAPR, tcNIO, "", ks), nil, tcDebPackages...))
 	e := tcEff(t, inv, "tls.ciphers")
-	checkSuites(t, e, 27, tcAny12, "medium")
+	checkSuites(t, e, 21, tcBoth12, "high")
 	if !strings.Contains(strings.Join(e.Notes, " "), "certificate") {
 		t.Errorf("the note must say that the kind of the certificate is not known: %v", e.Notes)
 	}
@@ -223,7 +223,7 @@ func TestTomcatRHEL9(t *testing.T) {
 		t.Errorf("legacy protocols = %+v", p)
 	}
 	// 証明書の種類は分からない（キーストア）が、名指しされた 2 つはどちらも RSA の証明書で成り立つ
-	checkSuites(t, tcEff(t, inv, "tls.ciphers"), 2, tcLegacy12, "medium")
+	checkSuites(t, tcEff(t, inv, "tls.ciphers"), 2, tcLegacy12, "high")
 	out, _ := json.Marshal(inv)
 	if strings.Contains(string(out), "s3cret") {
 		t.Error("a password from server.xml appears in the result")
@@ -420,7 +420,7 @@ func TestTomcatOpenSSLSingleCertificate(t *testing.T) {
 	_, inv = collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, "", tcKeystoreRS), tcUbuntu24...))
 	tcOpenSSLSuites(t, tcEff(t, inv, "tls.ciphers"), 28, nil, []string{"ECDHE-ECDSA-AES256-GCM-SHA384"})
 	_, inv = collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, "", `<Certificate certificateKeystoreFile="/etc/lab/rsa.p12"/>`), tcUbuntu24...))
-	if e := tcEff(t, inv, "tls.ciphers"); e.Status != "resolved" || e.Confidence != "medium" || !contains(e.Values, "ECDHE-ECDSA-AES256-GCM-SHA384") {
+	if e := tcEff(t, inv, "tls.ciphers"); e.Status != "resolved" || e.Confidence != "high" || !hasQualifier(e, model.QualifierAnyCertificateKind) || !contains(e.Values, "ECDHE-ECDSA-AES256-GCM-SHA384") {
 		t.Errorf("unknown certificate kind: %+v", e)
 	}
 }
