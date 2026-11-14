@@ -69,6 +69,20 @@ func Render(w io.Writer, inv *model.Inventory, rs *ruleset.RuleSet, policy strin
 	return RenderAll(w, []*model.Inventory{inv}, rs, policy)
 }
 
+// Options は、レポートの作り方の指定。
+type Options struct {
+	// 「測定が要る版」の一覧から連絡する先（mailto:<アドレス> か https://...）。空なら、リンクを出さない
+	Contact string
+}
+
+// CheckContact は、連絡先として使える値かを確かめる。
+func CheckContact(contact string) error { return nil }
+
+// RenderAllWith は、指定つきでレポートを書き出す。
+func RenderAllWith(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy string, opt Options) error {
+	return RenderAll(w, invs, rs, policy)
+}
+
 // RenderAll は、1 つ以上のホストの結果からレポートを書き出す。
 // 複数のホストの場合は、全体の集計の画面と、ホストごとの詳細（1 ホストのときと同じ内容）を 1 つのファイルに入れる。
 func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy string) error {

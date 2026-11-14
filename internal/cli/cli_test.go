@@ -1150,3 +1150,19 @@ func TestScanWarnsAboutRuntimeEnvironment(t *testing.T) {
 		t.Error("a warning is recorded although the variable is not set")
 	}
 }
+
+// kagiya report --contact で、「測定が要る版」の一覧から連絡できるリンクを付ける。使えない値は、引数のエラーにする。
+func TestReportContactOption(t *testing.T) {
+	fx := setup(t)
+	if code, _, stderr := run(fx.scanArgs()...); code != 0 {
+		t.Fatalf("scan: exit %d: %s", code, stderr)
+	}
+	result := singleFile(t, fx.out, ".json")
+	dir := filepath.Dir(fx.root)
+	if code, _, stderr := run("report", "--output-dir", dir+"/r1", "--contact", "javascript:alert(1)", result); code != exitUsage || !strings.Contains(stderr, "--contact") {
+		t.Errorf("bad contact: code=%d stderr=%q", code, stderr)
+	}
+	if code, _, stderr := run("report", "--output-dir", dir+"/r2", "--contact", "mailto:kagiya-admin@example.jp", result); code != 0 {
+		t.Errorf("valid contact: code=%d stderr=%q", code, stderr)
+	}
+}
