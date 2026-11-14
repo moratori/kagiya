@@ -896,3 +896,12 @@ func TestConvertToCBOM(t *testing.T) {
 		t.Errorf("cbom = %+v (%v)", doc, err)
 	}
 }
+
+// 読み飛ばしがあったときは、終了時の 1 行に、理由ごとの件数も出す（何が起きたかを、結果のファイルを開かなくても分かるようにする）。
+func TestScanSummaryShowsSkipReasons(t *testing.T) {
+	fx := setup(t)
+	_, _, stderr := run("scan", "--roots", fx.root+"/no-such-directory", "--output-dir", fx.out, "--log-dir", fx.logs, "--cpu-limit", "100", "--io-limit", "0")
+	if !strings.Contains(stderr, "not-found: 1") {
+		t.Errorf("the summary must show the reasons: %s", stderr)
+	}
+}
