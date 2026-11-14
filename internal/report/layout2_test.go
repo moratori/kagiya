@@ -154,7 +154,7 @@ func TestReportSoftwareWording(t *testing.T) {
 			t.Errorf("missing %q", want)
 		}
 	}
-	for _, bad := range []string{"サービスの設定</h2>", "サービスの設定</a>", "サーバアプリで用いる暗号の状況", "件数が多いので畳んでいます"} {
+	for _, bad := range []string{"サービスの設定</h2>", "サービスの設定</a>", "サーバアプリで用いる暗号の状況", "件数が多いので畳んでいます", "見つかったサービスです", "名前を選ぶと開きます"} {
 		if strings.Contains(html, bad) {
 			t.Errorf("old wording remains: %q", bad)
 		}
