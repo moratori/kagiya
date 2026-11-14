@@ -22,9 +22,11 @@ const maxSkippedInResult = 10_000
 var safeName = regexp.MustCompile(`^[A-Za-z0-9@._+-]{1,64}$`)
 
 type Builder struct {
-	stop func() bool // 止める合図が出ているか（nil なら見ない）
-	rs   *ruleset.RuleSet
-	log  *logx.Logger
+	// 資産と出現の数の上限（0 なら既定の値）
+	MaxAssets, MaxOccurrences int
+	stop                      func() bool // 止める合図が出ているか（nil なら見ない）
+	rs                        *ruleset.RuleSet
+	log                       *logx.Logger
 
 	assets       map[string]*model.Asset
 	occurrences  []model.Occurrence
@@ -325,3 +327,12 @@ func (b *Builder) SetStop(stopped func() bool) { b.stop = stopped }
 
 // Stopped は、止める合図が出ているかを返す。
 func (b *Builder) Stopped() bool { return b.stop != nil && b.stop() }
+
+// maxLoggedSkipsPerReason は、読み飛ばしを 1 件ずつログに書く数の、理由ごとの上限。
+const maxLoggedSkipsPerReason = 1000
+
+// SetYield は、処理の区切りごとに呼ぶ関数（流量制限の休止）を決める。
+func (b *Builder) SetYield(yield func()) {}
+
+// Overflowed は、資産や出現の数が上限を超えて、記録を打ち切ったかを返す。
+func (b *Builder) Overflowed() bool { return false }

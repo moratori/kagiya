@@ -18,6 +18,9 @@ type Logger struct {
 	now          func() time.Time
 	warns, errs  int
 	writeFailure error
+
+	// MaxBytes は、ログ全体の大きさの上限（0 なら上限なし）。
+	MaxBytes int64
 }
 
 func New(w io.Writer, now func() time.Time) *Logger {

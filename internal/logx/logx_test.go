@@ -71,3 +71,28 @@ func TestLoggerCountsByLevel(t *testing.T) {
 		t.Errorf("Counts() = %d, %d; want 2, 1", w, e)
 	}
 }
+
+// ログ全体の大きさには上限がある。超えたら「以降は省略」と 1 行書いて、それ以上は書かない（指摘 A-7）。
+func TestLoggerStopsAtLimit(t *testing.T) {
+	var buf bytes.Buffer
+	l := New(&buf, func() time.Time { return time.Unix(0, 0) })
+	l.MaxBytes = 2000
+	for i := 0; i < 1000; i++ {
+		l.Warn("skip", "path", "/srv/www/some/long/path/to/a/file.key", "reason", "parse-error")
+	}
+	l.Error("scan-finished")
+	if buf.Len() > 2000+300 {
+		t.Errorf("the log grew to %d bytes", buf.Len())
+	}
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if last := lines[len(lines)-1]; !strings.Contains(last, `"event":"log-truncated"`) {
+		t.Errorf("last line = %s", last)
+	}
+	if strings.Count(buf.String(), "log-truncated") != 1 || l.Err() != nil {
+		t.Errorf("the notice must be written once: %v", l.Err())
+	}
+	// 件数は、書かなかった分も数える
+	if w, e := l.Counts(); w != 1000 || e != 1 {
+		t.Errorf("counts = %d, %d", w, e)
+	}
+}

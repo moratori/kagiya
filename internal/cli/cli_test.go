@@ -17,6 +17,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -251,7 +252,8 @@ func TestScanEndToEnd(t *testing.T) {
 	for _, s := range inv.Skipped {
 		skips[strings.TrimPrefix(s.Path, fx.root)] = s.Reason
 	}
-	if skips["/excluded"] != "excluded" || skips["/etc/broken.crt"] != "parse-error" {
+	// 除外の指定で外したものは、件数だけを記録する（名前は、結果にもログにも残さない。2026-11-14 のレビューの指摘 A-7・B-4）
+	if _, listed := skips["/excluded"]; listed || skips["/etc/broken.crt"] != "parse-error" {
 		t.Errorf("skipped = %v", skips)
 	}
 	if inv.Coverage.SkippedByReason["excluded"] != 1 || inv.Coverage.FilesExamined < 6 {
@@ -266,9 +268,13 @@ func TestScanEndToEnd(t *testing.T) {
 			t.Errorf("secret material leaked into %s", name)
 		}
 	}
-	// ログには除外と、読めなかったものが記録される
-	if !bytes.Contains(logRaw, []byte(`"reason":"excluded"`)) || !bytes.Contains(logRaw, []byte(`"event":"scan-finished"`)) {
+	// ログには、読めなかったものと、理由ごとの件数（除外を含む）が記録される
+	if !bytes.Contains(logRaw, []byte(`"reason":"parse-error"`)) || !bytes.Contains(logRaw, []byte(`"event":"skip-summary"`)) ||
+		!bytes.Contains(logRaw, []byte(`"excluded":1`)) || !bytes.Contains(logRaw, []byte(`"event":"scan-finished"`)) {
 		t.Errorf("log lacks expected records:\n%s", logRaw)
+	}
+	if bytes.Contains(logRaw, []byte(fx.root+"/excluded"+`","reason"`)) {
+		t.Errorf("the name of an excluded path is logged:\n%s", logRaw)
 	}
 }
 
@@ -1016,5 +1022,56 @@ func TestScanDefaultLogDirIsUnderOutputDir(t *testing.T) {
 	singleFile(t, fx.out+"/logs", ".log")
 	if ents, _ := os.ReadDir(cwd); len(ents) != 0 {
 		t.Errorf("nothing may be written to the current directory: %v", ents)
+	}
+}
+
+// 以下は、独立したレビュー（2026-11-14）の指摘 A-4・A-5 への対応。
+
+// スキャンは、同時に使うプロセッサの数を絞る（メモリの回収が、空いているコアをすべて使わないように）。
+func TestScanLimitsParallelism(t *testing.T) {
+	fx := setup(t)
+	if code, _, stderr := run(fx.scanArgs()...); code != 0 {
+		t.Fatalf("exit code %d, stderr: %s", code, stderr)
+	}
+	if got := runtime.GOMAXPROCS(0); got != 2 {
+		t.Errorf("GOMAXPROCS = %d, want 2", got)
+	}
+	raw, _ := os.ReadFile(singleFile(t, fx.out, ".json"))
+	if !bytes.Contains(raw, []byte(`"max_procs": 2`)) {
+		t.Error("meta.hardening.max_procs is not recorded")
+	}
+}
+
+// 1 ファイルの読み取り上限には、指定できる上限がある（大きな値を指定されると、その分のメモリを確保するため）。
+func TestScanMaxFileSizeIsBounded(t *testing.T) {
+	fx := setup(t)
+	if code, _, _ := run(fx.scanArgs("--max-file-size", "1025")...); code != 2 {
+		t.Errorf("--max-file-size 1025: code=%d, want 2", code)
+	}
+	if code, _, stderr := run(fx.scanArgs("--max-file-size", "1024")...); code != 0 {
+		t.Errorf("--max-file-size 1024: code=%d stderr=%q", code, stderr)
+	}
+}
+
+// 処理の途中で panic が起きても、そこまでの結果を「未完了」として書き出して終わる（panic の値は、どこにも出さない）。
+func TestScanWritesPartialResultAfterPanic(t *testing.T) {
+	fx := setup(t)
+	scanHook = func(phase string) {
+		if phase == "walk" {
+			panic("boom " + secretMarker)
+		}
+	}
+	defer func() { scanHook = nil }()
+	code, _, stderr := run(fx.scanArgs()...)
+	if code != 3 || strings.Contains(stderr, secretMarker) {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	raw, _ := os.ReadFile(singleFile(t, fx.out, ".json"))
+	logRaw, _ := os.ReadFile(singleFile(t, fx.logs, ".log"))
+	if !bytes.Contains(raw, []byte(`"completed": false`)) || !bytes.Contains(raw, []byte(`"incomplete_reason": "internal-error"`)) {
+		t.Errorf("the result must be marked incomplete: %s", raw[:min(len(raw), 600)])
+	}
+	if !bytes.Contains(logRaw, []byte(`"event":"internal-error"`)) || bytes.Contains(logRaw, []byte(secretMarker)) || bytes.Contains(raw, []byte(secretMarker)) {
+		t.Errorf("log: %s", logRaw)
 	}
 }

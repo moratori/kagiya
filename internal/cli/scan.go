@@ -39,6 +39,9 @@ import (
 	"kagiya/internal/throttle"
 )
 
+// scanHook は、スキャンの各フェーズの始めに呼ばれる（テストで、途中の異常を起こすため。通常は nil）。
+var scanHook func(phase string)
+
 // メモリの使用量の上限（設計書 6 章）。
 const memoryLimitMiB = 512
 
