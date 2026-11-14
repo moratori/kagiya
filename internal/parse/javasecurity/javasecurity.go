@@ -113,7 +113,7 @@ func (f *File) load(file string, fs FS, vars map[string]string, depth int) {
 		}
 		name, value := split(l)
 		if tooLong || len(l) > maxEntry {
-			f.problem(file + ": an entry is too long: " + clip(name))
+			f.problem(file + ": an entry is too long") // 項目の名前（行の先頭）は、入れない
 			continue
 		}
 		if hasControl(l) {

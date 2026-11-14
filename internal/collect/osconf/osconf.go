@@ -93,7 +93,9 @@ func firstLine(data []byte) (string, int) {
 }
 
 func (c *Collector) cryptoPolicies() {
-	for id, p := range map[string]string{"crypto-policies.policy": cryptoPolicyConfig, "crypto-policies.applied": cryptoPolicyCurrent} {
+	// 決まった順に調べる（結果の並びが、実行のたびに変わらないように）
+	for _, item := range [][2]string{{"crypto-policies.policy", cryptoPolicyConfig}, {"crypto-policies.applied", cryptoPolicyCurrent}} {
+		id, p := item[0], item[1]
 		path := c.Prefix + p
 		data, err := c.read(path)
 		if err != nil {

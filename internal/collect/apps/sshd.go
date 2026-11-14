@@ -2,6 +2,7 @@ package apps
 
 import (
 	"path"
+	"regexp"
 	"strings"
 
 	"kagiya/internal/model"
@@ -58,7 +59,7 @@ func (c *Collector) sshd(app ruleset.AppRule, svc model.Service, config string, 
 			s.Layer = "os-policy" // システム全体の暗号ポリシーが生成した設定
 		}
 		if d.match != "" {
-			s.Scope = "Match " + d.match
+			s.Scope = sshdMatchScope(d.match)
 		}
 		if c.fill(&s, rule, d.args, "") != valueOK {
 			c.Builder.Skip(safefs.Skip{Path: c.Prefix + d.file, Reason: "invalid-value", Detail: rule.Parameter})
@@ -251,5 +252,14 @@ func modifyList(def []string, modifier string, items []string) (out []string, op
 	return nil, "", false
 }
 
-// sshdMatchScope は、Match の条件を、範囲の名前にする。
-func sshdMatchScope(cond string) string { return "Match " + cond }
+// Match の条件として記録してよい形（利用者名、グループ名、ホスト名、アドレスとその並び）。
+var sshdMatchPattern = regexp.MustCompile(`^[A-Za-z0-9 ._:,/!@=*?%+\[\]-]{1,256}$`)
+
+// sshdMatchScope は、Match の条件を、範囲の名前にする。ほかのアプリの範囲と同じく、検証を通らない条件（制御文字、引用符、
+// 長すぎるものなど）は、記録しない。
+func sshdMatchScope(cond string) string {
+	if sshdMatchPattern.MatchString(cond) {
+		return "Match " + cond
+	}
+	return "Match (the condition is not recorded)"
+}

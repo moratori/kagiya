@@ -107,8 +107,15 @@ func (c *Collector) executableJar(f io.ReaderAt, jar string, l *javaLaunch) (*ja
 	// スクリプトが組み立てる起動コマンド（変数は引用符なしで展開されるので、空白で語に分かれる）
 	java := ""
 	if h := vars["JAVA_HOME"]; strings.HasPrefix(h, "/") {
-		if _, err := c.Opener.Resolve(c.Prefix + path.Clean(h) + "/bin/java"); err == nil {
-			java = path.Clean(h) + "/bin/java"
+		if real, err := c.Opener.Resolve(c.Prefix + path.Clean(h) + "/bin/java"); err == nil {
+			// 見つかっている JDK（パッケージで導入されたもの）のどれかを指している場合だけ使う。.conf は JAR の隣に置かれるので、
+			// JAR を置ける利用者が、任意のディレクトリを JDK として読ませることができないようにする
+			home := path.Dir(path.Dir(strings.TrimPrefix(real, c.Prefix)))
+			for _, known := range c.jdkHomes() {
+				if known == home {
+					java = path.Clean(h) + "/bin/java"
+				}
+			}
 		}
 	}
 	argv := []string{java}

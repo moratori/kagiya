@@ -208,6 +208,13 @@ func (w *Walker) walkEntry(ctx context.Context, r *os.Root, dir, name string, de
 	case fi.Mode()&fs.ModeSymlink != 0:
 		w.Stats.Symlinks++
 	case fi.IsDir():
+		// ZFS の .zfs（スナップショットの入口）には入らない。開くと、カーネルがスナップショットを自動でマウントする
+		if name == ".zfs" {
+			if _, m := w.check(full); m.FSType == "zfs" {
+				w.skip(full, "pseudo-fs", "zfs-snapshot-directory")
+				return nil
+			}
+		}
 		for _, sd := range w.SkipDirs {
 			if full == sd {
 				w.skip(full, "excluded", "output-directory")
