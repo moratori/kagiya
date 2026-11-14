@@ -40,6 +40,15 @@ import (
 	"kagiya/internal/throttle"
 )
 
+// harden は、優先度を下げ、通信・プロセス起動・使わない変更系の呼び出しを封じる（seccomp など）。一度かけると、そのプロセスでは
+// 外せない。単体テストでは、テスト自身の準備（権限の変更など）まで拒否されてしまうので、テストでだけ差し替える。
+var harden = platform.Harden
+
+// restrictWrites は、変更できる場所を出力先とログ先に限る（Landlock）。一度かけると、そのプロセスでは外せない。
+// 単体テストは、1 つのプロセスの中でスキャンを何度も実行するので、テストでだけ差し替える（実物での確認は、ci/verify-linux.sh と、
+// internal/platform の子プロセスでのテストで行う）。
+var restrictWrites = platform.RestrictWrites
+
 // scanHook は、スキャンの各フェーズの始めに呼ばれる（テストで、途中の異常を起こすため。通常は nil）。
 var scanHook func(phase string)
 
@@ -169,7 +178,7 @@ func runScan(args []string, stderr io.Writer) int {
 	}
 
 	// 何かを読む前に、優先度を下げ、通信とプロセス起動を封じる。
-	hardening := platform.Harden()
+	hardening := harden()
 	hardening.MemoryLimitMiB = platform.LimitMemory(memoryLimitMiB)
 	runtime.GOMAXPROCS(maxProcs)
 	hardening.MaxProcs = maxProcs
@@ -225,7 +234,7 @@ func runScan(args []string, stderr io.Writer) int {
 	// ここから先は、出力先とログ先の下しか変更できないようにする（使えるカーネルでだけ。使えなくても続ける）。
 	// この後の「書けるかの確認」は、制限をかけた状態で行う
 	landlockNote := ""
-	hardening.Landlock, landlockNote = platform.RestrictWrites([]string{opts.outputDir, opts.logDir})
+	hardening.Landlock, landlockNote = restrictWrites([]string{opts.outputDir, opts.logDir})
 	if landlockNote != "" {
 		hardening.Notes = append(hardening.Notes, landlockNote)
 	}
@@ -334,6 +343,7 @@ func runScan(args []string, stderr io.Writer) int {
 		current := ""
 		phase := func(name string) {
 			current = name
+			log.Info("phase", "name", name) // どこまで進んだかを、ログで追えるようにする
 			if scanHook != nil {
 				scanHook(name)
 			}

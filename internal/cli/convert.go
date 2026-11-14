@@ -12,7 +12,6 @@ import (
 	"kagiya/internal/convert"
 	"kagiya/internal/model"
 	"kagiya/internal/output"
-	"kagiya/internal/platform"
 )
 
 const maxResultSize = 1 << 30 // 読み込む結果 JSON の上限
@@ -30,7 +29,7 @@ func runConvert(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "kagiya:", err)
 		return exitFatal
 	}
-	platform.Harden() // 優先度を下げ、通信とプロセス起動を封じる（スキャン以外のサブコマンドでも同じ）
+	harden() // 優先度を下げ、通信とプロセス起動を封じる（スキャン以外のサブコマンドでも同じ）
 	in, err := absClean(fs.Arg(0))
 	if err != nil {
 		return fatal(err)

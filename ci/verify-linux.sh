@@ -76,11 +76,14 @@ if [ "$MODE" = strace ] && command -v strace >/dev/null; then
 fi
 
 # 3b. 探索した場所に、スキャンの前後で変わったもの（内容、権限、所有者、名前）がない
-touch "$W/marker"; sleep 1
+# 状態の変更時刻（ctime。内容・権限・所有者・名前のどれが変わっても更新される）つきの一覧を、前後で比べる
+# （最小のイメージには find がないので、ls だけで行う）
+snapshot() { ls -lARc --time-style=full-iso $(echo "$ROOTS" | tr ',' ' ') "$W/tree" 2>/dev/null; }
+snapshot >"$W/snap.before"
 "$K" scan --roots "$ROOTS,$W/tree" --output-dir "$W/out3b" --log-dir "$W/logs3b" --cpu-limit 100 --io-limit 0 >/dev/null 2>&1
-CHANGED=$(find $(echo "$ROOTS" | tr ',' ' ') "$W/tree" \( -newer "$W/marker" -o -cnewer "$W/marker" \) 2>/dev/null | head -5)
-[ -z "$CHANGED" ] || echo "changed: $CHANGED"
-check "探索した場所に、スキャンで変わったファイルやディレクトリがない" "[ -z \"$CHANGED\" ]"
+snapshot >"$W/snap.after"
+check "一覧を取れている（比べる対象がある）" "[ \"\$(grep -c '' \"$W/snap.before\")\" -ge 300 ]"
+check "探索した場所に、スキャンで変わったファイルやディレクトリがない" "[ \"\$(sha256sum <\"$W/snap.before\")\" = \"\$(sha256sum <\"$W/snap.after\")\" ]"
 
 # 4. 探索の後のフェーズ（JAR を開く処理）でも、中断と時間制限が効く
 # 末尾に zip の終わりの記録だけを持つ、中身のない JAR を多数置く。探索では中身を読まないのですぐ終わり、その後、1 つずつ開く処理が
@@ -90,7 +93,10 @@ head -c 65536 /dev/zero > "$W/jar.body"; printf 'PK\005\006\000\000\000\000\000\
 i=0; while [ $i -lt 1500 ]; do cp "$W/jar.body" "$W/jars/a$i.jar"; i=$((i+1)); done
 "$K" scan --roots "$W/jars" --output-dir "$W/out4" --log-dir "$W/logs4" --cpu-limit 100 --io-limit 1 2>"$W/err4" &
 PID=$!
-sleep 4
+# 探索が終わって、JAR を開く処理に入るまで待つ（ログの記録で確かめる。探索の前の処理にかかる時間は、環境によって違う）
+n=0; while ! grep -q '"event":"phase","name":"archives"' "$W"/logs4/*.log 2>/dev/null && [ $n -lt 300 ]; do sleep 1; n=$((n+1)); done
+echo "the archive phase started after about ${n}s"
+sleep 2
 T0=$(date +%s); kill -TERM $PID; wait $PID; RC=$?; T1=$(date +%s)
 echo "stopped in $((T1-T0))s with exit code $RC: $(cat "$W/err4")"
 check "JAR を開く処理の途中でも、SIGTERM で終了コード 3" "[ $RC -eq 3 ]"
@@ -116,12 +122,14 @@ check "SIGHUP でも結果が書かれる"       "grep -q '\"completed\": false'
 # 既定のマウント（relatime）では、atime が更新時刻より古いファイルを読むと、atime が書き換わる。その状態を作ってから読ませる
 mkdir -p "$W/atime/d/e"
 cp "$W/tree/sub/f0.pem" "$W/atime/d/a.pem"; cp "$W/jar.body" "$W/atime/d/e/b.jar"; cp "$W/tree/sub/f1.pem" "$W/atime/d/e/c.key"
-find "$W/atime" -exec touch -a -d '2001-02-03 04:05:06' {} +
-BEFORE=$(find "$W/atime" -exec stat -c '%n %X' {} + | sort)
+ATIMES="$W/atime $W/atime/d $W/atime/d/a.pem $W/atime/d/e $W/atime/d/e/b.jar $W/atime/d/e/c.key"
+touch -a -d '2001-02-03T04:05:06Z' $ATIMES
+BEFORE=$(stat -c '%n %X' $ATIMES)
 "$K" scan --roots "$W/atime" --output-dir "$W/out7" --log-dir "$W/logs7" --cpu-limit 100 --io-limit 0 >/dev/null 2>&1
-AFTER=$(find "$W/atime" -exec stat -c '%n %X' {} + | sort)
+AFTER=$(stat -c '%n %X' $ATIMES)
+check "atime を比べる対象が 6 つある" "[ \"\$(echo \"$BEFORE\" | grep -c 981173106)\" = 6 ]"
 check "スキャンで 3 つのファイルを調べた" "grep -q '\"files_examined\": 3' \"$W\"/out7/*.json"
-if [ "$BEFORE" = "$AFTER" ]; then ok "読んだファイルとディレクトリの atime が変わらない"; else ng "読んだファイルとディレクトリの atime が変わらない"; echo "$BEFORE" >"$W/atime.before"; echo "$AFTER" >"$W/atime.after"; diff "$W/atime.before" "$W/atime.after" | head -8; fi
+if [ "$BEFORE" = "$AFTER" ]; then ok "読んだファイルとディレクトリの atime が変わらない"; else ng "読んだファイルとディレクトリの atime が変わらない"; echo "before:"; echo "$BEFORE"; echo "after:"; echo "$AFTER"; fi
 grep -E 'noatime|relatime|strictatime' /proc/self/mountinfo | awk -v d="$W" '$5=="/" || index(d,$5)==1 {print "mount: " $5 " " $6}' | tail -2
 
 [ $fail -eq 0 ] && echo "ALL OK" || echo "SOME CHECKS FAILED"

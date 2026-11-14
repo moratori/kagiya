@@ -8,7 +8,6 @@ import (
 
 	"kagiya/internal/model"
 	"kagiya/internal/output"
-	"kagiya/internal/platform"
 	"kagiya/internal/report"
 	"kagiya/internal/ruleset"
 )
@@ -37,7 +36,7 @@ func runReport(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "kagiya:", err)
 		return exitFatal
 	}
-	platform.Harden()
+	harden()
 	var inputs []string
 	for _, a := range fs.Args() {
 		in, err := absClean(a)
