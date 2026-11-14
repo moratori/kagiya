@@ -6,6 +6,8 @@
 package opensslcnf
 
 import (
+	"errors"
+	"io/fs"
 	"sort"
 	"strings"
 )
@@ -188,6 +190,10 @@ func (p *parser) include(target string, depth int) {
 			return
 		}
 		data, err := p.fs.ReadFile(f)
+		if errors.Is(err, fs.ErrNotExist) {
+			// 存在しない取り込み先は、OpenSSL 自身が無視する（実物で確かめた。配布物の既定の設定にも、存在しないディレクトリの .include がある）
+			continue
+		}
 		if err != nil {
 			p.problem("an included file could not be read")
 			continue
