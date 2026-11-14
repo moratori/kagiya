@@ -230,15 +230,11 @@ func TestTomcatRHEL9(t *testing.T) {
 	}
 }
 
-// Ubuntu 24.04: Tomcat Native が読み込まれ、OpenSSL の実装で動く。その場合の値は、まだ求めない。
-// JDK の実装を明示するか、リスナーを外せば、JDK の実装で動く（実測）。
+// 実装の選ばれ方（実測）: JDK の実装を明示するか、リスナーを外すか、Tomcat Native が導入されていなければ、JDK の実装で動く。
 func TestTomcatImplementation(t *testing.T) {
 	ubuntu := []model.Package{pkgTomcatUbu, pkgNativeUbu, pkgJava21Ubu}
 	both := tcCertRSA + tcCertEC
-	_, inv := collect(t, "", tcDebian(t, tcServer(tcAPR, tcNIO, "", both), nil, ubuntu...))
-	tcUnresolved(t, inv, "Tomcat Native")
-
-	_, inv = collect(t, "", tcDebian(t, tcServer(tcAPR, tcNIO+" "+tcJSSEImpl, "", both), nil, ubuntu...))
+	_, inv := collect(t, "", tcDebian(t, tcServer(tcAPR, tcNIO+" "+tcJSSEImpl, "", both), nil, ubuntu...))
 	checkSuites(t, tcEff(t, inv, "tls.ciphers"), 21, tcBoth12, "high")
 
 	_, inv = collect(t, "", tcDebian(t, tcServer("", tcNIO, "", both), nil, ubuntu...))
@@ -248,9 +244,9 @@ func TestTomcatImplementation(t *testing.T) {
 	_, inv = collect(t, "", tcDebian(t, tcServer(tcAPR, tcNIO, "", both), nil, pkgTomcatUbu, pkgJava21Ubu))
 	checkSuites(t, tcEff(t, inv, "tls.ciphers"), 21, tcBoth12, "high")
 
-	// OpenSSL の実装を明示している
+	// OpenSSL の実装を明示しているが、Tomcat Native を読み込めない（その設定では起動しない）
 	impl := `sslImplementationName="org.apache.tomcat.util.net.openssl.OpenSSLImplementation"`
-	_, inv = collect(t, "", tcDebian(t, tcServer(tcAPR, tcNIO+" "+impl, "", both), nil, ubuntu...))
+	_, inv = collect(t, "", tcDebian(t, tcServer(tcAPR, tcNIO+" "+impl, "", both), nil, tcDebPackages...))
 	tcUnresolved(t, inv, "OpenSSL")
 
 	// 測っていない実装や Connector の種類
@@ -355,4 +351,117 @@ func TestTomcatCipherSuitesAttribute(t *testing.T) {
 		t.Errorf("TLS 1.3 suites = %+v", e)
 	}
 	checkSuites(t, tcEff(t, inv, "tls.ciphers"), 14, tcRSA12, "high")
+}
+
+// 以下は、OpenSSL の実装（Tomcat Native 経由）で動く場合。期待値は、Ubuntu 24.04（tomcat10 10.1.55 + libtcnative-2 2.0.14 + OpenSSL 3.0.13）と
+// Ubuntu 20.04（tomcat9 9.0.31 + libtcnative-1 1.2.23 + OpenSSL 1.1.1f）で実際に起動して数えた結果（スイートを 1 つずつ示す方式）。
+
+var (
+	pkgSSLUbu24  = model.Package{Manager: "dpkg", Name: "libssl3t64", Version: "3.0.13-0ubuntu3.16", Role: "crypto-library"}
+	tcUbuntu24   = []model.Package{pkgTomcatUbu, pkgNativeUbu, pkgJava21Ubu, pkgSSLUbu24}
+	tcFileRSA    = `<Certificate certificateKeyFile="/etc/lab/rsa.key" certificateFile="/etc/lab/rsa.crt"/>`
+	tcFileEC     = `<Certificate certificateKeyFile="/etc/lab/ec.key" certificateFile="/etc/lab/ec.crt"/>`
+	tcKeystoreRS = `<Certificate certificateKeystoreFile="/etc/lab/rsa.p12" certificateKeystoreType="PKCS12" type="RSA"/>`
+)
+
+// tcOpenSSL は、Ubuntu の配置に、証明書のファイルを置く。
+func tcOpenSSL(t *testing.T, xml string, pkgs ...model.Package) func(p string, b *inventory.Builder) {
+	host := tcDebian(t, xml, nil, pkgs...)
+	return func(p string, b *inventory.Builder) {
+		host(p, b)
+		writeCert(t, p+"/etc/lab/rsa.crt", "rsa")
+		writeCert(t, p+"/etc/lab/ec.crt", "ec")
+	}
+}
+
+func tcOpenSSLSuites(t *testing.T, e model.EffectiveValue, count int, has, hasNot []string) {
+	t.Helper()
+	if e.Status != "resolved" || len(e.Values) != count {
+		t.Errorf("%s: status=%s reason=%q: %d suites, want %d", e.Parameter, e.Status, e.Reason, len(e.Values), count)
+	}
+	for _, n := range has {
+		if !contains(e.Values, n) {
+			t.Errorf("%s: %s is missing", e.Parameter, n)
+		}
+	}
+	for _, n := range hasNot {
+		if contains(e.Values, n) {
+			t.Errorf("%s: %s must not be listed", e.Parameter, n)
+		}
+	}
+}
+
+// 証明書が 1 つの場合: ciphers の値（既定は Tomcat の既定の暗号指定）を、導入されている OpenSSL で展開したものになる。
+func TestTomcatOpenSSLSingleCertificate(t *testing.T) {
+	_, inv := collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, "", tcFileRSA), tcUbuntu24...))
+	e := tcEff(t, inv, "tls.ciphers")
+	tcOpenSSLSuites(t, e, 28, []string{"ECDHE-RSA-AES256-GCM-SHA384", "DHE-RSA-AES256-GCM-SHA384", "ECDHE-RSA-CHACHA20-POLY1305"},
+		[]string{"AES256-GCM-SHA384", "ECDHE-ECDSA-AES256-GCM-SHA384", "DHE-RSA-AES256-CCM8"})
+	if !strings.Contains(strings.Join(e.Notes, " "), "OpenSSL") || !strings.Contains(strings.Join(e.Notes, " "), "libtcnative-2") {
+		t.Errorf("the notes must say that Tomcat runs on OpenSSL through Tomcat Native: %v", e.Notes)
+	}
+	if s := e.Steps[0]; s.Layer != "app-default" || s.Source == nil || s.Source.Package != "tomcat10" {
+		t.Errorf("first step = %+v", s)
+	}
+	tcOpenSSLSuites(t, tcEff(t, inv, "tls.ciphersuites-tls13"), 3, []string{"TLS_AES_256_GCM_SHA384"}, nil)
+
+	_, inv = collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, "", tcFileEC), tcUbuntu24...))
+	tcOpenSSLSuites(t, tcEff(t, inv, "tls.ciphers"), 15, []string{"ECDHE-ECDSA-AES256-GCM-SHA384"}, []string{"ECDHE-RSA-AES256-GCM-SHA384"})
+
+	// 設定に書いた暗号指定は、OpenSSL が解釈する
+	_, inv = collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, `ciphers="ECDHE+AESGCM:ECDHE+CHACHA20:!aNULL"`, tcFileRSA), tcUbuntu24...))
+	e = tcEff(t, inv, "tls.ciphers")
+	tcOpenSSLSuites(t, e, 3, []string{"ECDHE-RSA-AES128-GCM-SHA256"}, []string{"DHE-RSA-AES256-GCM-SHA384"})
+	if e.Steps[0].Layer != "app-config" || e.Steps[0].Setting == "" {
+		t.Errorf("first step = %+v", e.Steps[0])
+	}
+
+	// キーストアでも、type で種類が分かれば絞り込む。分からなければ絞り込まず、確度を下げる
+	_, inv = collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, "", tcKeystoreRS), tcUbuntu24...))
+	tcOpenSSLSuites(t, tcEff(t, inv, "tls.ciphers"), 28, nil, []string{"ECDHE-ECDSA-AES256-GCM-SHA384"})
+	_, inv = collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, "", `<Certificate certificateKeystoreFile="/etc/lab/rsa.p12"/>`), tcUbuntu24...))
+	if e := tcEff(t, inv, "tls.ciphers"); e.Status != "resolved" || e.Confidence != "medium" || !contains(e.Values, "ECDHE-ECDSA-AES256-GCM-SHA384") {
+		t.Errorf("unknown certificate kind: %+v", e)
+	}
+}
+
+// protocols の指定: TLS 1.3 を外せば TLS 1.3 のスイートは空、TLS 1.2 以下を外せば TLS 1.2 以下のスイートは空。
+// TLS 1.2 を外して、それより古いものだけを残した場合は求めない（OpenSSL のセキュリティレベルしだいで、実測では何も受け入れなかった）。
+func TestTomcatOpenSSLProtocols(t *testing.T) {
+	_, inv := collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, `protocols="TLSv1.2"`, tcFileRSA), tcUbuntu24...))
+	tcOpenSSLSuites(t, tcEff(t, inv, "tls.ciphers"), 28, nil, nil)
+	tcOpenSSLSuites(t, tcEff(t, inv, "tls.ciphersuites-tls13"), 0, nil, nil)
+
+	_, inv = collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, `protocols="TLSv1.3"`, tcFileRSA), tcUbuntu24...))
+	tcOpenSSLSuites(t, tcEff(t, inv, "tls.ciphers"), 0, nil, nil)
+	tcOpenSSLSuites(t, tcEff(t, inv, "tls.ciphersuites-tls13"), 3, nil, nil)
+
+	_, inv = collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, `protocols="+TLSv1.1"`, tcFileRSA), tcUbuntu24...))
+	if e := tcEff(t, inv, "tls.ciphers"); e.Status != "unresolved" || !strings.Contains(e.Reason, "TLS 1.2") {
+		t.Errorf("only old protocols: %+v", e)
+	}
+	tcOpenSSLSuites(t, tcEff(t, inv, "tls.ciphersuites-tls13"), 0, nil, nil)
+}
+
+// 証明書を複数置いた場合: OpenSSL の実装では、証明書の並び順で結果が変わる版があった（Ubuntu 24.04: RSA → EC の順だと TLS 1.3 を
+// 受け入れない。Ubuntu 22.04 / 24.04: 後ろに書いた証明書の種類の一部のスイートを受け入れない）。そうした版では求めない。
+// 並び順によらず、どちらの証明書のスイートも受け入れた版（Ubuntu 20.04）では求める。
+func TestTomcatOpenSSLMultipleCertificates(t *testing.T) {
+	_, inv := collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, "", tcFileRSA+tcFileEC), tcUbuntu24...))
+	for _, p := range []string{"tls.ciphers", "tls.ciphersuites-tls13"} {
+		if e := tcEff(t, inv, p); e.Status != "unresolved" || !strings.Contains(e.Reason, "more than one certificate") {
+			t.Errorf("%s: %+v", p, e)
+		}
+	}
+	ubuntu20 := []model.Package{{Manager: "dpkg", Name: "tomcat9", Version: "9.0.31-1ubuntu0.9"}, {Manager: "dpkg", Name: "libtcnative-1", Version: "1.2.23-1"},
+		{Manager: "dpkg", Name: "libssl1.1", Version: "1.1.1f-1ubuntu2.24", Role: "crypto-library"}}
+	xml := tcServer(tcAPR, tcNIO, "", tcFileRSA+tcFileEC)
+	_, inv = collect(t, "", func(p string, b *inventory.Builder) {
+		jdkHost(t, map[string]string{"/etc/tomcat9/server.xml": xml}, ubuntu20...)(p, b)
+		writeCert(t, p+"/etc/lab/rsa.crt", "rsa")
+		writeCert(t, p+"/etc/lab/ec.crt", "ec")
+	})
+	// JDK が分からなくても、OpenSSL の実装で動く範囲は求められる
+	tcOpenSSLSuites(t, tcEff(t, inv, "tls.ciphers"), 43, []string{"ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-ECDSA-AES256-GCM-SHA384", "ECDHE-ECDSA-AES256-CCM8"}, []string{"AES256-GCM-SHA384"})
+	tcOpenSSLSuites(t, tcEff(t, inv, "tls.ciphersuites-tls13"), 3, nil, nil)
 }
