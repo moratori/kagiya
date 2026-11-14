@@ -570,3 +570,54 @@ func TestSpringBootExecutableJarWithoutDirectLaunch(t *testing.T) {
 		t.Errorf("the JAR must be recorded once, under its real path: %d services", n)
 	}
 }
+
+// 管理用の待ち受け（management.server.port で、本体と別のポートにしたもの）は、別の待ち受けとして「不明」で記録する
+// （TLS の設定の決まり方を測っていない。待ち受けがあること自体を見落とさないため）。
+func TestSpringBootManagementPort(t *testing.T) {
+	mgmt := func(inv *model.Inventory) []model.EffectiveValue {
+		var out []model.EffectiveValue
+		for _, e := range inv.EffectiveValues {
+			if e.Service == sbSvc && e.Scope == "port 9443" {
+				out = append(out, e)
+			}
+		}
+		return out
+	}
+	for name, tc := range map[string]struct {
+		config string
+		want   bool
+	}{
+		"own TLS settings":              {sbBase + "management.server.port=9443\nmanagement.server.ssl.key-store=/etc/portal/mgmt.p12\nmanagement.server.ssl.key-store-password=s3cret-mgmt\n", true},
+		"own bundle":                    {sbBase + "management.server.port=9443\nmanagement.server.ssl.bundle=mgmt\n", true},
+		"the main port has TLS":         {sbBase + sbKS + "management.server.port=9443\n", true},
+		"TLS turned off for management": {sbBase + sbKS + "management.server.port=9443\nmanagement.server.ssl.enabled=false\n", false},
+		"no TLS settings at all":        {sbBase + "management.server.port=9443\n", false},
+		"same port as the application":  {sbBase + sbKS + "management.server.port=8443\nmanagement.server.ssl.key-store=/etc/portal/mgmt.p12\n", false},
+		"management server disabled":    {sbBase + sbKS + "management.server.port=-1\n", false},
+		"no management port":            {sbBase + sbKS + "management.server.ssl.key-store=/etc/portal/mgmt.p12\n", false},
+	} {
+		_, inv := sbCollect(t, sbHost{config: map[string]string{"application.properties": tc.config}, unit: sbStart})
+		got := mgmt(inv)
+		if !tc.want {
+			if len(got) != 0 {
+				t.Errorf("%s: no value is expected for the management port: %+v", name, got)
+			}
+			continue
+		}
+		if len(got) != 4 {
+			t.Errorf("%s: values for the management port = %d, want 4 (unresolved)", name, len(got))
+		}
+		for _, e := range got {
+			if e.Status != "unresolved" || !strings.Contains(e.Reason, "management") || e.Direction != "inbound" {
+				t.Errorf("%s: %+v", name, e)
+			}
+		}
+		out, _ := json.Marshal(inv)
+		if strings.Contains(string(out), "s3cret") {
+			t.Errorf("%s: a password appears in the result", name)
+		}
+	}
+	// 本体のポートの結果は、これまでどおり
+	_, inv := sbCollect(t, sbHost{config: map[string]string{"application.properties": sbBase + sbKS + "management.server.port=9443\n"}, unit: sbStart})
+	checkSuites(t, sbEff(t, inv, "tls.ciphersuites-tls13"), 3, jdkTLS13, "high")
+}

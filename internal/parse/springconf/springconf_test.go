@@ -194,3 +194,24 @@ func TestProfilesFromOutside(t *testing.T) {
 		t.Errorf("profiles in the file: %+v", v)
 	}
 }
+
+// 管理用の待ち受け（management.server.*）は、別のポートで TLS を待ち受けるかを見分けるのに要る項目だけを持つ。パスワードは持たない。
+func TestManagementServer(t *testing.T) {
+	c := Load(func(name string) ([]byte, bool) {
+		if name != "application.properties" {
+			return nil, false
+		}
+		return []byte("management.server.port=9443\nmanagement.server.ssl.enabled=true\nmanagement.server.ssl.key-store=/etc/app/mgmt.p12\n" +
+			"management.server.ssl.key-store-password=s3cret-mgmt\nmanagement.server.ssl.bundle=mgmt\nmanagement.server.ssl.certificate=/etc/app/mgmt.crt\n" +
+			"management.endpoints.web.exposure.include=*\n"), true
+	})
+	for key, want := range map[string]string{"management.server.port": "9443", "management.server.ssl.enabled": "true", "management.server.ssl.key-store": "/etc/app/mgmt.p12",
+		"management.server.ssl.bundle": "mgmt", "management.server.ssl.certificate": "/etc/app/mgmt.crt"} {
+		if v, ok := c.Get(key); !ok || v.Value != want {
+			t.Errorf("%s = %q %v, want %q", key, v.Value, ok, want)
+		}
+	}
+	if len(c.Keys()) != 5 {
+		t.Errorf("only the allowed settings may be kept: %v", c.Keys())
+	}
+}
