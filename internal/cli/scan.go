@@ -203,6 +203,13 @@ func runScan(args []string, stderr io.Writer) int {
 	if err := output.EnsureDir(opts.logDir); err != nil {
 		return fatal(fmt.Errorf("log directory: %w", err))
 	}
+	// ここから先は、出力先とログ先の下しか変更できないようにする（使えるカーネルでだけ。使えなくても続ける）。
+	// この後の「書けるかの確認」は、制限をかけた状態で行う
+	landlockNote := ""
+	hardening.Landlock, landlockNote = platform.RestrictWrites([]string{opts.outputDir, opts.logDir})
+	if landlockNote != "" {
+		hardening.Notes = append(hardening.Notes, landlockNote)
+	}
 	// スキャンを終えてから結果を書けないと分かるのを避けるため、先に確かめる。
 	for _, d := range []string{opts.outputDir, opts.logDir} {
 		if err := output.Probe(d); err != nil {
@@ -223,7 +230,7 @@ func runScan(args []string, stderr io.Writer) int {
 		"rules_version", rs.Version, "rules_sha256", rs.SHA256, "roots", opts.roots, "excludes", opts.excludes,
 		"output_dir", opts.outputDir, "elevated", platform.Elevated())
 	log.Info("hardening", "priority_lowered", hardening.PriorityLowered, "io_priority", hardening.IOPriority,
-		"core_dump_disabled", hardening.CoreDumpDisabled, "seccomp", hardening.Seccomp, "memory_limit_mib", hardening.MemoryLimitMiB, "notes", hardening.Notes)
+		"core_dump_disabled", hardening.CoreDumpDisabled, "seccomp", hardening.Seccomp, "landlock", hardening.Landlock, "memory_limit_mib", hardening.MemoryLimitMiB, "notes", hardening.Notes)
 	var warnings []string
 	if mounts.table == nil {
 		w := "the mount table is not available on this OS; network filesystem checks are disabled"

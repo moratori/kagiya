@@ -38,7 +38,7 @@ func TestRestrictWrites(t *testing.T) {
 		"status=applied",
 		"inside-create=ok", "inside-link=ok", "inside-remove=ok", // 出力に使う操作は、出力先の中ではできる
 		"outside-create=denied", "outside-append=denied", "outside-remove=denied", "outside-mkdir=denied",
-		"outside-read=ok",             // 読み取りは制限しない
+		"outside-read=ok",            // 読み取りは制限しない
 		"other-thread-create=denied", // 制限は、すべてのスレッドにかかる
 	} {
 		if !strings.Contains(out, want) {

@@ -27,6 +27,8 @@ sed -n '/"hardening"/,/}/p' "$R"
 check "優先度が下がっている"         "grep -q '\"priority_lowered\": true' \"$R\""
 check "コアダンプが無効化されている" "grep -q '\"core_dump_disabled\": true' \"$R\""
 check "seccomp が適用されている"     "grep -q '\"seccomp\": \"applied\"' \"$R\""
+# Landlock（書き込める場所を出力先とログ先に限る）は、Linux 5.13 以降で使える。古いカーネルでは unsupported と記録して続ける
+check "Landlock は、適用済みか、このカーネルでは使えないかのどちらか（失敗ではない）" "grep -qE '\"landlock\": \"(applied|unsupported)\"' \"$R\""
 check "結果ファイルの権限が 0600"    "[ \"\$(stat -c %a \"$R\")\" = 600 ]"
 check "ログファイルの権限が 0600"    "[ \"\$(stat -c %a \"$W\"/logs/*.log)\" = 600 ]"
 check "出力ディレクトリの権限が 0700" "[ \"\$(stat -c %a \"$W/out\")\" = 700 ]"
