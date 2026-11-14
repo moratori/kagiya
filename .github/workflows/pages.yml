@@ -1,0 +1,71 @@
+name: Pages
+
+# サンプルのレポートを作って、GitHub Pages に公開する。
+# 入力は、examples/sample-scan/ にある結果 JSON（検証ラボのコンテナをスキャンしたもの。実際のホストの結果ではない）。
+# その時点の kagiya でレポートを作り直すので、レポートの見た目を直せば、公開されているサンプルも新しくなる。
+# リポジトリの設定で、Pages の公開元を「GitHub Actions」にしておく必要がある。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "examples/sample-scan/**"
+      - "internal/**"
+      - "cmd/**"
+      - "rules/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+# 既定は読み取りだけ。公開に要る権限は、公開するジョブにだけ与える。
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  # 依存は vendor/ に固定してあり、ビルド中にモジュールを取得しない。
+  GOFLAGS: -mod=vendor
+  GOPROXY: "off"
+  GOTOOLCHAIN: local
+  CGO_ENABLED: "0"
+
+jobs:
+  build:
+    name: サンプルのレポートを作る
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: build
+        run: go build -trimpath -o "$RUNNER_TEMP/kagiya" ./cmd/kagiya
+      - name: レポートを作る
+        run: |
+          "$RUNNER_TEMP/kagiya" report --output-dir "$RUNNER_TEMP/report" examples/sample-scan/*.json
+          mkdir -p "$RUNNER_TEMP/site"
+          # レポートは 1 つの HTML（外部の参照なし）。Pages の入口として置く
+          cp "$RUNNER_TEMP"/report/kagiya-report-*.html "$RUNNER_TEMP/site/index.html"
+          ls -l "$RUNNER_TEMP/site"
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/site
+
+  deploy:
+    name: 公開する
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

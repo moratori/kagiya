@@ -80,6 +80,10 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq strace
       - name: 安全策の確認
         run: sh ci/verify-linux.sh "$RUNNER_TEMP/kagiya" "$RUNNER_TEMP/work"
+      - name: サンプルの結果からレポートを作れること（公開しているサンプルが壊れないように）
+        run: |
+          "$RUNNER_TEMP/kagiya" report --output-dir "$RUNNER_TEMP/sample-report" examples/sample-scan/*.json
+          ls -l "$RUNNER_TEMP/sample-report"
 
   # 各ディストリビューションのコンテナ内での確認（カーネルはランナーのもの）。
   linux-distros:
