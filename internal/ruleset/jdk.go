@@ -49,8 +49,9 @@ type JDKTable struct {
 
 // javaRulesFile は、rules/java/ のファイル 1 つ（JDK の表と、Java で動くサーバーの表）。
 type javaRulesFile struct {
-	JDKTables    []*JDKTable    `yaml:"jdk_tables"`
-	TomcatTables []*TomcatTable `yaml:"tomcat_tables"`
+	JDKTables            []*JDKTable            `yaml:"jdk_tables"`
+	TomcatTables         []*TomcatTable         `yaml:"tomcat_tables"`
+	EmbeddedTomcatTables []*EmbeddedTomcatTable `yaml:"tomcat_embedded_tables"`
 }
 
 var (

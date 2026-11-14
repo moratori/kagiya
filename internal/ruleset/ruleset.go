@@ -41,11 +41,12 @@ type RuleSet struct {
 	JavaLibraries []JavaLibraryRule
 	Defaults      []DefaultSet
 
-	CipherTables []*CipherTable
-	Policies     []*Policy
-	GroupTables  []*GroupTable
-	JDKTables    []*JDKTable
-	TomcatTables []*TomcatTable
+	CipherTables         []*CipherTable
+	Policies             []*Policy
+	GroupTables          []*GroupTable
+	JDKTables            []*JDKTable
+	TomcatTables         []*TomcatTable
+	EmbeddedTomcatTables []*EmbeddedTomcatTable
 
 	byAlias     map[string]int
 	storePaths  map[string]string // パス → ストア ID
@@ -245,6 +246,11 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 			}
 			for _, t := range jf.TomcatTables {
 				if err := rs.addTomcatTable(t, ids); err != nil {
+					return nil, fmt.Errorf("%s: %w", f.Path, err)
+				}
+			}
+			for _, t := range jf.EmbeddedTomcatTables {
+				if err := rs.addEmbeddedTomcatTable(t, ids); err != nil {
 					return nil, fmt.Errorf("%s: %w", f.Path, err)
 				}
 			}

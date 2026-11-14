@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 // TomcatSuite は、Tomcat が持つ暗号スイートの表の 1 行。
@@ -57,6 +58,15 @@ func (rs *RuleSet) addTomcatTable(t *TomcatTable, ids map[string]bool) error {
 	if err := checkBuilds("tomcat", t.Server, t.Upstream, t.Builds, ids); err != nil {
 		return fmt.Errorf("%s: %w", where, err)
 	}
+	if err := t.checkContents(where); err != nil {
+		return err
+	}
+	rs.TomcatTables = append(rs.TomcatTables, t)
+	return nil
+}
+
+// checkContents は、表の中身（既定値、スイート、語）を検証し、語から引く索引を作る。
+func (t *TomcatTable) checkContents(where string) error {
 	if len(t.DefaultCiphers) > 1024 || !tomcatCiphersPattern.MatchString(t.DefaultCiphers) {
 		return fmt.Errorf("%s: invalid default_ciphers", where)
 	}
@@ -134,8 +144,73 @@ func (rs *RuleSet) addTomcatTable(t *TomcatTable, ids map[string]bool) error {
 			return fmt.Errorf("%s: default_ciphersuites: %q is not in the table", where, n)
 		}
 	}
-	rs.TomcatTables = append(rs.TomcatTables, t)
 	return nil
+}
+
+// EmbeddedTomcatVersion は、アプリに同梱される Tomcat の版 1 つと、その成果物（JAR）のチェックサム。
+type EmbeddedTomcatVersion struct {
+	Version string `yaml:"version"`
+	SHA256  string `yaml:"sha256"` // 採取に使った JAR（Maven Central の成果物）の SHA-256
+}
+
+// EmbeddedTomcatTable は、アプリに同梱される Tomcat（tomcat-embed-core）の対応表。中身が同じだった版をまとめて持つ。出典が必須。
+// 中身の形は、パッケージの Tomcat の表（TomcatTable）と同じ。server、upstream、builds と、サーバーを起動して確かめる項目は使わない。
+type EmbeddedTomcatTable struct {
+	Artifact    string                  `yaml:"artifact"`
+	Versions    []EmbeddedTomcatVersion `yaml:"versions"`
+	Source      Source                  `yaml:"source"`
+	TomcatTable `yaml:",inline"`
+}
+
+var (
+	embeddedVersionPattern = regexp.MustCompile(`^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(-[A-Za-z0-9]{1,16})?$`)
+	sha256Pattern          = regexp.MustCompile(`^[0-9a-f]{64}$`)
+)
+
+func (rs *RuleSet) addEmbeddedTomcatTable(t *EmbeddedTomcatTable, ids map[string]bool) error {
+	if t == nil || len(t.Artifact) > 64 || !javaArtifactPattern.MatchString(t.Artifact) || strings.HasSuffix(t.Artifact, "*") {
+		return errors.New("embedded Tomcat table needs an artifact name")
+	}
+	where := "embedded Tomcat table for " + t.Artifact
+	if t.Server != "" || t.Upstream != "" || len(t.Builds) > 0 || t.ConnectorTLSAttributes || t.CipherSuitesIgnoredByJDK {
+		return fmt.Errorf("%s: server, upstream, builds and the facts measured by starting a packaged server are not used here", where)
+	}
+	if len(t.Versions) == 0 || len(t.Versions) > 1000 {
+		return fmt.Errorf("%s: invalid number of versions", where)
+	}
+	for _, v := range t.Versions {
+		if !embeddedVersionPattern.MatchString(v.Version) || !sha256Pattern.MatchString(v.SHA256) {
+			return fmt.Errorf("%s: invalid version or checksum (%q)", where, v.Version)
+		}
+		key := "tomcat-embedded\x00" + t.Artifact + "\x00" + v.Version
+		if ids[key] {
+			return fmt.Errorf("%s: duplicate version %s", where, v.Version)
+		}
+		ids[key] = true
+	}
+	if err := checkSources([]Source{t.Source}); err != nil {
+		return fmt.Errorf("%s: %w", where, err)
+	}
+	if err := t.TomcatTable.checkContents(where + " " + t.Versions[0].Version); err != nil {
+		return err
+	}
+	rs.EmbeddedTomcatTables = append(rs.EmbeddedTomcatTables, t)
+	return nil
+}
+
+// EmbeddedTomcatTableFor は、アプリに同梱される Tomcat の、その版の対応表と出典を返す。版は完全に一致するものだけ（補間しない）。
+func (rs *RuleSet) EmbeddedTomcatTableFor(artifact, version string) (t *TomcatTable, source Source, ok bool) {
+	for _, e := range rs.EmbeddedTomcatTables {
+		if e.Artifact != artifact {
+			continue
+		}
+		for _, v := range e.Versions {
+			if v.Version == version {
+				return &e.TomcatTable, e.Source, true
+			}
+		}
+	}
+	return nil, Source{}, false
 }
 
 // Word は、暗号指定の語が指すスイート（suites の中の位置）を返す。語は大文字小文字を区別する。
