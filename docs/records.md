@@ -409,7 +409,7 @@ PostgreSQL、Dovecot、BIND、OpenVPN、MariaDB / MySQL、OpenDKIM、OpenLDAP �
 | Dovecot | 済 | 8 ディストリ（AlmaLinux 8 / 9 / 10、Ubuntu 16.04〜24.04、Debian 13。Dovecot 2.2.22〜2.4.1）の 81 の待ち受けすべてで一致（グループは、対応表のない OpenSSL 1.0.2 の 6 件を除く） |
 | MariaDB | 済 | 6 版（AlmaLinux 8 / 9 / 10、Ubuntu 22.04 / 24.04、Debian 13。10.3〜11.8）の 41 場面すべてで一致。Ubuntu 16.04（OpenSSL なしのビルド）と 20.04（鍵を読めず起動しない）は測れていない |
 | MySQL | 済 | 6 版（AlmaLinux 8 / 9 / 10、Ubuntu 20.04 / 22.04 / 24.04。8.0、8.4）の 45 場面すべてで一致。Ubuntu 16.04（5.7）は、内蔵の既定を特定できず表に入れていない |
-| Java（JDK の層） | 済 | 導入されている OpenJDK ごとの TLS の既定（下記）。Tomcat、Spring Boot、WildFly は未 |
+| Java（JDK の層） | 済 | 導入されている OpenJDK ごとの TLS の既定（下記）。Tomcat、Spring Boot、WildFly も実装済み（下記） |
 | Tomcat などの Java のサーバー、OpenSSH クライアント、rsyslog、Zabbix、VPN、認証基盤、鍵ファイルだけのもの | 未 | 2026-11-13 に優先順位を見直した（下記） |
 | 　 | 　 | RHEL 系は AlmaLinux の公式イメージで測る（2026-11-12 に決定） |
 
@@ -734,7 +734,7 @@ Java の 3 段目として、Spring Boot のアプリ（組み込みの Tomcat �
 - **まだ対応していないもの:** init.d から JAR を起動する形（リンクを置く形）、管理用の待ち受けの値（`management.server.ssl.*` の決まり方は測っていない）、
   クラスパスの `config/` の設定ファイル、Tomcat 以外の同梱サーバー（Jetty、Undertow、Netty）。
 
-#### WildFly（2026-11-14〜、検証ラボ、arm64。測定まで。実装はこれから）
+#### WildFly（2026-11-14、検証ラボ、arm64。測定と実装）
 
 WildFly はディストリビューションのパッケージにないので、開発元の配布物（Maven Central の `org.wildfly:wildfly-dist` の zip）を展開して測る。
 測る範囲は、2020 年以降に公開された正式版すべて（利用者が決定）。公開日は Maven Central の目録で確かめた: 19.0.0.Final（2020-03-17）〜42.0.0.Final（2026-10-21）の 54 版。
@@ -764,8 +764,33 @@ WildFly はディストリビューションのパッケージにないので、
   待ち受けの側の指定は、古い形式とは併用でき、そちらが効く（待ち受けの側で `TLSv1.3` だけを指定すると、TLS 1.3 の 3 スイートだけになる）。
 - **測定で気づいた落とし穴:** 23.0.0 の管理用コマンドのスクリプトは、先頭の指定が `sh` なのに bash の書き方を含み、Ubuntu の `sh` では文法エラーになる（`bash` で動かして測った）。
   場面を切り替えるときは、前のサーバーが止まってポートが空いたことと、起動の記録に「started」が出たことを確かめないと、前の設定のサーバーを測ってしまう。
-  `version.txt` は、19 と 26 の配布物にはなかった（42 にはある）。版の読み方は、実装の前に確かめる。
-- **これから:** 暗号の指定の解釈を Go で実装して Elytron 自身の解釈と突き合わせる → `standalone.xml` の読み取り → 配置と版と JDK の特定 → 差分テスト。
+  `version.txt` は、19 と 26 の配布物にはなかった（42 にはある）ので、版の読み取りには使わない。
+- **暗号の指定の解釈（`internal/elytronciphers`）:** Elytron は、指定を OpenSSL に渡さず、自分の表と規則で解釈する。規則は、上流のソース
+  （`wildfly-elytron-ssl` の `CipherSuiteSelector` / `CipherSuitePredicate` / `MechanismDatabase`。Maven Central の sources の JAR。1.16.1.Final と 2.9.4.Final で同一）を写した。
+  OpenSSL と違うところ: 結果は JDK の対応しているスイートの並びから選ばれる / `!`・`-`・`+` の後ろの知らない語は無視される（先頭の知らない語はエラー）/
+  `A+B` の中の知らない語は無視される（`ECDHE+CHACHA20` は、`CHACHA20` を知らないので `ECDHE` すべてになる。実測でもそうだった）/ `@STRENGTH` 以外の `@...` はエラー。
+  検証ラボで、Elytron 自身に 3,221 通りの式を解釈させ（`lab/phase2/wildfly-elytron.sh`、`ElytronProbe.java`。鍵は作らず、通信もしない）、
+  WildFly 24.0.1 / 26.1.3 / 35.0.1 / 42.0.0 の Elytron で結果がすべて同じであること、Go の実装がその全部（3,136 件の結果と、85 件のエラー）に一致することを確かめた
+  （`KAGIYA_ELYTRON_PROBE=<結果の場所> go test ./internal/elytronciphers -run TestAgainstElytron`）。ASCII 以外の文字を含む式は、解釈しない（不明にする）。
+- **版の読み取り（`lab/phase2/wildfly-version.sh`、`wildfly-version2.sh`。展開も起動もせず、zip の中の該当のファイルだけを読んだ）:**
+  30 までの 30 版は、`modules/system/layers/base/org/jboss/as/product/main/dir/META-INF/MANIFEST.MF` に `JBoss-Product-Release-Version: <版>` がある。
+  31 以降の 24 版は、そのファイルがなく、同じディレクトリの `wildfly-feature-pack-product-conf-<版>.jar` の中のマニフェストに同じ項目がある。
+  54 版すべてで、読み取った値が配布物の版と一致した。`JBoss-Product-Release-Name` は `WildFly Full`（34 版）か `WildFly`（20 版）。これが `WildFly` で始まらないものは、扱わない。
+- **実装（`internal/parse/standalonexml`、`internal/collect/apps/wildfly.go`、ルールは `rules/apps/wildfly.yaml` と `rules/java/wildfly.yaml`）:**
+  - 置き場所は決まっていないので、`/opt`・`/usr/local`・`/usr/share`・`/srv` の下の `<置き場所>/standalone/configuration/standalone.xml` を探し、置き場所ごとに別のサービスにする。
+  - `standalone.xml` からは、決まった要素の決まった属性だけを読む（パスワードの属性は、名前の一覧にないので読まない）。
+  - 起動する設定ファイルは、配布物に付いている systemd のユニットの形（`launch.sh モード 設定ファイル 待ち受けアドレス`。値は `/etc/wildfly/wildfly.conf`）か、
+    `standalone.sh -c <設定ファイル>` の形なら読む。読めなければ `standalone.xml`。ドメインのモードは読まない。
+  - JDK は、`bin/standalone.conf` の行頭に `JAVA_HOME=<絶対パス>` が 1 つだけあれば、その JDK。それ以外は、見つかった JDK すべてで同じになる項目だけ確定（Spring Boot と同じ考え方）。
+    `standalone.conf` はシェルのスクリプトなので、解釈しない。Java の TLS の設定を変えうる指定（`-Djdk.tls...` など）が書かれていれば、値を求めない。
+  - 古い形式（`security-realm`）は、測った書き方だけを求める。測っていない書き方（`ssl` の `protocol` が `TLSv1.3` 以外、待ち受けの側に複数のプロトコル、
+    待ち受けの側に OpenSSL 式の名前、`engine` と待ち受けの両方に指定）は「不明」。
+  - キーストアの中は読まないので、暗号スイートは証明書の種類で絞り込まない（確度は中。Tomcat・Spring Boot のキーストアと同じ扱い）。
+- **突き合わせ（`KAGIYA_WILDFLY_LAB=<測定結果の場所> go test ./internal/collect/apps -run TestWildFlyAgainstLab`）:** 測定のときに保存した、場面ごとの `standalone.xml` を
+  kagiya に読ませ、実際に受け入れたもの（プロトコル、TLS 1.2 以下のスイートのうち測定の証明書の種類で使えるもの、TLS 1.3 のスイート）と比べた。
+  54 版・1,084 場面のうち、1,070 場面が一致、14 場面（古い形式で、待ち受けの側に OpenSSL 式の名前を書いた場面。14 版 × 1）は意図どおり「不明」、食い違いは 0。
+  コンテナの中で kagiya の実行ファイルを動かす形の突き合わせは、まだ行っていない（設定の読み取りと解釈は同じコードだが、配置の発見と JDK の読み取りを実物で通していない）。
+- **残り:** 古い形式の、測っていない書き方の測定（上記）。管理用の待ち受け（9993 番）。キーストアの中の証明書の種類。コンテナの中での突き合わせ。
 
 ### 暗号ライブラリが耐量子のアルゴリズムに対応している版（2026-11-14、検証ラボ、arm64）
 
