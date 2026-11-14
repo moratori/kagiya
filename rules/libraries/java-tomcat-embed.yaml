@@ -5,4 +5,6 @@ java_library:
   sources:
     - image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
       os: "Ubuntu 26.04.1 LTS"
+      method: read-from-distributed-files
+      verified-by-handshake: false
       note: "Maven Central の org/apache/tomcat/embed の成果物の一覧で名前を確かめた（2026-11-14）。tomcat-embed-core（475 版、最新 11.0.29）。ラボでビルドした Spring Boot 3.5.16 のアプリには tomcat-embed-core-10.1.55.jar が同梱されていた"

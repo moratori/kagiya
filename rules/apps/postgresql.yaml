@@ -25,10 +25,16 @@ app:
   sources:
     - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
       os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: read-from-distributed-files
+      verified-by-handshake: false
       note: "postgresql-server 13.23-6.el9_8。本体は /usr/bin/postgres。設定は /var/lib/pgsql/data/postgresql.conf（データディレクトリの中）。ユニットは postgresql.service（PGDATA=/var/lib/pgsql/data）"
     - image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
       os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: read-from-distributed-files
+      verified-by-handshake: false
       note: "postgresql-server 10.23（モジュール）。配置は 9 と同じ"
     - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
       os: "Debian GNU/Linux 13 (trixie)"
+      method: read-from-distributed-files
+      verified-by-handshake: false
       note: "postgresql-17 17.12-0+deb13u1。本体は /usr/lib/postgresql/17/bin/postgres。設定は /etc/postgresql/17/main/postgresql.conf で、data_directory がデータディレクトリを指す。配られる設定は ssl = on と証明書の指定を持つ"

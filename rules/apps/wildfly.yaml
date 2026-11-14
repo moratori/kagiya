@@ -25,4 +25,6 @@ app:
   sources:
     - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
       os: "Ubuntu 24.04.5 LTS"
+      method: read-from-distributed-files
+      verified-by-handshake: false
       note: "WildFly 19.0.0.Final〜42.0.0.Final（54 版）の配布物（Maven Central の org.wildfly:wildfly-dist の zip）を /opt/wildfly に展開して確かめた。設定は standalone/configuration/standalone.xml。版は、30 までは modules/system/layers/base/org/jboss/as/product/main/dir/META-INF/MANIFEST.MF の JBoss-Product-Release-Version、31 以降は同じディレクトリの wildfly-feature-pack-product-conf-<版>.jar の中のマニフェストの同じ項目（54 版すべてで確かめた）。配布物に付いている systemd のユニット（docs/contrib/scripts/systemd/wildfly.service）は、ExecStart=/opt/wildfly/bin/launch.sh $WILDFLY_MODE $WILDFLY_CONFIG $WILDFLY_BIND、EnvironmentFile=-/etc/wildfly/wildfly.conf。Java は、bin/standalone.conf の JAVA_HOME（既定ではコメント）か、環境変数の JAVA_HOME、なければ PATH の java"

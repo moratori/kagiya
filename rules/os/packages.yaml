@@ -10,15 +10,23 @@ packages:
     sources:
       - image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
         os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "openssl, openssl-libs, gnutls, libgcrypt"
       - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
         os: "Red Hat Enterprise Linux 9.9 (Plow)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "openssl, openssl-libs, gnutls, libgcrypt"
       - image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
         os: "Ubuntu 16.04.7 LTS"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "openssl, libssl1.0.0, libgnutls30, libgcrypt20"
       - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
         os: "Ubuntu 24.04.5 LTS"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "openssl, libssl3t64, libgnutls30t64, libgcrypt20"
 
   - role: ssh
@@ -26,9 +34,13 @@ packages:
     sources:
       - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
         os: "Red Hat Enterprise Linux 9.9 (Plow)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "openssh, openssh-server, openssh-clients"
       - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
         os: "Ubuntu 24.04.5 LTS"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "openssh-server, openssh-client"
 
   - role: web-server
@@ -36,12 +48,18 @@ packages:
     sources:
       - image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
         os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "nginx, httpd, mod_ssl"
       - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
         os: "Red Hat Enterprise Linux 9.9 (Plow)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "nginx, nginx-core, httpd, httpd-core, mod_ssl"
       - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
         os: "Ubuntu 24.04.5 LTS"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "nginx, apache2, apache2-bin（Ubuntu 16.04 では nginx-core もある）"
 
   - role: proxy
@@ -49,9 +67,13 @@ packages:
     sources:
       - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
         os: "Red Hat Enterprise Linux 9.9 (Plow)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "haproxy（/usr/sbin/haproxy を含む）"
       - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
         os: "Ubuntu 24.04.5 LTS"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "haproxy（/usr/sbin/haproxy を含む）、stunnel4（/usr/bin/stunnel4 を含む）。RHEL 系のパッケージ名は stunnel"
 
   - role: mail-server
@@ -59,12 +81,18 @@ packages:
     sources:
       - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
         os: "Red Hat Enterprise Linux 9.9 (Plow)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "postfix（/usr/sbin/postfix、/usr/libexec/postfix/smtpd を含む）"
       - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
         os: "Debian GNU/Linux 13 (trixie)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "postfix（/usr/sbin/postfix、/usr/lib/postfix/sbin/smtpd を含む）。dovecot-core（/usr/sbin/dovecot を含む）"
       - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
         os: "AlmaLinux 9.8 (Olive Jaguar)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "dovecot（/usr/sbin/dovecot を含む）。UBI のリポジトリにはないため、AlmaLinux の公式イメージで確認"
 
   - role: database
@@ -73,12 +101,18 @@ packages:
     sources:
       - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
         os: "AlmaLinux 9.8 (Olive Jaguar)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "postgresql-server（/usr/bin/postgres を含む）。UBI のリポジトリにはないため、AlmaLinux の公式イメージで確認"
       - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
         os: "Debian GNU/Linux 13 (trixie)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "postgresql-17（/usr/lib/postgresql/17/bin/postgres を含む）。mariadb-server（/usr/sbin/mariadbd を含む）"
       - image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
         os: "AlmaLinux 10.2 (Lavender Lion)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "mariadb-server（/usr/libexec/mariadbd）、mysql8.4-server（/usr/libexec/mysqld）。AlmaLinux 8 / 9 の MySQL は mysql-server"
 
   - role: java-runtime
@@ -97,9 +131,13 @@ packages:
     sources:
       - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
         os: "AlmaLinux 9.8 (Olive Jaguar)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "java-1.8.0 / 11 / 17 / 21 / 25-openjdk-headless（/usr/lib/jvm/ の下に、実行環境の本体と java.security を持つ）"
       - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
         os: "Ubuntu 24.04.5 LTS"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "openjdk-8 / 11 / 17 / 21 / 25-jre-headless（/usr/lib/jvm/ の下に、実行環境の本体と java.security を持つ）"
 
   - role: java-server
@@ -108,12 +146,18 @@ packages:
     sources:
       - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
         os: "AlmaLinux 9.8 (Olive Jaguar)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "tomcat 9.0.121-1.el9_8（/etc/tomcat/server.xml、tomcat.service）"
       - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
         os: "Debian GNU/Linux 13 (trixie)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "tomcat10 10.1.60-1~deb13u1、tomcat11 11.0.22-1~deb13u1（/etc/tomcat10/server.xml、tomcat10.service）"
       - image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
         os: "Ubuntu 22.04.5 LTS"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "tomcat9 9.0.58-1ubuntu0.2（/etc/tomcat9/server.xml、tomcat9.service）"
 
   - role: tomcat-native
@@ -122,9 +166,13 @@ packages:
     sources:
       - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
         os: "Debian GNU/Linux 13 (trixie)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "libtcnative-1 1.3.1-1+b1（tomcat10 とともに導入される）"
       - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
         os: "Ubuntu 24.04.5 LTS"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "libtcnative-2 2.0.14-1~24.04.1（tomcat10 とともに導入される）"
 
   - role: crypto-policy
@@ -132,9 +180,13 @@ packages:
     sources:
       - image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
         os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "crypto-policies-20230731-1.git3177e06.el8"
       - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
         os: "Red Hat Enterprise Linux 9.9 (Plow)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "crypto-policies-20260714-1.git65b74f7.el9"
 
   - role: trust-store
@@ -142,7 +194,11 @@ packages:
     sources:
       - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
         os: "Red Hat Enterprise Linux 9.9 (Plow)"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "ca-certificates"
       - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
         os: "Ubuntu 24.04.5 LTS"
+        method: read-from-distributed-files
+        verified-by-handshake: false
         note: "ca-certificates"

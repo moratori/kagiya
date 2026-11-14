@@ -25,10 +25,16 @@ app:
   sources:
     - image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
       os: "Red Hat Enterprise Linux 9.9 (Plow)"
+      method: read-from-distributed-files
+      verified-by-handshake: false
       note: "stunnel 5.71-2.el9。/usr/bin/stunnel に 'stunnel 5.71 on aarch64-redhat-linux-gnu'。ユニットは stunnel.service（引数なしで /etc/stunnel/stunnel.conf を読む）と stunnel@.service（/etc/stunnel/%i.conf）"
     - image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
       os: "Ubuntu 16.04.7 LTS"
+      method: read-from-distributed-files
+      verified-by-handshake: false
       note: "stunnel4 3:5.30-1ubuntu0.1。本体は /usr/bin/stunnel4 で、'stunnel 5.30 on aarch64-unknown-linux-gnu'。systemd のユニットはない"
     - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
       os: "Ubuntu 24.04.5 LTS"
+      method: read-from-distributed-files
+      verified-by-handshake: false
       note: "stunnel4 3:5.72-1build2。本体は /usr/bin/stunnel4。ユニットは stunnel@.service（/etc/stunnel/%i.conf）と stunnel.target"
