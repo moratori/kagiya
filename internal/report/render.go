@@ -137,7 +137,7 @@ func (h *htmlWriter) unmeasured(pg *page) {
 	h.w(raw(`<section class="common" id="unmeasured">
 <div class="block">
 <h2>測定が要る版</h2>
-<p class="sub">このツールは、あらかじめ実物で測った版の表を使って判定します。下の版は、表にそのものがありませんでした。「表にない」ものは値を求められず「不明」になっており、「近い版の表で補った」ものは確度を下げています。この一覧を kagiya の管理者に渡すと、測定を頼めます。一覧に入っているのは、OS・パッケージの名前・版だけです（ホスト名や場所は入っていません）。</p>
+<p class="sub">このツールは、あらかじめ実物で測った版の表を使って判定します。下の版は、表にそのものがありませんでした。「表にない」ものは値を求められず「不明」になっており、「近い版の表で補った」ものは確度を下げています。この一覧を kagiya の開発元に知らせると、測定を頼めます。一覧に入っているのは、OS・パッケージの名前・版だけです（ホスト名や場所は入っていません）。</p>
 <div class="tablewrap"><table><tr><th>OS</th><th>種類</th><th>パッケージ</th><th>版</th><th>状態</th></tr>
 `))
 	for _, r := range pg.Unmeasured {
@@ -156,13 +156,10 @@ func (h *htmlWriter) unmeasured(pg *page) {
 		h.w(r.line(), "\n")
 	}
 	h.w(raw("</pre>\n"))
-	if pg.Contact != "" {
-		label := "kagiya の管理者に連絡する"
-		if strings.HasPrefix(pg.Contact, "mailto:") {
-			label = "kagiya の管理者にメールで連絡する（メールソフトが開きます。送る前に内容を確かめてください）"
-		}
-		h.w(raw(`<p><a class="contact" href="`), contactHref(pg.Contact, pg.Unmeasured), raw(`" rel="noopener noreferrer">`), label, raw("</a></p>\n"))
-	}
+	h.w(raw(`<p>測定を頼むには、上の一覧を、kagiya の GitHub リポジトリの Issue に貼り付けてください: <a class="contact" href="`), issueURL,
+		raw(`" target="_blank" rel="noopener noreferrer">Issue を書くページを開く</a>（外部のサイトです）。`+
+			`Issue は誰でも読める形で公開されます。貼り付ける前に、内容（OS・パッケージの名前・版）を公開してよいかを確かめてください。`+
+			`このリンクは、ページを開くだけで、レポートの内容を送りません。</p>`+"\n"))
 	h.w(raw("</div>\n</section>\n"))
 }
 

@@ -13,7 +13,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -70,36 +69,15 @@ func Render(w io.Writer, inv *model.Inventory, rs *ruleset.RuleSet, policy strin
 	return RenderAll(w, []*model.Inventory{inv}, rs, policy)
 }
 
-// Options は、レポートの作り方の指定。
-type Options struct {
-	// 「測定が要る版」の一覧から連絡する先（mailto:<アドレス> か https://...）。空なら、リンクを出さない
-	Contact string
-}
+// issueURL は、「測定が要る版」を知らせる先（kagiya のリポジトリの、Issue を書くページ）。
+// リンクには、一覧の中身を入れない（利用者が、コピー用の一覧を自分で貼り付ける）。
+const issueURL = "https://github.com/moratori/kagiya/issues/new"
 
-var contactMail = regexp.MustCompile(`^mailto:[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,190}$`)
-
-// CheckContact は、連絡先として使える値かを確かめる。使えるのは「mailto:<アドレス>」（宛先 1 つだけ。件名などの指定は付けられない）と、
-// https:// で始まる URL。空（指定なし）は、そのまま通す。
-func CheckContact(contact string) error {
-	if contact == "" || contactMail.MatchString(contact) || safeURL(contact) {
-		return nil
-	}
-	return errors.New("the contact must be mailto:<address> or an https:// URL")
-}
-
-// RenderAll は、指定なしでレポートを書き出す。
-func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy string) error {
-	return RenderAllWith(w, invs, rs, policy, Options{})
-}
-
-// RenderAllWith は、1 つ以上のホストの結果からレポートを書き出す。
+// RenderAll は、1 つ以上のホストの結果からレポートを書き出す。
 // 複数のホストの場合は、全体の集計の画面と、ホストごとの詳細（1 ホストのときと同じ内容）を 1 つのファイルに入れる。
-func RenderAllWith(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy string, opt Options) error {
+func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy string) error {
 	if len(invs) == 0 {
 		return errors.New("no result to report")
-	}
-	if err := CheckContact(opt.Contact); err != nil {
-		return err
 	}
 	ev, err := assess.New(rs, policy)
 	if err != nil {
@@ -156,7 +134,6 @@ func RenderAllWith(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, po
 		pg.Hosts = append(pg.Hosts, v)
 		pg.Total.add(v.Summary)
 	}
-	pg.Contact = opt.Contact
 	pg.Unmeasured = unmeasuredRows(sorted)
 	pg.TotalView = &view{Summary: pg.Total, Tips: pg.Tips, ExpiringDays: expiringDays}
 	// 全体の集計には、どれかのホストで探索した起点を、重複なく並べる
@@ -280,42 +257,4 @@ func unmeasuredRows(invs []*model.Inventory) []unmeasuredRow {
 // line は、コピー用の 1 行（タブ区切り）。
 func (r unmeasuredRow) line() string {
 	return r.OS + "\t" + r.Kind + "\t" + r.Name + "\t" + r.Version + "\t" + r.Status
-}
-
-// メールの本文に入れる行数の上限（メールソフトによっては、リンクに入れられる長さに限りがある）。
-const contactBodyLines = 30
-
-// contactHref は、連絡先へのリンクを返す。mailto の場合は、件名と本文（一覧の先頭の何行か）を入れる。
-func contactHref(contact string, rows []unmeasuredRow) string {
-	if !strings.HasPrefix(contact, "mailto:") {
-		return contact
-	}
-	var body strings.Builder
-	body.WriteString("kagiya: versions that need measurement (os, kind, name, version, status)\r\n")
-	for i, r := range rows {
-		if i >= contactBodyLines {
-			body.WriteString("... and " + strconv.Itoa(len(rows)-i) + " more (please paste the list from the report)\r\n")
-			break
-		}
-		body.WriteString(strings.ReplaceAll(r.line(), "\t", "  ") + "\r\n")
-	}
-	subject := "kagiya: request for measurement (" + strconv.Itoa(len(rows)) + ")"
-	return contact + "?subject=" + percentEncode(subject) + "&body=" + percentEncode(body.String())
-}
-
-// percentEncode は、英数字と - . _ ~ 以外を、すべて %XX にする。
-func percentEncode(s string) string {
-	const hex = "0123456789ABCDEF"
-	var b strings.Builder
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '.' || c == '_' || c == '~' {
-			b.WriteByte(c)
-		} else {
-			b.WriteByte('%')
-			b.WriteByte(hex[c>>4])
-			b.WriteByte(hex[c&15])
-		}
-	}
-	return b.String()
 }
