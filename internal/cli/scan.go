@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -172,6 +173,9 @@ func runScan(args []string, stderr io.Writer) int {
 	hardening.MemoryLimitMiB = platform.LimitMemory(memoryLimitMiB)
 	runtime.GOMAXPROCS(maxProcs)
 	hardening.MaxProcs = maxProcs
+	// 異常終了したときの出力の詳しさを固定する（環境変数 GOTRACEBACK の指定に左右されないように。
+	// crash を指定されると、コアダンプを作ろうとする）
+	debug.SetTraceback("single")
 	started := time.Now().UTC()
 
 	mounts := loadMounts()
@@ -248,6 +252,19 @@ func runScan(args []string, stderr io.Writer) int {
 	log.Info("hardening", "priority_lowered", hardening.PriorityLowered, "io_priority", hardening.IOPriority,
 		"core_dump_disabled", hardening.CoreDumpDisabled, "seccomp", hardening.Seccomp, "landlock", hardening.Landlock, "memory_limit_mib", hardening.MemoryLimitMiB, "notes", hardening.Notes)
 	var warnings []string
+	// Go の実行環境そのものが読む環境変数。設定されていると挙動が変わりうるので、名前だけを警告に残す（値は残さない）。
+	// メモリの上限・並列数・異常終了時の出力は、上でコードから設定しているので、環境変数の指定より優先される
+	var runtimeEnv []string
+	for _, name := range []string{"GODEBUG", "GOTRACEBACK", "GOGC", "GOMEMLIMIT", "GOMAXPROCS"} {
+		if v, ok := os.LookupEnv(name); ok && v != "" {
+			runtimeEnv = append(runtimeEnv, name)
+		}
+	}
+	if len(runtimeEnv) > 0 {
+		w := "environment variables read by the Go runtime are set (" + strings.Join(runtimeEnv, ", ") + "); they can change how the tool behaves"
+		warnings = append(warnings, w)
+		log.Warn("runtime-environment", "names", runtimeEnv)
+	}
 	if mounts.table == nil {
 		w := "the mount table is not available on this OS; network filesystem checks are disabled"
 		warnings = append(warnings, w)
