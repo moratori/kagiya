@@ -301,26 +301,22 @@ func unmeasuredSample() *model.Inventory {
 	return inv
 }
 
-func renderWith(t *testing.T, opt Options, invs ...*model.Inventory) string {
+func renderAll(t *testing.T, invs ...*model.Inventory) string {
 	t.Helper()
 	var buf bytes.Buffer
-	if err := RenderAllWith(&buf, invs, rules(t), "default", opt); err != nil {
+	if err := RenderAll(&buf, invs, rules(t), "default"); err != nil {
 		t.Fatal(err)
 	}
 	return buf.String()
 }
 
 func TestReportUnmeasuredSection(t *testing.T) {
-	html := renderWith(t, Options{}, unmeasuredSample())
+	html := renderAll(t, unmeasuredSample())
 	for _, want := range []string{`id="unmeasured"`, "測定が要る版", "openssl-libs", "3.0.7-27.el9", "表にない", "nginx-core", "1.20.1-20.el9", "近い版の表で補った", "1.20.1-32.el9_9.1",
 		"rhel 9.9\tcipher-table\topenssl-libs\t3.0.7-27.el9\tmissing"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("missing %q", want)
 		}
-	}
-	// 連絡先を指定していなければ、リンクは出さない
-	if strings.Contains(html, "mailto:") {
-		t.Error("a mailto link is shown without a contact")
 	}
 	// コピー用の一覧には、ホスト名や場所を入れない
 	a := strings.Index(html, `<pre class="copy">`)
@@ -333,36 +329,39 @@ func TestReportUnmeasuredSection(t *testing.T) {
 		t.Error("the section is shown although nothing is unmeasured")
 	}
 	// 複数のホストで同じものは、1 行にまとめる
-	html = renderWith(t, Options{}, unmeasuredSample(), unmeasuredSample())
+	html = renderAll(t, unmeasuredSample(), unmeasuredSample())
 	if n := strings.Count(html, "rhel 9.9\tcipher-table\topenssl-libs\t3.0.7-27.el9\tmissing"); n != 1 {
 		t.Errorf("the same item is listed %d times", n)
 	}
 }
 
-func TestReportContactLink(t *testing.T) {
-	html := renderWith(t, Options{Contact: "mailto:kagiya-admin@example.jp"}, unmeasuredSample())
-	m := regexp.MustCompile(`<a class="contact" href="(mailto:kagiya-admin@example\.jp\?subject=[^"]+)"`).FindStringSubmatch(html)
+// 「測定が要る版」の一覧には、kagiya の GitHub リポジトリの Issue を書くページへのリンクを添える（2026-11-14 に、メールでの連絡をやめて、こちらにした）。
+// 利用者は、コピー用の一覧を、自分で Issue に貼り付ける。リンクには、一覧の中身を入れない（開いただけで何かが送られることはない）。
+func TestReportIssueLink(t *testing.T) {
+	html := renderAll(t, unmeasuredSample())
+	m := regexp.MustCompile(`<a class="contact" href="([^"]*)"([^>]*)>`).FindStringSubmatch(html)
 	if m == nil {
-		t.Fatal("no mailto link to the contact")
+		t.Fatal("no link to the issue page")
 	}
-	href := strings.NewReplacer("&amp;", "&", "&#43;", "+").Replace(m[1])
-	// 本文には、一覧（パッケージの名前と版と OS）が入る。ホスト名は入らない
-	if !strings.Contains(href, "&body=") || !strings.Contains(href, "openssl-libs") || !strings.Contains(href, "3.0.7-27.el9") || strings.Contains(href, "web01") {
-		t.Errorf("href = %s", href)
+	if m[1] != "https://github.com/moratori/kagiya/issues/new" {
+		t.Errorf("href = %q (it must not carry any data of the host)", m[1])
 	}
-	if strings.ContainsAny(href, " \n\r\t<>\"") {
-		t.Errorf("the link is not fully encoded: %q", href)
+	if !strings.Contains(m[2], `rel="noopener noreferrer"`) {
+		t.Errorf("the link must not pass the referrer: %q", m[2])
 	}
-	// 受付のページ（https）も指定できる
-	html = renderWith(t, Options{Contact: "https://intra.example.jp/kagiya/request"}, unmeasuredSample())
-	if !strings.Contains(html, `<a class="contact" href="https://intra.example.jp/kagiya/request"`) {
-		t.Error("no link to the contact page")
-	}
-	// 連絡先として使えない値は、受け付けない
-	for _, bad := range []string{"javascript:alert(1)", "mailto:a@b.jp\nBcc:x@y.jp", "mailto:a@b.jp?bcc=x@y.jp", "mailto:not an address", "http://insecure.example.jp/", "kagiya-admin@example.jp"} {
-		var buf bytes.Buffer
-		if err := RenderAllWith(&buf, []*model.Inventory{unmeasuredSample()}, rules(t), "default", Options{Contact: bad}); err == nil {
-			t.Errorf("contact %q must be rejected", bad)
+	// Issue は公開されるので、貼り付ける前に確かめるよう書く
+	a := strings.Index(html, `id="unmeasured"`)
+	section := html[a:]
+	for _, want := range []string{"Issue", "公開", "貼り付け"} {
+		if !strings.Contains(section, want) {
+			t.Errorf("the section does not mention %q", want)
 		}
+	}
+	if strings.Contains(html, "mailto:") {
+		t.Error("a mailto link is shown")
+	}
+	// 測定が要る版がなければ、リンクも出さない
+	if strings.Contains(render(t, sample()), `class="contact"`) {
+		t.Error("the link is shown although nothing is unmeasured")
 	}
 }
