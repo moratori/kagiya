@@ -124,8 +124,8 @@ func (g *groupResolver) resolve(sc tlsScope, level int, levelStep model.Resoluti
 			notes = append(notes, "the effect of this security level on groups is not measured for this OpenSSL version, so groups are not narrowed down by it")
 		}
 	}
-	if sc.noCert {
-		// 証明書がなければ TLS 1.3 を使えないので、TLS 1.2 以下の鍵交換で使えるグループだけが残る
+	if sc.noCert || sc.tls13Off {
+		// 証明書がない、または設定で TLS 1.3 が有効でなければ TLS 1.3 を使えないので、TLS 1.2 以下の鍵交換で使えるグループだけが残る
 		in12 := map[string]bool{}
 		for _, n := range r.TLS12 {
 			in12[n] = true
