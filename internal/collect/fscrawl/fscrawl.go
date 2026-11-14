@@ -3,6 +3,7 @@ package fscrawl
 
 import (
 	"bytes"
+	"kagiya/internal/collect/jars"
 	"strconv"
 	"strings"
 	"time"
@@ -42,7 +43,16 @@ var (
 
 type Collector struct {
 	b *inventory.Builder
+	// 探索で見つかった JAR（.jar / .war / .ear）。中身は、探索の後で別のコレクタ（jars）が読む
+	archives     []string
+	archivesMore int // 上限を超えて、覚えなかった数
 }
+
+// maxArchives は、覚えておく JAR の数の上限。
+const maxArchives = 20000
+
+// Archives は、探索で見つかった JAR のパスと、上限を超えて覚えなかった数を返す。
+func (c *Collector) Archives() ([]string, int) { return c.archives, c.archivesMore }
 
 func New(b *inventory.Builder) *Collector { return &Collector{b: b} }
 
@@ -71,6 +81,14 @@ func candidate(name string, size int64) (limit int64, ok bool) {
 
 // Visit は通常ファイル1つを調べる（safefs.Walker の visit として渡す）。
 func (c *Collector) Visit(e *safefs.Entry) error {
+	if jars.IsArchive(e.Name) {
+		if len(c.archives) < maxArchives {
+			c.archives = append(c.archives, e.Path)
+		} else {
+			c.archivesMore++
+		}
+		return nil
+	}
 	limit, ok := candidate(e.Name, e.Size)
 	if !ok {
 		return nil

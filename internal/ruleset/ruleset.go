@@ -35,10 +35,11 @@ type RuleSet struct {
 	Algorithms []Algorithm
 	Stores     []Store
 
-	Packages  []PackageRule
-	Apps      []AppRule
-	Libraries []LibraryRule
-	Defaults  []DefaultSet
+	Packages      []PackageRule
+	Apps          []AppRule
+	Libraries     []LibraryRule
+	JavaLibraries []JavaLibraryRule
+	Defaults      []DefaultSet
 
 	CipherTables []*CipherTable
 	Policies     []*Policy
@@ -191,7 +192,15 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 			if err := decodeStrict(f.Data, &lf); err != nil {
 				return nil, fmt.Errorf("%s: %w", f.Path, err)
 			}
-			if err := rs.addLibrary(lf.Library, ids); err != nil {
+			switch {
+			case lf.Library != nil && lf.JavaLibrary == nil:
+				err = rs.addLibrary(*lf.Library, ids)
+			case lf.JavaLibrary != nil && lf.Library == nil:
+				err = rs.addJavaLibrary(*lf.JavaLibrary, ids)
+			default:
+				err = errors.New("exactly one of library and java_library is required")
+			}
+			if err != nil {
 				return nil, fmt.Errorf("%s: %w", f.Path, err)
 			}
 		case strings.HasPrefix(f.Path, "defaults/") && strings.HasSuffix(f.Path, ".yaml") && strings.Count(f.Path, "/") == 1:

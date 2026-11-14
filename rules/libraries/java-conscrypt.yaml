@@ -1,0 +1,8 @@
+# Conscrypt（BoringSSL を使う Java のセキュリティプロバイダ）。
+java_library:
+  id: conscrypt
+  artifacts: ["conscrypt-openjdk", "conscrypt-openjdk-uber", "conscrypt-android"]
+  sources:
+    - image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
+      os: "Ubuntu 26.04.1 LTS"
+      note: "Maven Central の org/conscrypt の成果物の一覧で名前を確かめた（2026-11-14）。conscrypt-openjdk、conscrypt-openjdk-uber、conscrypt-android（いずれも最新 2.9.0）"

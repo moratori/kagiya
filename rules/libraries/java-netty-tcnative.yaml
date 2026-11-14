@@ -1,0 +1,9 @@
+# Netty の tcnative（Netty が OpenSSL / BoringSSL を使うためのライブラリ）。
+# boringssl-static は BoringSSL を静的に含む。ファイル名の版の後ろに、対象の OS とアーキテクチャが付くことがある。
+java_library:
+  id: netty-tcnative
+  artifacts: ["netty-tcnative", "netty-tcnative-boringssl-static", "netty-tcnative-classes"]
+  sources:
+    - image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
+      os: "Ubuntu 26.04.1 LTS"
+      note: "Maven Central の io/netty の成果物の一覧で名前を確かめた（2026-11-14）。netty-tcnative、netty-tcnative-boringssl-static、netty-tcnative-classes（いずれも最新 2.0.85.Final）"

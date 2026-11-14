@@ -1,0 +1,9 @@
+# Bouncy Castle（Java の暗号ライブラリ）。JAR のファイル名から特定する。
+# 成果物の名前は、対象の Java の版を表す部分（jdk18on、jdk15on、jdk15to18 など）が付く。FIPS 版は名前が別（bc-fips など）。
+java_library:
+  id: bouncycastle
+  artifacts: ["bcprov-*", "bcpkix-*", "bctls-*", "bcutil-*", "bcpg-*", "bcmail-*", "bcjmail-*", "bc-fips", "bcpkix-fips", "bctls-fips"]
+  sources:
+    - image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
+      os: "Ubuntu 26.04.1 LTS"
+      note: "Maven Central の org/bouncycastle の成果物の一覧（101 個）で名前を確かめた（2026-11-14）。例: bcprov-jdk18on（最新 1.87）、bcprov-jdk15on（最新 1.70）、bcprov-jdk15to18、bcpkix-jdk18on、bctls-jdk18on、bcutil-jdk18on、bcpg-jdk18on、bcmail-jdk18on、bcjmail-jdk18on、bc-fips（最新 2.1.3）、bcpkix-fips、bctls-fips"

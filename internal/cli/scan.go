@@ -11,10 +11,12 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"kagiya/internal/collect/jars"
 	"os"
 	"os/signal"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -266,6 +268,15 @@ func runScan(args []string, stderr io.Writer) int {
 		if incomplete != "" {
 			log.Error("scan-incomplete", "reason", incomplete)
 			break
+		}
+	}
+
+	// 探索で見つかった JAR の中の、同梱されている暗号ライブラリ（途中で打ち切られた場合は読まない）
+	if incomplete == "" {
+		archives, more := crawl.Archives()
+		(&jars.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect(archives)
+		if more > 0 {
+			builder.Skip(safefs.Skip{Path: "", Reason: "limit", Detail: strconv.Itoa(more) + " more archive(s) were found than are kept; they are not opened"})
 		}
 	}
 

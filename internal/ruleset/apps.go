@@ -81,8 +81,10 @@ type appFile struct {
 	App AppRule `yaml:"app"`
 }
 
+// libraryFile は、rules/libraries/ のファイル 1 つ。共有ライブラリの定義か、Java のライブラリの定義のどちらか 1 つを持つ。
 type libraryFile struct {
-	Library LibraryRule `yaml:"library"`
+	Library     *LibraryRule     `yaml:"library"`
+	JavaLibrary *JavaLibraryRule `yaml:"java_library"`
 }
 
 var directiveNamePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_.-]{0,63}$`)
