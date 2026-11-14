@@ -97,3 +97,43 @@ func TestCPUPercentOutOfRangeMeansNoLimit(t *testing.T) {
 		}
 	}
 }
+
+// 以下は、独立したレビュー（2026-11-14）の指摘 A-3・A-9 への対応。
+
+// 1 回の休止は 1 秒まで。休みきれなかった分は、次の区切りに持ち越す（読み取りが長く待たされた後に、何十秒もまとめて休まない）。
+func TestRestIsCappedAndCarriedOver(t *testing.T) {
+	c := &fakeClock{now: time.Unix(0, 0)}
+	l := New(Config{CPUPercent: 25}, c)
+	c.work(10 * time.Second) // 30 秒休む分の作業
+	l.Yield()
+	if c.slept != time.Second {
+		t.Errorf("slept %v, want 1s", c.slept)
+	}
+	for i := 0; i < 40; i++ {
+		l.Yield()
+	}
+	if c.slept != 30*time.Second {
+		t.Errorf("slept %v in total, want 30s", c.slept)
+	}
+}
+
+// 止める合図が出ていれば、休まない。休んでいる途中で合図が出たら、そこで打ち切る。
+func TestStopInterruptsRest(t *testing.T) {
+	c := &fakeClock{now: time.Unix(0, 0)}
+	l := New(Config{CPUPercent: 25, BytesPerSecond: 1 << 20}, c)
+	l.Stop = func() bool { return true }
+	c.work(100 * time.Millisecond)
+	l.Yield()
+	l.Bytes(100 << 20)
+	if c.slept != 0 {
+		t.Errorf("slept %v after the stop signal", c.slept)
+	}
+
+	c = &fakeClock{now: time.Unix(0, 0)}
+	l = New(Config{BytesPerSecond: 1 << 20}, c)
+	l.Stop = func() bool { return c.slept >= 500*time.Millisecond }
+	l.Bytes(100 << 20) // 止めなければ、約 99 秒休む
+	if c.slept < 500*time.Millisecond || c.slept > time.Second {
+		t.Errorf("slept %v; the rest must end soon after the stop signal", c.slept)
+	}
+}

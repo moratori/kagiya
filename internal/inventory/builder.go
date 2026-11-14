@@ -313,3 +313,9 @@ func (b *Builder) Guard(path, doing string, f func()) {
 	}()
 	f()
 }
+
+// SetStop は、止める合図が出ているかを返す関数を決める。
+func (b *Builder) SetStop(stopped func() bool) {}
+
+// Stopped は、止める合図が出ているかを返す。
+func (b *Builder) Stopped() bool { return false }

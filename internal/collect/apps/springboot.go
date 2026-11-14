@@ -44,6 +44,9 @@ const (
 	springLibEntry     = "BOOT-INF/lib/"
 )
 
+// springMaxArchives は、Java のアプリを探すために開く JAR の数の上限。
+var springMaxArchives = 2000
+
 var springLimits = jarfile.Limits{MaxArchiveSize: 2 << 30, MaxEntries: 200000, MaxNameLen: 1024, MaxEntrySize: springMaxConfig, MaxRatio: 200}
 
 // CollectJavaApps は、Java のアプリ（いまは Spring Boot）を調べる。archives は、探索で見つかった JAR（接頭辞つきの絶対パス）。

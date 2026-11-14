@@ -621,3 +621,38 @@ func TestSpringBootManagementPort(t *testing.T) {
 	_, inv := sbCollect(t, sbHost{config: map[string]string{"application.properties": sbBase + sbKS + "management.server.port=9443\n"}, unit: sbStart})
 	checkSuites(t, sbEff(t, inv, "tls.ciphersuites-tls13"), 3, jdkTLS13, "high")
 }
+
+// Java のアプリを探すために開く JAR の数には、上限がある（上限は「見つかったアプリの数」だけでなく「開く数」にも要る。指摘 A-3）。
+func TestJavaAppsOpenLimit(t *testing.T) {
+	old := springMaxArchives
+	springMaxArchives = 2
+	defer func() { springMaxArchives = old }()
+	prefix, _ := filepath.EvalSymlinks(t.TempDir())
+	var paths []string
+	for _, n := range []string{"a.jar", "b.jar", "c.jar", "d.jar"} {
+		p := filepath.Join(prefix, n)
+		if err := os.WriteFile(p, sbArchive(t, "3.5.16", sbTomcat, map[string]string{"application.properties": sbBase}), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, p)
+	}
+	rs, err := ruleset.Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := inventory.NewBuilder(rs, logx.New(io.Discard, time.Now))
+	(&Collector{Opener: &safefs.Opener{OnSkip: b.Skip}, Builder: b, Rules: rs}).CollectJavaApps(paths)
+	inv := b.Inventory()
+	if len(inv.Services) != 2 {
+		t.Errorf("services = %d, want 2 (only the first two archives are opened)", len(inv.Services))
+	}
+	found := false
+	for _, s := range inv.Skipped {
+		if s.Reason == "limit" && strings.Contains(s.Detail, "2 more") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("the archives that were not opened must be recorded: %+v", inv.Skipped)
+	}
+}

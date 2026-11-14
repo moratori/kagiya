@@ -160,3 +160,6 @@ func (w *Writer) Abort() {
 	w.f.Close()
 	os.Remove(w.partial)
 }
+
+// CreateDirect は dir 直下に name を、最初から最終名で作る。
+func CreateDirect(dir, name string) (*Writer, error) { return nil, errors.New("not implemented") }

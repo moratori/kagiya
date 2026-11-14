@@ -59,3 +59,21 @@ func TestGuard(t *testing.T) {
 		t.Errorf("the log must record the internal error: %s", log.String())
 	}
 }
+
+// 止める合図が出た後は、次の処理を始めない（処理の途中では止めないので、中途半端な結果は残らない）。
+func TestGuardDoesNotStartAfterStop(t *testing.T) {
+	rs, err := ruleset.Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := NewBuilder(rs, logx.New(&bytes.Buffer{}, time.Now))
+	stopped := false
+	b.SetStop(func() bool { return stopped })
+	ran := 0
+	b.Guard("/a", "reading a file", func() { ran++ })
+	stopped = true
+	b.Guard("/b", "reading a file", func() { ran++ })
+	if ran != 1 || !b.Stopped() || b.SkipTotal() != 0 {
+		t.Errorf("ran = %d stopped = %v skips = %d", ran, b.Stopped(), b.SkipTotal())
+	}
+}

@@ -35,6 +35,9 @@ type Limiter struct {
 
 	tokens   float64 // 読み取り可能なバイト数
 	lastFill time.Time
+
+	// Stop は、止める合図が出ているかを返す（nil なら見ない）。
+	Stop func() bool
 }
 
 func New(cfg Config, clock Clock) *Limiter {

@@ -265,3 +265,39 @@ func stubFinalize(link, rename func(old, new string) error) func() {
 	linkFile, renameNoReplace = link, rename
 	return func() { linkFile, renameNoReplace = l, r }
 }
+
+// ログは、最初から最終名で作る（異常終了しても、ログが書きかけの名前で残らないように。指摘 A-12）。
+func TestCreateDirectUsesFinalNameFromTheStart(t *testing.T) {
+	dir := t.TempDir()
+	os.Chmod(dir, 0o700)
+	w, err := CreateDirect(dir, "kagiya.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	final := filepath.Join(dir, "kagiya.log")
+	fi, err := os.Lstat(final)
+	if err != nil || fi.Mode().Perm() != 0o600 || w.Path() != final {
+		t.Fatalf("the file must exist under its final name with mode 600: %v %v", fi, err)
+	}
+	if _, err := os.Lstat(final + ".partial"); err == nil {
+		t.Error("no .partial file is expected")
+	}
+	w.Write([]byte("line\n"))
+	if err := w.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(final); string(data) != "line\n" {
+		t.Errorf("content = %q", data)
+	}
+	// 上書きしない。リンクも辿らない
+	if _, err := CreateDirect(dir, "kagiya.log"); err == nil {
+		t.Error("an existing file must not be overwritten")
+	}
+	os.Symlink(filepath.Join(dir, "elsewhere"), filepath.Join(dir, "link.log"))
+	if _, err := CreateDirect(dir, "link.log"); err == nil {
+		t.Error("a symbolic link must not be followed")
+	}
+	if _, err := CreateDirect(dir, "a/b.log"); err == nil {
+		t.Error("a name with a path separator must be rejected")
+	}
+}
