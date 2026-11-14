@@ -196,7 +196,17 @@ func (c *Config) List(key string) ([]string, Value) {
 }
 
 // Load は、設定ファイルを Spring Boot の優先順で読む。get は、名前（application.properties など）から中身を返す。
-func Load(get func(name string) ([]byte, bool)) *Config {
+func Load(get func(name string) ([]byte, bool)) *Config { return LoadWith(get, Options{}) }
+
+// Options は、設定ファイルの外で決まること。
+type Options struct {
+	// 起動時の指定（--spring.profiles.active、環境変数など）で有効にされたプロファイル。ProfilesSet が真なら、設定ファイルの中の指定より優先する
+	Profiles    []string
+	ProfilesSet bool
+}
+
+// LoadWith は、設定ファイルを Spring Boot の優先順で読む。プロファイルは、外からの指定があればそれに、なければ設定ファイルの中の指定に従う。
+func LoadWith(get func(name string) ([]byte, bool), opt Options) *Config {
 	c := &Config{Unresolved: map[string]bool{}, Inline: map[string]bool{}, values: map[string]Value{}, names: map[string]string{}}
 	read := func(base string, profiles map[string]bool) {
 		// 同じ場所では properties が yml に勝つので、yml を先に読んで properties で上書きする
@@ -212,7 +222,11 @@ func Load(get func(name string) ([]byte, bool)) *Config {
 	read("application", nil)
 	// 設定ファイルの中で有効にされたプロファイル。条件つきの文書（YAML）は、有効なプロファイルが分かってから読み直す
 	active := map[string]bool{}
-	if list, _ := c.List("spring.profiles.active"); len(list) > 0 {
+	list, _ := c.List("spring.profiles.active")
+	if opt.ProfilesSet {
+		list = opt.Profiles
+	}
+	if len(list) > 0 {
 		for _, p := range list {
 			if profileName.MatchString(p) && len(c.Profiles) < maxProfiles && !active[p] {
 				active[p] = true
