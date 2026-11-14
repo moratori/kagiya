@@ -171,3 +171,26 @@ func TestProblems(t *testing.T) {
 		t.Errorf("empty = %+v", c)
 	}
 }
+
+// 起動時の指定で有効にされたプロファイル（--spring.profiles.active など）は、設定ファイルの中の指定より優先される。
+func TestProfilesFromOutside(t *testing.T) {
+	files := map[string]string{
+		"application.properties":      "server.ssl.key-store=/a.p12\nspring.profiles.active=dev\n",
+		"application-prod.properties": "server.ssl.enabled-protocols=TLSv1.2\n",
+		"application-dev.properties":  "server.ssl.enabled-protocols=TLSv1.3\n"}
+	get := func(name string) ([]byte, bool) { s, ok := files[name]; return []byte(s), ok }
+	c := LoadWith(get, Options{Profiles: []string{"prod"}, ProfilesSet: true})
+	if v, _ := c.Get("server.ssl.enabled-protocols"); v.Value != "TLSv1.2" || strings.Join(c.Profiles, ",") != "prod" {
+		t.Errorf("profiles given from outside must win: %+v profiles=%v", v, c.Profiles)
+	}
+	// 外からの指定が「なし」（空）なら、どのプロファイルも有効にしない
+	c = LoadWith(get, Options{ProfilesSet: true})
+	if _, ok := c.Get("server.ssl.enabled-protocols"); ok || len(c.Profiles) != 0 {
+		t.Errorf("an empty list given from outside must disable the profiles in the file: %v", c.Profiles)
+	}
+	// 指定がなければ、設定ファイルの中の指定に従う
+	c = LoadWith(get, Options{})
+	if v, _ := c.Get("server.ssl.enabled-protocols"); v.Value != "TLSv1.3" {
+		t.Errorf("profiles in the file: %+v", v)
+	}
+}
