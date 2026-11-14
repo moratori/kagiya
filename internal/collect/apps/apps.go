@@ -34,8 +34,8 @@ type Collector struct {
 
 func (c *Collector) Collect() {
 	for _, app := range c.Rules.Apps {
-		if app.Grammar == "" {
-			continue
+		if app.Grammar == "" || app.Grammar == "springboot" {
+			continue // Spring Boot は、探索で見つかった JAR を調べる（CollectJavaApps）
 		}
 		c.application(app)
 	}

@@ -3,6 +3,7 @@ package apps
 import (
 	"path"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -39,10 +40,18 @@ const (
 var jdkValue = regexp.MustCompile(`^[A-Za-z0-9_.,*<>=!&:/ \t-]*$`)
 
 func (c *Collector) jdk(app ruleset.AppRule, svc model.Service) {
+	for _, sec := range c.jdkSecurityFiles(app) {
+		home := strings.TrimSuffix(strings.TrimSuffix(sec, "/conf/security/java.security"), "/jre/lib/security/java.security")
+		c.jdkHome(app, svc, home, sec)
+	}
+}
+
+// jdkSecurityFiles は、導入されている JDK の java.security を返す（同じ JDK を指す別名のディレクトリは重ねて数えない）。
+func (c *Collector) jdkSecurityFiles(app ruleset.AppRule) []string {
+	var out []string
 	seen := map[string]bool{}
 	for _, pattern := range app.ConfigFiles {
 		for _, sec := range c.globDeep(pattern) {
-			// 同じ JDK を指す別名のディレクトリ（/usr/lib/jvm/jre-21 など）を重ねて数えない
 			key := sec
 			if real, err := c.Opener.Resolve(c.Prefix + sec); err == nil {
 				key = real
@@ -51,10 +60,25 @@ func (c *Collector) jdk(app ruleset.AppRule, svc model.Service) {
 				continue
 			}
 			seen[key] = true
-			home := strings.TrimSuffix(strings.TrimSuffix(sec, "/conf/security/java.security"), "/jre/lib/security/java.security")
-			c.jdkHome(app, svc, home, sec)
+			out = append(out, sec)
 		}
 	}
+	return out
+}
+
+// jdkHomes は、導入されている JDK のディレクトリを返す。
+func (c *Collector) jdkHomes() []string {
+	var out []string
+	for _, a := range c.Rules.Apps {
+		if a.Grammar != "jdk" {
+			continue
+		}
+		for _, sec := range c.jdkSecurityFiles(a) {
+			out = append(out, strings.TrimSuffix(strings.TrimSuffix(sec, "/conf/security/java.security"), "/jre/lib/security/java.security"))
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // jdkPackage は、JDK のディレクトリに対応するパッケージを探す。

@@ -93,12 +93,15 @@ type cmdArg struct {
 // unitArgs は、ユニットファイルの ExecStart を語に分け、環境変数を展開して返す（先頭はプログラム）。
 // 環境変数は、ユニットの Environment= と、EnvironmentFile= が指すファイルから読む（後者が優先される）。
 // 「$NAME」は空白で複数の語に分かれ、「${NAME}」は1語のまま展開される（systemd と同じ）。
-func (c *Collector) unitArgs(u unitInfo) []cmdArg {
-	type envVal struct {
-		value string
-		file  string
-		line  int
-	}
+// envVal は、ユニットの環境変数の値と、その出どころ。
+type envVal struct {
+	value string
+	file  string
+	line  int
+}
+
+// unitEnv は、ユニットの環境変数を読む（Environment= と、EnvironmentFile= が指すファイル。後者が優先される）。
+func (c *Collector) unitEnv(u unitInfo) map[string]envVal {
 	env := map[string]envVal{}
 	for _, e := range u.unit.Values("Service", "Environment") {
 		for _, w := range unitfile.Words(e) {
@@ -120,6 +123,11 @@ func (c *Collector) unitArgs(u unitInfo) []cmdArg {
 			env[e.Key] = envVal{e.Value, ef, e.Line} // 後から読んだファイルの値が有効
 		}
 	}
+	return env
+}
+
+func (c *Collector) unitArgs(u unitInfo) []cmdArg {
+	env := c.unitEnv(u)
 	execs := u.unit.Values("Service", "ExecStart")
 	if len(execs) == 0 {
 		return nil

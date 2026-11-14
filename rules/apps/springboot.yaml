@@ -1,0 +1,20 @@
+# Spring Boot のアプリ（組み込みの Tomcat で TLS を待ち受ける、実行できる JAR）。
+# 実行ファイルも、決まった場所の設定ファイルもない。探索で見つかった JAR と、起動の定義（systemd のユニット）から参照されている JAR のうち、
+# マニフェストに Spring-Boot-Version があるものを対象にする。設定は、JAR の中の application.properties / application.yml から、
+# 許可した項目だけを読む（パスワードの項目は読まない）。
+# 受け入れるプロトコルと暗号スイートは、版ごとの事実（rules/java/springboot.yaml）、同梱の Tomcat の表（rules/java/tomcat-embedded.yaml）、
+# アプリを動かす JDK の表（rules/java/openjdk.yaml）から求める。
+app:
+  id: spring-boot
+  grammar: springboot
+  direction: inbound
+  directives:
+    - { name: enabled-protocols, parameter: tls.protocols, type: words }
+    - { name: ciphers, parameter: tls.ciphers, type: cipher-string }
+    - { name: key-store, parameter: tls.keystore, type: path }
+    - { name: certificate, parameter: tls.certificate, type: path }
+    - { name: certificate-private-key, parameter: tls.private-key, type: path }
+  sources:
+    - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "Spring Boot 3.5.16 の最小のアプリ（spring-boot-starter-web）を Maven Central の成果物からビルドした JAR。マニフェストに Spring-Boot-Version: 3.5.16、Spring-Boot-Classes: BOOT-INF/classes/、Spring-Boot-Lib: BOOT-INF/lib/。設定は BOOT-INF/classes/application.properties、同梱ライブラリは BOOT-INF/lib/（tomcat-embed-core-10.1.55.jar など。圧縮なしで入っている）。openjdk-21-jre-headless で java -jar で起動して確かめた"

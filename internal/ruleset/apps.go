@@ -168,7 +168,8 @@ func (rs *RuleSet) addApp(a AppRule, ids map[string]bool) error {
 	if err := checkSources(a.Sources); err != nil {
 		return fmt.Errorf("app %q: %w", a.ID, err)
 	}
-	if len(a.Binaries) == 0 {
+	// 実行ファイルを持たないアプリ（実行できる JAR）だけは、binaries がなくてよい
+	if len(a.Binaries) == 0 && a.Grammar != "springboot" {
 		return fmt.Errorf("app %q: no binaries", a.ID)
 	}
 	for _, p := range append(append([]string{}, a.Binaries...), a.Modules...) {
@@ -184,7 +185,7 @@ func (rs *RuleSet) addApp(a AppRule, ids map[string]bool) error {
 			return fmt.Errorf("app %q: path %q must be a clean absolute path", a.ID, p)
 		}
 	}
-	if a.Grammar != "" && a.Grammar != "sshd" && a.Grammar != "nginx" && a.Grammar != "apache" && a.Grammar != "haproxy" && a.Grammar != "stunnel" && a.Grammar != "postfix" && a.Grammar != "postgresql" && a.Grammar != "dovecot" && a.Grammar != "mycnf" && a.Grammar != "jdk" && a.Grammar != "tomcat" {
+	if a.Grammar != "" && a.Grammar != "sshd" && a.Grammar != "nginx" && a.Grammar != "apache" && a.Grammar != "haproxy" && a.Grammar != "stunnel" && a.Grammar != "postfix" && a.Grammar != "postgresql" && a.Grammar != "dovecot" && a.Grammar != "mycnf" && a.Grammar != "jdk" && a.Grammar != "tomcat" && a.Grammar != "springboot" {
 		return fmt.Errorf("app %q: unknown grammar %q", a.ID, a.Grammar)
 	}
 	if a.Direction != "" && a.Direction != "inbound" && a.Direction != "outbound" {

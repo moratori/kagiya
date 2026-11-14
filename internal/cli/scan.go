@@ -276,6 +276,8 @@ func runScan(args []string, stderr io.Writer) int {
 	if incomplete == "" {
 		archives, more := crawl.Archives()
 		(&jars.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect(archives)
+		// Java のアプリ（Spring Boot）: 見つかった JAR と、起動の定義から参照されている JAR の中の設定
+		(&apps.Collector{Opener: opener, Builder: builder, Rules: rs}).CollectJavaApps(archives)
 		if more > 0 {
 			builder.Skip(safefs.Skip{Path: "", Reason: "limit", Detail: strconv.Itoa(more) + " more archive(s) were found than are kept; they are not opened"})
 		}
