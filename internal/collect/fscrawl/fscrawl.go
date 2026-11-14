@@ -32,6 +32,8 @@ var (
 	}
 	storeExts = map[string]bool{
 		".p12": true, ".pfx": true, ".jks": true, ".jceks": true, ".keystore": true, ".truststore": true, ".ks": true,
+		// Bouncy Castle 形式
+		".bks": true, ".uber": true, ".bcfks": true, ".bcfips": true, ".fks": true,
 	}
 	// 拡張子を持たない、よくある名前
 	keyNames = map[string]bool{

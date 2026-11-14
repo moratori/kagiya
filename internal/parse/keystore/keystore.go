@@ -11,7 +11,7 @@ import (
 )
 
 type Store struct {
-	Format         string // pkcs12 | jks | jceks
+	Format         string // pkcs12 | jks | jceks | bks | uber | bcfks
 	MAC            *MAC   // 完全性保護
 	Entries        Entries
 	Containers     []Container         // PKCS#12 の区画（暗号化の有無と方式）
@@ -67,9 +67,12 @@ func Parse(data []byte) (*Store, bool) {
 		}
 	}
 	if len(data) > 0 && data[0] == 0x30 {
-		return parsePKCS12(data)
+		if s, ok := parsePKCS12(data); ok {
+			return s, true
+		}
+		return parseBCFKS(data)
 	}
-	return nil, false
+	return parseBouncyCastle(data)
 }
 
 func isSeq(e der.Element) bool {
