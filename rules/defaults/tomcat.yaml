@@ -1,0 +1,47 @@
+# Tomcat が OpenSSL の実装（Tomcat Native 経由）で動く場合の既定値と、版によって違う挙動。
+# JDK の実装で動く場合の値は、rules/java/tomcat.yaml と rules/java/openjdk.yaml から求める（このファイルは使わない）。
+#
+#   tls.ciphers               : ciphers を書かないときに、Tomcat が OpenSSL に渡す暗号文字列（Tomcat の既定の暗号指定そのまま）。
+#   tls.dhe-without-params    : DH パラメータの指定がなくても DHE のスイートを使えるか（builtin = 組み込みのパラメータで使える）。
+#   tls.multiple-certificates : 証明書を複数（RSA と EC）置いたときの扱い。
+#                               all = どちらの証明書のスイートも、並び順によらず受け入れた。
+#                               order-dependent = 並び順で結果が変わった（TLS 1.3 を受け入れない、一部のスイートを受け入れない）。
+#                               この値の版では、証明書を複数置いた設定の値は求めない。
+#
+# 採取方法: 各イメージにディストリのリポジトリから Tomcat と Tomcat Native を導入し、実際に起動して、同じコンテナ内からのハンドシェイク
+#           （スイートを 1 つずつ示す）で受け入れるスイートを数え上げた。OpenSSL の実装で動いた環境（起動時の記録で確認）だけを載せている。
+# このファイルは検証ラボの生成スクリプト（lab/phase2/gen-tomcat.py）で作った。手で編集しない。
+defaults:
+  - app: tomcat
+    package: tomcat9
+    version: "9.0.31-1ubuntu0.9"
+    source:
+      image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
+      os: "Ubuntu 20.04.6 LTS"
+      note: "server started in the container with libssl1.1 1.1.1f-1ubuntu2.24, libtcnative-1 1.2.23-1; accepted suites enumerated by handshakes (one suite offered at a time)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!kRSA"
+      tls.dhe-without-params: "builtin"
+      tls.multiple-certificates: "all"
+  - app: tomcat
+    package: tomcat9
+    version: "9.0.58-1ubuntu0.2"
+    source:
+      image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+      os: "Ubuntu 22.04.5 LTS"
+      note: "server started in the container with libssl3 3.0.2-0ubuntu1.30, libtcnative-1 1.2.31-1build1; accepted suites enumerated by handshakes (one suite offered at a time)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!kRSA"
+      tls.dhe-without-params: "builtin"
+      tls.multiple-certificates: "order-dependent"
+  - app: tomcat
+    package: tomcat10
+    version: "10.1.55-1ubuntu2~24.04.1"
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "server started in the container with libssl3t64 3.0.13-0ubuntu3.16, libtcnative-2 2.0.14-1~24.04.1; accepted suites enumerated by handshakes (one suite offered at a time)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!eNULL:!DES:!RC4:!MD5:!kRSA"
+      tls.dhe-without-params: "builtin"
+      tls.multiple-certificates: "order-dependent"

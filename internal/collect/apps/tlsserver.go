@@ -40,6 +40,11 @@ type tlsScope struct {
 	autoRSA      bool     // 設定に証明書の指定がなく、アプリが自分で用意した RSA の証明書を使う（実測で確かめた挙動）
 	noCert       bool     // 証明書を持たないサービス（認証なしのスイートだけを使える。TLS 1.3 は使えない）
 	tls13Blocker string   // 空でなければ、TLS 1.3 のスイートだけ求めない（理由）
+	tls12Blocker string   // 空でなければ、TLS 1.2 以下のスイートだけ求めない（理由）
+	// 証明書のファイルを読まなくても分かっている、証明書の鍵の種類（RSA / EC / DSA）。あれば、certs の代わりに使う
+	certKinds []string
+	// 設定で、TLS 1.2 以下（または TLS 1.3）が有効にされていない。そのスイートは空として記録する
+	tls12Off, tls13Off bool
 }
 
 const (
@@ -328,6 +333,16 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 				}
 				in.Certs, in.CertsKnown = c.certKinds(certs)
 			}
+			if len(sc.certKinds) > 0 {
+				in.Certs, in.CertsKnown = nil, true
+				for _, k := range sc.certKinds {
+					sig := k
+					if k == "EC" {
+						sig = "ECDSA"
+					}
+					in.Certs = append(in.Certs, tlseffective.Cert{Key: k, Signature: sig})
+				}
+			}
 			if sc.noCert {
 				in.Certs, in.CertsKnown = nil, true
 			}
@@ -399,11 +414,17 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			if len(out.Suites) == 0 {
 				notes = append(notes, "no suite is usable with this configuration")
 			}
+			if sc.tls12Off {
+				out.Suites, notes = nil, []string{"TLS 1.2 and older are not enabled in the configuration"}
+			}
 			e.Values, e.Notes = out.Suites, notes
 			if len(notes) > 0 {
 				e.Confidence = model.ConfidenceMedium
 			}
 			e.Notes = append(e.Notes, sc.info...)
+			if sc.tls12Blocker != "" {
+				e = model.EffectiveValue{Service: e.Service, Parameter: e.Parameter, Direction: e.Direction, Scope: e.Scope, Status: model.StatusUnresolved, Reason: sc.tls12Blocker}
+			}
 			c.Builder.AddEffective(e)
 
 			// TLS 1.3 のスイート（暗号文字列とは別に決まる）
@@ -431,6 +452,9 @@ func (c *Collector) opensslServerEffective(app ruleset.AppRule, svc model.Servic
 			}
 			e13.Values = out.TLS13
 			e13.Notes = []string{"used only when TLS 1.3 is enabled"}
+			if sc.tls13Off {
+				e13.Values, e13.Notes = nil, []string{"TLS 1.3 is not enabled in the configuration"}
+			}
 			if sc.noCert {
 				e13.Values, e13.Notes = nil, []string{"TLS 1.3 needs a certificate, and this service has none"}
 			}

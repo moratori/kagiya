@@ -25,8 +25,9 @@ type tomcatInstall struct {
 	build ruleset.CipherBuild
 	exact bool // 表が、導入されているパッケージ版そのものを測ったものか
 
-	jdk    jdkContext // Tomcat を動かす JDK の表と設定
-	jdkDir string
+	jdk       jdkContext // Tomcat を動かす JDK の表と設定
+	jdkDir    string
+	jdkReason string // 空でなければ、JDK の表や設定を読めなかった理由（JDK の実装で動く範囲は求めない）
 
 	native      tomcatNativeState
 	apr, sslOff bool // AprLifecycleListener があるか、その SSLEngine が off か
@@ -72,7 +73,8 @@ func (c *Collector) tomcatInstallation(app ruleset.AppRule, svc model.Service, c
 		javaHome, reason = c.tomcatEnvironment(envFiles, []string{in.base + "/bin/setenv.sh", home + "/bin/setenv.sh"}, javaHome)
 	}
 	if reason == "" {
-		in.jdk, in.jdkDir, reason = c.tomcatJDK(svc, javaHome)
+		// JDK が分からなくても、OpenSSL の実装で動く範囲は求められるので、全体の理由にはしない
+		in.jdk, in.jdkDir, in.jdkReason = c.tomcatJDK(svc, javaHome)
 	}
 	if reason == "" {
 		in.native = c.tomcatNative(in.table)

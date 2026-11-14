@@ -30,16 +30,17 @@ import (
 // setenv.sh がある場合や、環境ファイルに Java の暗号の設定を変えるオプションがある場合は、値を求めない。
 
 const (
-	tomcatServer       = "tomcat"
-	tomcatAPRListener  = "org.apache.catalina.core.AprLifecycleListener"
-	tomcatFFMListener  = "org.apache.catalina.core.OpenSSLLifecycleListener"
-	tomcatJSSEImpl     = "org.apache.tomcat.util.net.jsse.JSSEImplementation"
-	tomcatOpenSSLImpl  = "org.apache.tomcat.util.net.openssl.OpenSSLImplementation"
-	tomcatAPRProtocol  = "org.apache.coyote.http11.Http11AprProtocol"
-	tomcatMaxCiphers   = 8192
-	tomcatDebJavaHome  = "/usr/lib/jvm/default-java"
-	tomcatRPMConf      = "/etc/tomcat/tomcat.conf"
-	tomcatRPMSysconfig = "/etc/sysconfig/tomcat"
+	paramTomcatMultiCert = "tls.multiple-certificates" // 既定値表: OpenSSL の実装で、証明書を複数置いたときの扱い
+	tomcatServer         = "tomcat"
+	tomcatAPRListener    = "org.apache.catalina.core.AprLifecycleListener"
+	tomcatFFMListener    = "org.apache.catalina.core.OpenSSLLifecycleListener"
+	tomcatJSSEImpl       = "org.apache.tomcat.util.net.jsse.JSSEImplementation"
+	tomcatOpenSSLImpl    = "org.apache.tomcat.util.net.openssl.OpenSSLImplementation"
+	tomcatAPRProtocol    = "org.apache.coyote.http11.Http11AprProtocol"
+	tomcatMaxCiphers     = 8192
+	tomcatDebJavaHome    = "/usr/lib/jvm/default-java"
+	tomcatRPMConf        = "/etc/tomcat/tomcat.conf"
+	tomcatRPMSysconfig   = "/etc/sysconfig/tomcat"
 )
 
 var (
@@ -80,22 +81,37 @@ func (c *Collector) tomcat(app ruleset.AppRule, svc model.Service, config string
 	}
 	// 環境全体に関わること（どれかが分からなければ、どの Connector の値も求めない）
 	in, common := c.tomcatInstallation(app, svc, config, f)
+	var openssl []tlsScope
+	// OpenSSL の実装での、証明書を複数置いたときの扱い（その版で確かめた事実。既定値表にある）
+	multiCert := ""
+	if defs, _, _, _ := c.appDefaults(app); defs != nil {
+		multiCert = strings.Join(defs[paramTomcatMultiCert], ",")
+	}
 	for _, conn := range f.Connectors {
 		if v, ok := conn.Attr["SSLEnabled"]; !ok || !strings.EqualFold(strings.TrimSpace(v.Value), "true") {
 			continue
 		}
 		// どの実装で動くか
-		reason, why := common, ""
+		reason, why, impl := common, "", ""
 		if reason == "" && len(conn.Hosts) == 0 && !in.table.ConnectorTLSAttributes {
 			reason = "the Connector has no SSLHostConfig element; this Tomcat version does not take TLS settings written on the Connector itself (the server did not start with them when measured)"
 		}
 		if reason == "" {
-			why, reason = tomcatImplementation(conn, in.apr, in.sslOff, in.native)
+			impl, why, reason = tomcatImplementation(conn, in.apr, in.sslOff, in.native)
 		}
 		for _, h := range tomcatHosts(conn) {
+			if impl == "openssl" {
+				openssl = append(openssl, c.tomcatOpenSSLScope(in, h, why, multiCert))
+				continue
+			}
+			if reason == "" {
+				reason = in.jdkReason
+			}
 			c.tomcatHost(in, h, why, reason)
 		}
 	}
+	// OpenSSL の実装で動く範囲は、OpenSSL を使うほかのサーバーと同じ求め方をする
+	c.opensslServerEffective(app, svc, openssl)
 }
 
 // tomcatHosts は、Connector の TLS の設定を、範囲（SSLHostConfig。古い書き方では Connector 自身）ごとに分ける。
@@ -132,37 +148,45 @@ func tomcatHosts(conn serverxml.Connector) []tomcatHost {
 	return hosts
 }
 
-// tomcatImplementation は、その Connector が JDK の実装で動くと言えるかを決める。言えるなら why に根拠、言えないなら reason に理由が入る。
-func tomcatImplementation(conn serverxml.Connector, apr, sslOff bool, native tomcatNativeState) (why, reason string) {
+// tomcatImplementation は、その Connector がどの TLS の実装で動くかを決める。impl は "jsse"（JDK）か "openssl"（Tomcat Native 経由）で、
+// why にその根拠が入る。決められない場合は、reason に理由が入る。
+func tomcatImplementation(conn serverxml.Connector, apr, sslOff bool, native tomcatNativeState) (impl, why, reason string) {
+	loaded := apr && !sslOff && native.reason == "" && native.installed && native.loadable // Tomcat Native が読み込まれ、OpenSSL を使える
 	switch p := strings.TrimSpace(conn.Attr["protocol"].Value); p {
 	case "", "HTTP/1.1", "org.apache.coyote.http11.Http11NioProtocol", "org.apache.coyote.http11.Http11Nio2Protocol":
 	case tomcatAPRProtocol:
-		return "", "the Connector uses the APR protocol handler (OpenSSL through Tomcat Native); the values for that implementation are not resolved yet"
+		if loaded {
+			return "openssl", "the Connector uses the APR protocol handler, which runs on OpenSSL through Tomcat Native (" + native.pkg + ")", ""
+		}
+		return "", "", "the Connector uses the APR protocol handler, but whether Tomcat Native can be loaded here is not determined"
 	default:
-		return "", "the protocol attribute of the Connector names a handler that has not been measured"
+		return "", "", "the protocol attribute of the Connector names a handler that has not been measured"
 	}
 	switch impl := strings.TrimSpace(conn.Attr["sslImplementationName"].Value); impl {
 	case tomcatJSSEImpl:
-		return "sslImplementationName selects the JDK's TLS implementation (JSSE)", ""
+		return "jsse", "sslImplementationName selects the JDK's TLS implementation (JSSE)", ""
 	case tomcatOpenSSLImpl:
-		return "", "sslImplementationName selects the OpenSSL implementation (Tomcat Native); the values for that implementation are not resolved yet"
+		if loaded {
+			return "openssl", "sslImplementationName selects the OpenSSL implementation, and Tomcat Native (" + native.pkg + ") is loaded", ""
+		}
+		return "", "", "sslImplementationName selects the OpenSSL implementation, but whether Tomcat Native can be loaded here is not determined (without it the server does not start)"
 	case "":
 	default:
-		return "", "sslImplementationName names an implementation that has not been measured"
+		return "", "", "sslImplementationName names an implementation that has not been measured"
 	}
 	switch {
 	case !apr:
-		return "server.xml has no AprLifecycleListener, so the JDK's TLS implementation (JSSE) is used", ""
+		return "jsse", "server.xml has no AprLifecycleListener, so the JDK's TLS implementation (JSSE) is used", ""
 	case native.reason != "":
-		return "", native.reason
+		return "", "", native.reason
 	case !native.installed:
-		return "no Tomcat Native package is installed, so the JDK's TLS implementation (JSSE) is used", ""
+		return "jsse", "no Tomcat Native package is installed, so the JDK's TLS implementation (JSSE) is used", ""
 	case !native.loadable:
-		return "the installed Tomcat Native (" + native.pkg + ") is older than this Tomcat version requires and is not loaded, so the JDK's TLS implementation (JSSE) is used", ""
+		return "jsse", "the installed Tomcat Native (" + native.pkg + ") is older than this Tomcat version requires and is not loaded, so the JDK's TLS implementation (JSSE) is used", ""
 	case sslOff:
-		return "", "the AprLifecycleListener has SSLEngine=\"off\" while Tomcat Native (" + native.pkg + ") can be loaded; the behaviour differs between Tomcat versions and has not been resolved"
+		return "", "", "the AprLifecycleListener has SSLEngine=\"off\" while Tomcat Native (" + native.pkg + ") can be loaded; the behaviour differs between Tomcat versions and has not been resolved"
 	}
-	return "", "Tomcat runs with the OpenSSL implementation here (Tomcat Native " + native.pkg + " is loaded through the AprLifecycleListener); the values for that implementation are not resolved yet"
+	return "openssl", "Tomcat Native (" + native.pkg + ") is loaded through the AprLifecycleListener, so the OpenSSL implementation is used", ""
 }
 
 // tomcatProtocols は、protocols の値を Tomcat と同じ読み方で解釈する（「+」「-」「,」で区切り、「-」は外す。all は表の一覧）。
@@ -432,8 +456,67 @@ func (c *Collector) tomcatHost(in *tomcatInstall, h tomcatHost, why, reason stri
 	case r.GroupsBlocker != "":
 		unresolved(r.GroupsBlocker, model.ParamTLSGroups)
 	default:
+		// グループは、それを使うスイートが残っているときだけ受け入れる（実測）
+		used := jsse.Result{}
+		if len(tls13) > 0 {
+			used.Groups13 = r.Groups13
+		}
+		for _, x := range r.Suites {
+			if strings.Contains(x, "_ECDHE_") {
+				used.Groups12 = r.Groups12
+				break
+			}
+		}
 		c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: model.ParamTLSGroups, Direction: app.Direction, Scope: h.scope,
-			Status: model.StatusResolved, Values: jsseGroups(r), Confidence: confidence, Notes: append([]string{}, notes...),
+			Status: model.StatusResolved, Values: jsseGroups(used), Confidence: confidence, Notes: append([]string{}, notes...),
 			Steps: []model.ResolutionStep{{Layer: "library", Op: "default", Source: in.jdk.prov}, disabled}})
 	}
+}
+
+// tomcatOpenSSLScope は、OpenSSL の実装（Tomcat Native 経由）で動く範囲 1 つについて、設定の記載を記録し、
+// OpenSSL を使うサーバーに共通の求め方（opensslServerEffective）に渡す形にする。
+//
+// この実装では、Tomcat は ciphers の値をそのまま OpenSSL に渡す（解釈するのは、導入されている OpenSSL）。
+func (c *Collector) tomcatOpenSSLScope(in *tomcatInstall, h tomcatHost, why string, multiCert string) tlsScope {
+	set, bad := c.tomcatRecord(in, h)
+	sc := tlsScope{name: h.scope, blocker: bad, certsOK: len(h.certs) > 0,
+		info: []string{"Tomcat runs on OpenSSL here: " + why, "not read: setenv.sh, environment added by systemd drop-ins, and a Tomcat Native library installed without a package"}}
+	if set.hasCiphers {
+		sc.cipher = strings.Join(strings.FieldsFunc(set.ciphers.Value, func(r rune) bool { return r == ':' || r == ',' || r == ' ' }), ":")
+		sc.cipherFile, sc.cipherLine = in.config, set.ciphers.Line
+	}
+	// 証明書の種類。すべて分かっていればそれで絞り込み、分からないものがあれば絞り込まない
+	if set.kindsKnown {
+		for _, k := range []string{"RSA", "EC", "DSA"} {
+			if set.kinds[k] {
+				sc.certKinds = append(sc.certKinds, k)
+			}
+		}
+	} else {
+		sc.certsOK = false
+	}
+	// プロトコルの版。TLS 1.2 を外して、それより古いものだけを残した設定は、OpenSSL のセキュリティレベルしだいで変わる
+	on := map[string]bool{}
+	for _, p := range set.wantProtocols {
+		on[p] = true
+	}
+	sc.tls13Off = !on["TLSv1.3"]
+	switch {
+	case on["TLSv1.2"]:
+	case on["TLSv1.1"] || on["TLSv1"] || on["SSLv3"]:
+		sc.tls12Blocker = "TLS 1.2 is not enabled and only older protocol versions are; whether OpenSSL accepts them depends on its security level, and nothing was accepted when measured"
+	default:
+		sc.tls12Off = true
+	}
+	if len(h.certs) > 1 && multiCert != "all" && sc.blocker == "" {
+		// 証明書の並び順で結果が変わる版がある（実測）。どちらの証明書のスイートも受け入れることを確かめた版だけ求める
+		sc.blocker = "the server has more than one certificate; with the OpenSSL implementation the result depended on the order of the certificates on some versions (measured), and this version has not been confirmed to accept the suites of every certificate"
+	}
+	if set.hasGroups {
+		sc.info = append(sc.info, "the groups attribute is set, but with the OpenSSL implementation it did not change the accepted groups (measured)")
+	}
+	if set.hasCipherSuites {
+		sc.tls13Blocker = "the cipherSuites attribute is set; its effect with the OpenSSL implementation has not been measured"
+	}
+	return sc
 }
