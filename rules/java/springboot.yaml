@@ -22,6 +22,8 @@ spring_boot_tables:
     source:
       image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
       os: "Ubuntu 24.04.5 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
       note: "applications built from Maven Central artifacts and started with openjdk-21-jre-headless in the image; accepted suites enumerated by handshakes (one suite offered at a time); embedded Tomcat versions 9.0.63 to 9.0.64"
     ssl_bundles: "no"
     pem_properties: "unknown"
@@ -29,6 +31,8 @@ spring_boot_tables:
     source:
       image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
       os: "Ubuntu 24.04.5 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
       note: "applications built from Maven Central artifacts and started with openjdk-21-jre-headless in the image; accepted suites enumerated by handshakes (one suite offered at a time); embedded Tomcat versions 9.0.65 to 10.1.16"
     ssl_bundles: "no"
     pem_properties: "yes"
@@ -36,6 +40,8 @@ spring_boot_tables:
     source:
       image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
       os: "Ubuntu 24.04.5 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
       note: "applications built from Maven Central artifacts and started with openjdk-21-jre-headless in the image; accepted suites enumerated by handshakes (one suite offered at a time); embedded Tomcat versions 10.1.8 to 11.0.27"
     ssl_bundles: "yes"
     pem_properties: "yes"
@@ -43,6 +49,8 @@ spring_boot_tables:
     source:
       image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
       os: "Ubuntu 24.04.5 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
       note: "applications built from Maven Central artifacts and started with openjdk-21-jre-headless in the image; accepted suites enumerated by handshakes (one suite offered at a time); embedded Tomcat versions 10.1.33 to 10.1.33"
     ssl_bundles: "unknown"
     pem_properties: "yes"

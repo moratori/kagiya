@@ -15,6 +15,8 @@ wildfly_tables:
   - source:
       image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
       os: "Ubuntu 24.04.5 LTS"
+      method: read-from-distributed-files
+      verified-by-handshake: true
       note: "official distribution archives (org.wildfly:wildfly-dist on Maven Central) unpacked in the container; the cipher table taken from the Elytron JAR; each server started with OpenJDK (11.0.33, 17.0.21.0.3) and the accepted protocols, suites and groups enumerated by handshake"
     elytron_table_sha256: "105ab8b96d86feb1d11da4006ef318e37205ddf748f71e60ac6971adee0244dc"
     # 暗号の指定を書かない場合の指定と、プロトコルの既定（起動したサーバー自身に、管理用コマンドで尋ねた）。

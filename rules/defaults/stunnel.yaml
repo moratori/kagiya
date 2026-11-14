@@ -19,6 +19,12 @@ defaults:
     source:
       image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
       os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.ciphersuites-tls13: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.groups: { method: read-from-distributed-files, verified-by-handshake: true }
       note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client); default strings taken from the binary"
     values:
       tls.ciphers: "PROFILE=SYSTEM"
@@ -31,6 +37,12 @@ defaults:
     source:
       image: "redhat/ubi9@sha256:8b212f75a0e5a156ac28b1c5c030d2e8a07715254e19d522286118279399af81"
       os: "Red Hat Enterprise Linux 9.9 (Plow)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.ciphersuites-tls13: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.groups: { method: read-from-distributed-files, verified-by-handshake: true }
       note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client); default strings taken from the binary"
     values:
       tls.ciphers: "PROFILE=SYSTEM"
@@ -43,6 +55,12 @@ defaults:
     source:
       image: "redhat/ubi10@sha256:1e9193f051ac70582821c8a941325c5053488c54c75cd0c31b577d871ac29dba"
       os: "Red Hat Enterprise Linux 10.3 (Coughlan)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.ciphersuites-tls13: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.groups: { method: read-from-distributed-files, verified-by-handshake: true }
       note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client); default strings taken from the binary"
     values:
       tls.ciphers: "PROFILE=SYSTEM"
@@ -55,6 +73,8 @@ defaults:
     source:
       image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
       os: "Ubuntu 16.04.7 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
       note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client); default strings taken from the binary"
     values:
       tls.ciphers: "@system"
@@ -65,6 +85,12 @@ defaults:
     source:
       image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
       os: "Ubuntu 20.04.6 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.ciphersuites-tls13: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.groups: { method: read-from-distributed-files, verified-by-handshake: true }
       note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client); default strings taken from the binary"
     values:
       tls.ciphers: "HIGH:!aNULL:!SSLv2:!DH:!kDHEPSK"
@@ -77,6 +103,12 @@ defaults:
     source:
       image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
       os: "Ubuntu 22.04.5 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.ciphersuites-tls13: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.groups: { method: read-from-distributed-files, verified-by-handshake: true }
       note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client); default strings taken from the binary"
     values:
       tls.ciphers: "HIGH:!aNULL:!SSLv2:!DH:!kDHEPSK"
@@ -89,6 +121,12 @@ defaults:
     source:
       image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
       os: "Ubuntu 24.04.5 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.ciphersuites-tls13: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.groups: { method: read-from-distributed-files, verified-by-handshake: true }
       note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client); default strings taken from the binary"
     values:
       tls.ciphers: "HIGH:!aNULL:!SSLv2:!DH:!kDHEPSK"
@@ -101,6 +139,12 @@ defaults:
     source:
       image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
       os: "Debian GNU/Linux 13 (trixie)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.ciphersuites-tls13: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.groups: { method: read-from-distributed-files, verified-by-handshake: true }
       note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client); default strings taken from the binary"
     values:
       tls.ciphers: "HIGH:!aNULL:!SSLv2:!DH:!kDHEPSK"

@@ -46,18 +46,39 @@ jdk_tables:
         source:
           image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
           os: "AlmaLinux 10.2 (Lavender Lion)"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 21.0.13+9-LTS"
       - package: java-21-openjdk-headless
         version: "21.0.13.0.9-1.1.el8"
         source:
           image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
           os: "AlmaLinux 8.10 (Cerulean Leopard)"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 21.0.13+9-LTS"
       - package: java-21-openjdk-headless
         version: "21.0.13.0.9-1.2.el9.alma.1"
         source:
           image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
           os: "AlmaLinux 9.8 (Olive Jaguar)"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 21.0.13+9-LTS"
     java_version: "21.0.13"
     wildcard: true
@@ -183,12 +204,26 @@ jdk_tables:
         source:
           image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
           os: "AlmaLinux 10.2 (Lavender Lion)"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 25.0.5+8-LTS"
       - package: java-25-openjdk-headless
         version: "25.0.5.0.8-1.0.el9.alma.1"
         source:
           image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
           os: "AlmaLinux 9.8 (Olive Jaguar)"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 25.0.5+8-LTS"
     java_version: "25.0.5"
     wildcard: true
@@ -315,6 +350,13 @@ jdk_tables:
         source:
           image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
           os: "AlmaLinux 8.10 (Cerulean Leopard)"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 1.8.0_512-b09"
     java_version: "1.8.0_512"
     wildcard: false
@@ -445,12 +487,26 @@ jdk_tables:
         source:
           image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
           os: "AlmaLinux 8.10 (Cerulean Leopard)"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 11.0.25+9-LTS"
       - package: java-11-openjdk-headless
         version: "11.0.25.0.9-7.el9"
         source:
           image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
           os: "AlmaLinux 9.8 (Olive Jaguar)"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 11.0.25+9-LTS"
     java_version: "11.0.25"
     wildcard: false
@@ -576,12 +632,26 @@ jdk_tables:
         source:
           image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
           os: "AlmaLinux 8.10 (Cerulean Leopard)"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 17.0.21+9-LTS"
       - package: java-17-openjdk-headless
         version: "17.0.21.0.9-2.2.el9.alma.1"
         source:
           image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
           os: "AlmaLinux 9.8 (Olive Jaguar)"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 17.0.21+9-LTS"
     java_version: "17.0.21"
     wildcard: true
@@ -707,12 +777,21 @@ jdk_tables:
         source:
           image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
           os: "AlmaLinux 9.8 (Olive Jaguar)"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 1.8.0_504-b01"
       - package: java-1.8.0-openjdk-headless
         version: "1.8.0.504.b01-1.1.el8"
         source:
           image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
           os: "AlmaLinux 8.10 (Cerulean Leopard)"
+          method: reported-by-software
+          verified-by-handshake: false
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 1.8.0_504-b01; measured on 2026-11-13 (the package in the repository of the image has been updated since, so this build was not re-measured)"
     java_version: "1.8.0_504"
     wildcard: false
@@ -843,6 +922,13 @@ jdk_tables:
         source:
           image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
           os: "Debian GNU/Linux 13 (trixie)"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 21.0.13+9-1-deb13u2-Debian"
     java_version: "21.0.13"
     wildcard: true
@@ -967,6 +1053,13 @@ jdk_tables:
         source:
           image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
           os: "Debian GNU/Linux 13 (trixie)"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 25.0.5+8-1-deb13u1-Debian"
     java_version: "25.0.5"
     wildcard: true
@@ -1092,6 +1185,13 @@ jdk_tables:
         source:
           image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
           os: "Ubuntu 16.04.7 LTS"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 1.8.0_292-8u292-b10-0ubuntu1~16.04.1-b10"
     java_version: "1.8.0_292"
     wildcard: false
@@ -1221,6 +1321,13 @@ jdk_tables:
         source:
           image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
           os: "Ubuntu 20.04.6 LTS"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 11.0.27+6-post-Ubuntu-0ubuntu120.04"
     java_version: "11.0.27"
     wildcard: false
@@ -1345,6 +1452,13 @@ jdk_tables:
         source:
           image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
           os: "Ubuntu 20.04.6 LTS"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 17.0.15+6-Ubuntu-0ubuntu120.04"
     java_version: "17.0.15"
     wildcard: false
@@ -1469,6 +1583,13 @@ jdk_tables:
         source:
           image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
           os: "Ubuntu 20.04.6 LTS"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 21.0.7+6-Ubuntu-0ubuntu120.04"
     java_version: "21.0.7"
     wildcard: false
@@ -1593,6 +1714,13 @@ jdk_tables:
         source:
           image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
           os: "Ubuntu 20.04.6 LTS"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 1.8.0_452-8u452-ga~us1-0ubuntu1~20.04-b09"
     java_version: "1.8.0_452"
     wildcard: false
@@ -1722,12 +1850,26 @@ jdk_tables:
         source:
           image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
           os: "Ubuntu 22.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 11.0.33+9-post-1ubuntu1-22.04.1-Ubuntu"
       - package: openjdk-11-jre-headless
         version: "11.0.33+9-1ubuntu1~24.04.1"
         source:
           image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
           os: "Ubuntu 24.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 11.0.33+9-post-1ubuntu1-24.04.1-Ubuntu"
     java_version: "11.0.33"
     wildcard: true
@@ -1852,12 +1994,26 @@ jdk_tables:
         source:
           image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
           os: "Ubuntu 22.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 17.0.21.0.3+1-1-22.04.1-Ubuntu"
       - package: openjdk-17-jre-headless
         version: "17.0.21.0.3+1-1~24.04.1"
         source:
           image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
           os: "Ubuntu 24.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 17.0.21.0.3+1-1-24.04.1-Ubuntu"
     java_version: "17.0.21.0.3"
     wildcard: true
@@ -1982,12 +2138,26 @@ jdk_tables:
         source:
           image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
           os: "Ubuntu 22.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 21.0.13.0.3+1-1-22.04.1-Ubuntu"
       - package: openjdk-21-jre-headless
         version: "21.0.13.0.3+1-1~24.04.1"
         source:
           image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
           os: "Ubuntu 24.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 21.0.13.0.3+1-1-24.04.1-Ubuntu"
     java_version: "21.0.13.0.3"
     wildcard: true
@@ -2112,12 +2282,26 @@ jdk_tables:
         source:
           image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
           os: "Ubuntu 22.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 1.8.0_512-8u512-b09~us1-0ubuntu1~22.04.1-b09"
       - package: openjdk-8-jre-headless
         version: "8u512-b09~us1-0ubuntu1~24.04.1"
         source:
           image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
           os: "Ubuntu 24.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 1.8.0_512-8u512-b09~us1-0ubuntu1~24.04.1-b09"
     java_version: "1.8.0_512"
     wildcard: false
@@ -2247,6 +2431,13 @@ jdk_tables:
         source:
           image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
           os: "Ubuntu 24.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: false
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
           note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 25.0.5.0.3+1-1-24.04.1-Ubuntu"
     java_version: "25.0.5.0.3"
     wildcard: true

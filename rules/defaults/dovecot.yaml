@@ -23,6 +23,12 @@ defaults:
     source:
       image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
       os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: reported-by-software, verified-by-handshake: false }
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+        tls.profile-in-chroot: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from doveconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client, imaps and pop3s)"
     values:
       tls.ciphers: "ALL:!kRSA:!SRP:!kDHd:!DSS:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK:!RC4:!ADH:!LOW@STRENGTH"
@@ -35,6 +41,12 @@ defaults:
     source:
       image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
       os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: reported-by-software, verified-by-handshake: false }
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+        tls.profile-in-chroot: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from doveconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client, imaps and pop3s)"
     values:
       tls.ciphers: "ALL:!kRSA:!SRP:!kDHd:!DSS:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK:!RC4:!ADH:!LOW@STRENGTH"
@@ -47,6 +59,12 @@ defaults:
     source:
       image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
       os: "AlmaLinux 10.2 (Lavender Lion)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: reported-by-software, verified-by-handshake: false }
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+        tls.profile-in-chroot: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from doveconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client, imaps and pop3s)"
     values:
       tls.ciphers: "ALL:!kRSA:!SRP:!kDHd:!DSS:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK:!RC4:!ADH:!LOW@STRENGTH"
@@ -59,6 +77,10 @@ defaults:
     source:
       image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
       os: "Ubuntu 16.04.7 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from doveconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client, imaps and pop3s)"
     values:
       tls.ciphers: "ALL:!LOW:!SSLv2:!EXP:!aNULL"
@@ -70,6 +92,10 @@ defaults:
     source:
       image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
       os: "Ubuntu 20.04.6 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from doveconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client, imaps and pop3s)"
     values:
       tls.ciphers: "ALL:!kRSA:!SRP:!kDHd:!DSS:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK:!RC4:!ADH:!LOW@STRENGTH"
@@ -81,6 +107,10 @@ defaults:
     source:
       image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
       os: "Ubuntu 22.04.5 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from doveconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client, imaps and pop3s)"
     values:
       tls.ciphers: "ALL:!kRSA:!SRP:!kDHd:!DSS:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK:!RC4:!ADH:!LOW@STRENGTH"
@@ -92,6 +122,10 @@ defaults:
     source:
       image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
       os: "Ubuntu 24.04.5 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from doveconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client, imaps and pop3s)"
     values:
       tls.ciphers: "ALL:!kRSA:!SRP:!kDHd:!DSS:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK:!RC4:!ADH:!LOW@STRENGTH"
@@ -103,6 +137,10 @@ defaults:
     source:
       image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
       os: "Debian GNU/Linux 13 (trixie)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
       note: "defaults from doveconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client, imaps and pop3s)"
     values:
       tls.ciphers: "ALL:!kRSA:!SRP:!kDHd:!DSS:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK:!RC4:!ADH:!LOW@STRENGTH"

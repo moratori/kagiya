@@ -31,6 +31,8 @@ tomcat_embedded_tables:
     source:
       image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
       os: "Ubuntu 24.04.5 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
       note: "tomcat-embed-core JARs taken from Spring Boot applications built from Maven Central artifacts in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes without starting the server"
     default_ciphers: "HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!kRSA"
     protocols_all: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3]
@@ -434,6 +436,8 @@ tomcat_embedded_tables:
     source:
       image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
       os: "Ubuntu 24.04.5 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
       note: "tomcat-embed-core JARs taken from Spring Boot applications built from Maven Central artifacts in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes without starting the server"
     default_ciphers: "HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!kRSA"
     protocols_all: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3]
@@ -803,6 +807,8 @@ tomcat_embedded_tables:
     source:
       image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
       os: "Ubuntu 24.04.5 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
       note: "tomcat-embed-core JARs taken from Spring Boot applications built from Maven Central artifacts in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes without starting the server"
     default_ciphers: "HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!kRSA"
     protocols_all: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3]
@@ -1177,6 +1183,8 @@ tomcat_embedded_tables:
     source:
       image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
       os: "Ubuntu 24.04.5 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
       note: "tomcat-embed-core JARs taken from Spring Boot applications built from Maven Central artifacts in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes without starting the server"
     default_ciphers: "HIGH:!aNULL:!eNULL:!DES:!RC4:!MD5:!kRSA"
     protocols_all: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3]
@@ -1537,6 +1545,8 @@ tomcat_embedded_tables:
     source:
       image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
       os: "Ubuntu 24.04.5 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
       note: "tomcat-embed-core JARs taken from Spring Boot applications built from Maven Central artifacts in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes without starting the server"
     default_ciphers: "HIGH:!aNULL:!eNULL:!DES:!RC4:!MD5:!kRSA"
     protocols_all: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3]
@@ -1889,6 +1899,8 @@ tomcat_embedded_tables:
     source:
       image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
       os: "Ubuntu 24.04.5 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
       note: "tomcat-embed-core JARs taken from Spring Boot applications built from Maven Central artifacts in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes without starting the server"
     default_ciphers: "HIGH:!aNULL:!eNULL:!DES:!RC4:!MD5:!kRSA"
     protocols_all: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3]
