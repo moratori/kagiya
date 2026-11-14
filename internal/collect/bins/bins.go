@@ -39,6 +39,9 @@ type Collector struct {
 func (c *Collector) Collect() {
 	for _, app := range c.Rules.Apps {
 		for _, bin := range app.Binaries {
+			if c.Builder.Stopped() {
+				return // 止める合図が出た。次の実行ファイルは調べない
+			}
 			c.application(app, bin)
 		}
 	}

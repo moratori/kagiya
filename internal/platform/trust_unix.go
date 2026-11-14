@@ -14,8 +14,10 @@ import (
 // Elevated は管理者権限（root）で動いているかを返す。
 func Elevated() bool { return os.Geteuid() == 0 }
 
-// TerminationSignals は安全に停止すべきシグナル。
-func TerminationSignals() []os.Signal { return []os.Signal{os.Interrupt, syscall.SIGTERM} }
+// TerminationSignals は安全に停止すべきシグナル（Ctrl+C、終了の要求、端末や SSH の接続が切れたとき）。
+func TerminationSignals() []os.Signal {
+	return []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGHUP}
+}
 
 // CheckTrustedDir は外部ルールディレクトリが信頼できる状態かを検査する。
 // ルールは「何を読み、何を出力するか」を決めるためバイナリと同等の信頼が要る。

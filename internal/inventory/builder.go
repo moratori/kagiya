@@ -22,8 +22,9 @@ const maxSkippedInResult = 10_000
 var safeName = regexp.MustCompile(`^[A-Za-z0-9@._+-]{1,64}$`)
 
 type Builder struct {
-	rs  *ruleset.RuleSet
-	log *logx.Logger
+	stop func() bool // 止める合図が出ているか（nil なら見ない）
+	rs   *ruleset.RuleSet
+	log  *logx.Logger
 
 	assets       map[string]*model.Asset
 	occurrences  []model.Occurrence
@@ -299,7 +300,12 @@ func (b *Builder) Inventory() *model.Inventory {
 // （敵対的な入力でパーサが止まっても、ほかのファイルの結果を失わないため。設計書 4.7）。
 // path は処理の対象（なければ空）、doing は何をしていたかの説明。panic の値は入力の断片を含みうるので記録せず、
 // 実行時エラー（範囲外の参照など。入力の内容は含まない）の場合だけ、その種類を残す。
+//
+// 止める合図が出た後は、f を始めない（処理の区切りで止めるので、途中まで読んだ中途半端な結果は残らない）。
 func (b *Builder) Guard(path, doing string, f func()) {
+	if b.Stopped() {
+		return
+	}
 	defer func() {
 		r := recover()
 		if r == nil {
@@ -314,8 +320,8 @@ func (b *Builder) Guard(path, doing string, f func()) {
 	f()
 }
 
-// SetStop は、止める合図が出ているかを返す関数を決める。
-func (b *Builder) SetStop(stopped func() bool) {}
+// SetStop は、止める合図（中断、時間制限）が出ているかを返す関数を決める。
+func (b *Builder) SetStop(stopped func() bool) { b.stop = stopped }
 
 // Stopped は、止める合図が出ているかを返す。
-func (b *Builder) Stopped() bool { return false }
+func (b *Builder) Stopped() bool { return b.stop != nil && b.stop() }

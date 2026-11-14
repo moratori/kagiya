@@ -75,7 +75,14 @@ func (c *Collector) CollectJavaApps(archives []string) {
 	for p := range launches {
 		add(p)
 	}
-	for _, p := range archives {
+	// 探索で見つかった JAR は、開く数に上限を付ける（起動の定義から参照されている JAR は、数に関わらず調べる）
+	sorted := append([]string{}, archives...)
+	sort.Strings(sorted)
+	for i, p := range sorted {
+		if i >= springMaxArchives {
+			c.Builder.Skip(safefs.Skip{Path: p, Reason: "limit", Detail: strconv.Itoa(len(sorted)-i) + " more archive(s) are not examined as Java applications (more archives than the limit)"})
+			break
+		}
 		add(strings.TrimPrefix(p, c.Prefix))
 	}
 	sort.Strings(order)

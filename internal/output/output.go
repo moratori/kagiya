@@ -51,6 +51,7 @@ type Writer struct {
 	f              *os.File
 	partial, final string
 	done           bool
+	direct         bool // 最初から最終名で作ったもの（CreateDirect）
 }
 
 // Create は dir 直下に name を作る準備をする。name にパス区切りは使えない。
@@ -106,6 +107,9 @@ func (w *Writer) Commit() error {
 	if cerr := w.f.Close(); err == nil {
 		err = cerr
 	}
+	if w.direct {
+		return err // 最終名で作ってあるので、確定の手順は要らない（書き込みに失敗しても、書けた分は残す）
+	}
 	if err != nil {
 		os.Remove(w.partial) // 書き込み自体が不完全
 		return err
@@ -158,8 +162,31 @@ func (w *Writer) Abort() {
 	}
 	w.done = true
 	w.f.Close()
+	if w.direct {
+		os.Remove(w.final)
+		return
+	}
 	os.Remove(w.partial)
 }
 
-// CreateDirect は dir 直下に name を、最初から最終名で作る。
-func CreateDirect(dir, name string) (*Writer, error) { return nil, errors.New("not implemented") }
+// CreateDirect は dir 直下に name を、最初から最終名で作る（ログ用。書き足していくファイルなので、書きかけを隠す必要がなく、
+// 異常終了したときに最終名で残っているほうがよい）。既存のファイルやシンボリックリンクがあれば失敗する（上書きしない・辿らない）。
+func CreateDirect(dir, name string) (*Writer, error) {
+	if err := supported(); err != nil {
+		return nil, err
+	}
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) || name != filepath.Base(name) {
+		return nil, fmt.Errorf("invalid output file name %q", name)
+	}
+	final := filepath.Join(dir, name)
+	f, err := os.OpenFile(final, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("create %s: %w", final, err)
+	}
+	if err := f.Chmod(0o600); err != nil {
+		f.Close()
+		os.Remove(final)
+		return nil, err
+	}
+	return &Writer{f: f, final: final, direct: true}, nil
+}

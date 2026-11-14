@@ -25,6 +25,11 @@ func RealClock() Clock { return realClock{} }
 // 休止を細切れにしないよう、これだけ作業時間がたまってから休む。
 const minWork = 10 * time.Millisecond
 
+const (
+	maxRest    = time.Second            // CPU の上限のための、1 回の休止の上限
+	sleepSlice = 250 * time.Millisecond // 休止の区切り（止める合図を、この間隔で確かめる）
+)
+
 // Limiter は単一のゴルーチンから使う。
 type Limiter struct {
 	cfg   Config
@@ -32,6 +37,7 @@ type Limiter struct {
 
 	mark time.Time     // 作業時間の計測開始点
 	work time.Duration // 未精算の作業時間
+	debt time.Duration // 休みきれていない時間
 
 	tokens   float64 // 読み取り可能なバイト数
 	lastFill time.Time
@@ -54,13 +60,35 @@ func (l *Limiter) Yield() {
 	now := l.clock.Now()
 	l.work += now.Sub(l.mark)
 	l.mark = now
-	if l.work < minWork {
+	if l.work < minWork && l.debt == 0 {
 		return
 	}
-	rest := l.work * time.Duration(100-p) / time.Duration(p)
+	// 休む時間。1 回の休止は maxRest までにし、休みきれなかった分は次の区切りに持ち越す
+	// （作業時間には読み取りの待ち時間も入るので、待たされた後に何十秒もまとめて休まないように）
+	l.debt += l.work * time.Duration(100-p) / time.Duration(p)
 	l.work = 0
-	l.clock.Sleep(rest)
+	rest := l.debt
+	if rest > maxRest {
+		rest = maxRest
+	}
+	l.debt -= rest
+	l.sleep(rest)
 	l.mark = l.clock.Now()
+}
+
+// sleep は、短く区切って休む。止める合図が出ていれば、そこで打ち切る。
+func (l *Limiter) sleep(d time.Duration) {
+	for d > 0 {
+		if l.Stop != nil && l.Stop() {
+			return
+		}
+		step := d
+		if step > sleepSlice {
+			step = sleepSlice
+		}
+		l.clock.Sleep(step)
+		d -= step
+	}
 }
 
 // Bytes は n バイトの読み取りを申告し、上限を超える分だけ休む。ためられる余裕は1秒分まで。
@@ -78,7 +106,7 @@ func (l *Limiter) Bytes(n int64) {
 	l.tokens -= float64(n)
 	if l.tokens < 0 {
 		wait := time.Duration(-l.tokens / rate * float64(time.Second))
-		l.clock.Sleep(wait)
+		l.sleep(wait)
 		l.tokens = 0
 		l.lastFill = l.clock.Now()
 		// 休止は作業時間に数えない

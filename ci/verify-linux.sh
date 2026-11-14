@@ -57,5 +57,35 @@ if [ "$MODE" = strace ] && command -v strace >/dev/null; then
   check "プロセス起動は自身の起動時の 1 回のみ" "[ \"$EXE\" = 1 ]"
 fi
 
+# 4. 探索の後のフェーズ（JAR を開く処理）でも、中断と時間制限が効く
+# 末尾に zip の終わりの記録だけを持つ、中身のない JAR を多数置く。探索では中身を読まないのですぐ終わり、その後、1 つずつ開く処理が
+# 読み取り速度の上限（1 MiB/秒）のもとで長く続く。その間にシグナルを送る
+mkdir -p "$W/jars"
+head -c 65536 /dev/zero > "$W/jar.body"; printf 'PK\005\006\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000' >> "$W/jar.body"
+i=0; while [ $i -lt 1500 ]; do cp "$W/jar.body" "$W/jars/a$i.jar"; i=$((i+1)); done
+"$K" scan --roots "$W/jars" --output-dir "$W/out4" --log-dir "$W/logs4" --cpu-limit 100 --io-limit 1 2>"$W/err4" &
+PID=$!
+sleep 4
+T0=$(date +%s); kill -TERM $PID; wait $PID; RC=$?; T1=$(date +%s)
+echo "stopped in $((T1-T0))s with exit code $RC: $(cat "$W/err4")"
+check "JAR を開く処理の途中でも、SIGTERM で終了コード 3" "[ $RC -eq 3 ]"
+check "数秒以内に止まる"                               "[ $((T1-T0)) -le 5 ]"
+check "探索は終わっていた（JAR の処理の途中で止めた）"   "grep -q '\"files_examined\": 1500' \"$W\"/out4/*.json"
+check "結果に、中断による未完了と記録される"           "grep -q '\"incomplete_reason\": \"interrupted\"' \"$W\"/out4/*.json"
+check "ログは最終名で残る"                             "ls \"$W\"/logs4/*.log >/dev/null 2>&1 && ! ls \"$W\"/logs4/*.partial >/dev/null 2>&1"
+T0=$(date +%s)
+"$K" scan --roots "$W/jars" --output-dir "$W/out5" --log-dir "$W/logs5" --cpu-limit 100 --io-limit 1 --max-duration 3s 2>"$W/err5"; RC=$?
+T1=$(date +%s)
+echo "finished in $((T1-T0))s with exit code $RC: $(cat "$W/err5")"
+check "--max-duration は、探索の後のフェーズにも効く（終了コード 3）" "[ $RC -eq 3 ]"
+check "時間制限から数秒以内に終わる"                               "[ $((T1-T0)) -le 9 ]"
+check "結果に、時間制限による未完了と記録される" "grep -q '\"incomplete_reason\": \"max-duration\"' \"$W\"/out5/*.json"
+# SIGHUP（接続が切れたとき）でも、途中の結果を書いて終わる
+"$K" scan --roots "$W/jars" --output-dir "$W/out6" --log-dir "$W/logs6" --cpu-limit 100 --io-limit 1 2>"$W/err6" &
+PID=$!
+sleep 3; kill -HUP $PID; wait $PID
+check "SIGHUP で終了コード 3（未完了）" "[ $? -eq 3 ]"
+check "SIGHUP でも結果が書かれる"       "grep -q '\"completed\": false' \"$W\"/out6/*.json"
+
 [ $fail -eq 0 ] && echo "ALL OK" || echo "SOME CHECKS FAILED"
 exit $fail

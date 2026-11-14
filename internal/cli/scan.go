@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"kagiya/internal/assess"
@@ -197,7 +198,8 @@ func runScan(args []string, stderr io.Writer) int {
 	scanID := newScanID()
 	host := sanitizeHostname()
 	stamp := started.Format("20060102T150405Z")
-	logFile, err := output.Create(opts.logDir, fmt.Sprintf("kagiya-%s-%s-%s.log", host, stamp, scanID[:8]))
+	// ログは、最初から最終名で作る（異常終了しても、書きかけの名前で残らないように）
+	logFile, err := output.CreateDirect(opts.logDir, fmt.Sprintf("kagiya-%s-%s-%s.log", host, stamp, scanID[:8]))
 	if err != nil {
 		return fatal(err)
 	}
@@ -214,17 +216,42 @@ func runScan(args []string, stderr io.Writer) int {
 		log.Warn("no-mount-table", "detail", w)
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), platform.TerminationSignals()...)
-	defer stop()
+	// 中断（シグナル）と時間制限。1 回目のシグナルで「安全に停止」を始め、2 回目か、猶予の経過で、強制的に終わる
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	if opts.maxDuration > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.maxDuration)
-		defer cancel()
+		var cancelTimeout context.CancelFunc
+		ctx, cancelTimeout = context.WithTimeout(ctx, opts.maxDuration)
+		defer cancelTimeout()
+	}
+	signals := make(chan os.Signal, 2)
+	signal.Notify(signals, platform.TerminationSignals()...)
+	defer signal.Stop(signals)
+	var interrupted atomic.Bool
+	finished := make(chan struct{})
+	defer close(finished)
+	go watchStop(signals, ctx.Done(), func() { interrupted.Store(true); cancel() }, finished, stopGrace, func(code int) {
+		fmt.Fprintln(stderr, "kagiya: forced to exit before the result was written")
+		os.Exit(code)
+	})
+	stopped := func() bool { return ctx.Err() != nil }
+	// stopReason は、止まり始めていれば、その理由を返す
+	stopReason := func() string {
+		switch {
+		case ctx.Err() == nil:
+			return ""
+		case errors.Is(ctx.Err(), context.DeadlineExceeded) && !interrupted.Load():
+			return "max-duration"
+		}
+		return "interrupted"
 	}
 
 	builder := inventory.NewBuilder(rs, log)
 	crawl := fscrawl.New(builder)
 	limiter := throttle.New(throttle.Config{CPUPercent: opts.cpuLimit, BytesPerSecond: opts.ioLimitMiB << 20}, throttle.RealClock())
+	// 止める合図は、処理の区切り（ファイル、JAR、アプリ、コレクタ）と、流量制限の休止の間に確かめる
+	builder.SetStop(stopped)
+	limiter.Stop = stopped
 
 	// パッケージ管理データベース（導入済みパッケージの版）
 	opener := &safefs.Opener{Limiter: limiter, OnSkip: builder.Skip}
@@ -255,8 +282,12 @@ func runScan(args []string, stderr io.Writer) int {
 		walker.Mounts = mounts.table
 	}
 
-	incomplete := ""
+	incomplete := stopReason()
 	for _, root := range opts.roots {
+		if incomplete != "" {
+			log.Error("scan-incomplete", "reason", incomplete)
+			break
+		}
 		err := walker.Walk(ctx, root, crawl.Visit)
 		switch {
 		case err == nil:
@@ -285,7 +316,12 @@ func runScan(args []string, stderr io.Writer) int {
 		if more > 0 {
 			builder.Skip(safefs.Skip{Path: "", Reason: "limit", Detail: strconv.Itoa(more) + " more archive(s) were found than are kept; they are not opened"})
 		}
+		if incomplete = stopReason(); incomplete != "" {
+			log.Error("scan-incomplete", "reason", incomplete)
+		}
 	}
+	// ここから先（結果の書き出し）は、止める合図があっても最後まで行う
+	builder.SetStop(nil)
 
 	// ディストリの名前と版（レポートのスキャン概要に出す）
 	var distribution *model.Distribution
