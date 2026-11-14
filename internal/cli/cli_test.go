@@ -1075,3 +1075,35 @@ func TestScanWritesPartialResultAfterPanic(t *testing.T) {
 		t.Errorf("log: %s", logRaw)
 	}
 }
+
+// 独立したレビュー（2026-11-14）の指摘 C-1・C-4。結果ファイルを読む側（report / convert）は、件数の上限と、負の数を確かめる
+// （侵害されたホストが作った、形式は正しいが中身に悪意のある結果ファイルを想定する）。
+func TestResultFileLimits(t *testing.T) {
+	dir := tmp(t)
+	write := func(name, body string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(`{"schema":"kagiya-inventory/v0","meta":{"host":{"hostname":"h"}},`+body+`}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	for name, body := range map[string]string{
+		"negative.json":      `"coverage":{"files_examined":-5,"skipped_by_reason":{}}`,
+		"negative-skip.json": `"coverage":{"files_examined":1,"skipped_by_reason":{"permission-denied":-100000}}`,
+		"many-services.json": `"services":[` + strings.Repeat(`{},`, 200000) + `{}]`,
+		"many-values.json":   `"effective_values":[{"values":[` + strings.Repeat(`"a",`, 100000) + `"a"]}]`,
+	} {
+		p := write(name, body)
+		for _, args := range [][]string{{"report", "--output-dir", dir + "/out", p}, {"convert", "--to", "cbom", "--output-dir", dir + "/out", p}} {
+			code, _, stderr := run(args...)
+			if code != exitFatal || !strings.Contains(stderr, name) {
+				t.Errorf("%s %s: code=%d stderr=%q", args[0], name, code, stderr)
+			}
+		}
+	}
+	// ふつうの結果は、これまでどおり読める
+	ok := write("ok.json", `"coverage":{"files_examined":3,"skipped_by_reason":{"excluded":1}},"services":[{"id":"svc:a","app":"nginx"}]`)
+	if code, _, stderr := run("convert", "--to", "cbom", "--output-dir", dir+"/out", ok); code != 0 {
+		t.Errorf("a normal result must be accepted: code=%d stderr=%q", code, stderr)
+	}
+}

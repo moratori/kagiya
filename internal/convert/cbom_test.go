@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"kagiya/internal/model"
 )
@@ -410,5 +412,29 @@ func TestCBOMMissingReferencesAndEmpty(t *testing.T) {
 	d, by, _ := cbom(t, empty)
 	if d.SpecVersion != "1.6" || len(by) != 0 || d.Metadata.Timestamp != "" {
 		t.Errorf("empty = %+v", d)
+	}
+}
+
+// 独立したレビュー（2026-11-14）の指摘 C-1。重複の確認が線形探索で、件数の二乗の時間がかかっていた
+// （細工した結果ファイル 1 つで、変換やレポートが終わらなくなる）。
+func TestCBOMManyValuesAndServicesIsFast(t *testing.T) {
+	inv := &model.Inventory{Schema: model.Schema, Meta: model.Meta{Host: model.Host{Hostname: "h"}}}
+	values := make([]string, 120000)
+	for i := range values {
+		values[i] = "SUITE-" + strconv.Itoa(i)
+	}
+	for i := 0; i < 30000; i++ {
+		id := "svc:app:" + strconv.Itoa(i)
+		inv.Services = append(inv.Services, model.Service{ID: id, App: "app"})
+		inv.EffectiveValues = append(inv.EffectiveValues, model.EffectiveValue{Service: id, Parameter: model.ParamTLSCiphers, Scope: "port 443", Status: model.StatusResolved, Values: []string{"A", "B"}})
+	}
+	inv.EffectiveValues = append(inv.EffectiveValues, model.EffectiveValue{Service: "svc:app:0", Parameter: model.ParamTLSCiphers, Scope: "port 8443", Status: model.StatusResolved, Values: values})
+	start := time.Now()
+	var buf bytes.Buffer
+	if err := WriteCBOMCompact(inv, &buf); err != nil {
+		t.Fatal(err)
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Errorf("writing the CBOM took %v", d)
 	}
 }

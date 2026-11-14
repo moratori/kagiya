@@ -2,6 +2,8 @@ package report
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"regexp"
 	"strings"
 	"testing"
@@ -208,6 +210,82 @@ func TestReportLibraryPQCSupport(t *testing.T) {
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("missing %q", want)
+		}
+	}
+}
+
+// 以下は、独立したレビュー（2026-11-14）の指摘 C-2・C-4・C-5・A-23 への対応。
+
+// レポートに埋め込む CBOM も、レポートを作る時点のルールでやり直した判定を使う（入力の結果ファイルに書かれた判定は使わない）。
+func TestReportEmbeddedCBOMUsesFreshAssessment(t *testing.T) {
+	inv := sample()
+	inv.Assessment = &model.Assessment{Policy: "forged", Assets: map[string]model.Verdict{"alg:rsa-2048": {Quantum: "resistant", Classical: "ok"}}}
+	html := render(t, inv)
+	m := regexp.MustCompile(`href="data:application/vnd\.cyclonedx\+json;base64,([A-Za-z0-9+/=]+)"`).FindStringSubmatch(html)
+	if m == nil {
+		t.Fatal("no embedded CBOM")
+	}
+	raw, _ := base64.StdEncoding.DecodeString(m[1])
+	var doc struct {
+		Components []struct {
+			Ref        string `json:"bom-ref"`
+			Properties []struct{ Name, Value string }
+		}
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, c := range doc.Components {
+		if c.Ref != "alg:rsa-2048" {
+			continue
+		}
+		for _, p := range c.Properties {
+			if p.Name == "kagiya:quantum" {
+				found = true
+				if p.Value != "vulnerable" {
+					t.Errorf("the embedded CBOM says RSA-2048 is %q; the verdict in the input file must not be used", p.Value)
+				}
+			}
+		}
+	}
+	if !found {
+		t.Error("no verdict for alg:rsa-2048 in the embedded CBOM")
+	}
+}
+
+// ホスト名は自己申告で、ほかのホストと同じ名前にもできる。見分けられるよう、スキャン ID の先頭を併記する。
+func TestReportShowsScanID(t *testing.T) {
+	if html := render(t, sample()); !strings.Contains(html, "01234567") {
+		t.Error("the first 8 characters of the scan ID are not shown")
+	}
+}
+
+// 書字方向を変える文字や、幅のない文字は、表示から外す（パスや Subject の見た目を、別の文字列に見せかけられるため）。
+func TestReportRemovesDisplayTricks(t *testing.T) {
+	inv := sample()
+	inv.Meta.Host.Hostname = "web‮gpj.exe"
+	inv.Meta.Labels = map[string]string{"system": "por​tal\u0085x⁦y"}
+	html := render(t, inv)
+	for _, bad := range []string{"‮", "​", "\u0085", "⁦"} {
+		if strings.Contains(html, bad) {
+			t.Errorf("the report contains U+%04X", []rune(bad)[0])
+		}
+	}
+	if !strings.Contains(html, "web") || !strings.Contains(html, "gpj.exe") {
+		t.Error("the visible part of the text must remain")
+	}
+	// 日本語は、そのまま出る
+	if !strings.Contains(html, "クリプトインベントリ") {
+		t.Error("ordinary text is damaged")
+	}
+}
+
+func TestReportContentSecurityPolicy(t *testing.T) {
+	html := render(t, sample())
+	for _, want := range []string{"default-src 'none'", "form-action 'none'", "base-uri 'none'"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("the content security policy lacks %q", want)
 		}
 	}
 }

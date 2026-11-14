@@ -140,3 +140,18 @@ func TestCSVEmptyInventory(t *testing.T) {
 		t.Errorf("empty inventory must produce the header only, got %d lines", n)
 	}
 }
+
+// 独立したレビュー（2026-11-14）の指摘 C-3。数式として解釈されうる先頭の文字は、全角のもの（日本語環境の表計算ソフト）と、
+// 先頭の空白の後ろにあるものも対象にする。
+func TestNeutraliseFullWidthAndLeadingSpace(t *testing.T) {
+	for _, s := range []string{"＝HYPERLINK(\"http://x\")", "＋1+1", "－1", "＠SUM(A1)", " =1+1", "　＝x", "\t=1", "  @x", "=1", "+1", "-1", "@a"} {
+		if got := neutralise(s); got != "'"+s {
+			t.Errorf("neutralise(%q) = %q, want an apostrophe in front", s, got)
+		}
+	}
+	for _, s := range []string{"CN==cmd", "normal", "日本語のパス", "/etc/ssl/a=b.pem", "", " plain text", "1-2"} {
+		if got := neutralise(s); got != s {
+			t.Errorf("neutralise(%q) = %q, want unchanged", s, got)
+		}
+	}
+}
