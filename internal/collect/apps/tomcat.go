@@ -1,7 +1,6 @@
 package apps
 
 import (
-	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -80,121 +79,57 @@ func (c *Collector) tomcat(app ruleset.AppRule, svc model.Service, config string
 		return
 	}
 	// 環境全体に関わること（どれかが分からなければ、どの Connector の値も求めない）
-	common := ""
-	if len(f.Problems) > 0 {
-		common = "server.xml is not fully read: " + f.Problems[0]
-	}
-	var pkg model.Package
-	n := 0
-	for _, p := range c.Builder.Packages() {
-		if ruleset.MatchName(app.Packages, p.Name) {
-			pkg = p
-			n++
-		}
-	}
-	var tb *ruleset.TomcatTable
-	var build ruleset.CipherBuild
-	exact := false
-	switch {
-	case common != "":
-	case n == 0:
-		common = "no package information for Tomcat; the Tomcat table to use is unknown"
-	case n > 1:
-		common = "more than one Tomcat package is installed; which one this server.xml belongs to is not determined"
-	default:
-		var ok bool
-		if tb, build, exact, ok = c.Rules.TomcatTableFor(tomcatServer, pkg.Name, pkg.FullVersion()); !ok {
-			common = "no Tomcat table is recorded for " + pkg.Name + " " + pkg.FullVersion()
-		}
-	}
-	// 配置。Debian 系は /etc/<名前>/server.xml で、CATALINA_BASE は /var/lib/<名前>。RHEL 系はどちらも /usr/share/tomcat
-	name := path.Base(path.Dir(config))
-	home, base := "/usr/share/"+name, "/var/lib/"+name
-	envFiles := []string{"/etc/default/" + name}
-	javaHome := tomcatDebJavaHome
-	if pkg.Manager == "rpm" {
-		base = home
-		envFiles = []string{tomcatRPMConf, tomcatRPMSysconfig}
-		javaHome = ""
-	}
-	if common == "" {
-		javaHome, common = c.tomcatEnvironment(envFiles, []string{base + "/bin/setenv.sh", home + "/bin/setenv.sh"}, javaHome)
-	}
-	// どの JDK で動くか
-	var ctx jdkContext
-	jdkDir := ""
-	if common == "" {
-		ctx, jdkDir, common = c.tomcatJDK(svc, javaHome)
-	}
-	native := tomcatNativeState{}
-	if common == "" {
-		native = c.tomcatNative(tb)
-	}
-	apr, sslOff := false, false
-	for _, l := range f.Listeners {
-		switch l.ClassName {
-		case tomcatAPRListener:
-			apr = true
-			if v, ok := l.Attr["SSLEngine"]; ok && strings.EqualFold(strings.TrimSpace(v.Value), "off") {
-				sslOff = true
-			}
-		case tomcatFFMListener:
-			if common == "" {
-				common = "server.xml has an OpenSSLLifecycleListener (OpenSSL through the Java foreign function interface), which has not been measured"
-			}
-		}
-	}
-
+	in, common := c.tomcatInstallation(app, svc, config, f)
 	for _, conn := range f.Connectors {
 		if v, ok := conn.Attr["SSLEnabled"]; !ok || !strings.EqualFold(strings.TrimSpace(v.Value), "true") {
 			continue
 		}
-		scope := "connector at line " + strconv.Itoa(conn.Line)
-		if p, ok := conn.Attr["port"]; ok && tomcatPort.MatchString(p.Value) {
-			scope = "connector " + p.Value
-		}
-		conn := conn
-		hosts := []tomcatHost{}
-		if len(conn.Hosts) == 0 {
-			// 古い書き方: TLS の設定を Connector に直接書く
-			hosts = append(hosts, tomcatHost{scope: scope, legacy: true, attr: func(name string) (serverxml.Attr, bool) {
-				switch name {
-				case "protocols":
-					name = "sslEnabledProtocols"
-				case "certificateKeystoreFile":
-					name = "keystoreFile"
-				case "ciphers":
-				default:
-					return serverxml.Attr{}, false
-				}
-				a, ok := conn.Attr[name]
-				return a, ok
-			}})
-		}
-		for i := range conn.Hosts {
-			h := conn.Hosts[i]
-			s := scope
-			if len(conn.Hosts) > 1 {
-				hn := "_default_"
-				if v, ok := h.Attr["hostName"]; ok && tomcatHostName.MatchString(v.Value) {
-					hn = v.Value
-				}
-				s += " host " + hn
-			}
-			hosts = append(hosts, tomcatHost{scope: s, certs: h.Certificates, attr: func(name string) (serverxml.Attr, bool) { a, ok := h.Attr[name]; return a, ok }})
-		}
 		// どの実装で動くか
 		reason, why := common, ""
-		if reason == "" && len(conn.Hosts) == 0 && !tb.ConnectorTLSAttributes {
+		if reason == "" && len(conn.Hosts) == 0 && !in.table.ConnectorTLSAttributes {
 			reason = "the Connector has no SSLHostConfig element; this Tomcat version does not take TLS settings written on the Connector itself (the server did not start with them when measured)"
 		}
 		if reason == "" {
-			why, reason = tomcatImplementation(conn, apr, sslOff, native)
+			why, reason = tomcatImplementation(conn, in.apr, in.sslOff, in.native)
 		}
-		for _, h := range hosts {
-			c.tomcatHost(app, svc, config, base, h, tb, build, exact, pkg, ctx, jdkDir, why, reason)
+		for _, h := range tomcatHosts(conn) {
+			c.tomcatHost(in, h, why, reason)
 		}
 	}
+}
+
+// tomcatHosts は、Connector の TLS の設定を、範囲（SSLHostConfig。古い書き方では Connector 自身）ごとに分ける。
+func tomcatHosts(conn serverxml.Connector) []tomcatHost {
+	scope := "connector at line " + strconv.Itoa(conn.Line)
+	if p, ok := conn.Attr["port"]; ok && tomcatPort.MatchString(p.Value) {
+		scope = "connector " + p.Value
+	}
+	if len(conn.Hosts) == 0 {
+		// 古い書き方: TLS の設定を Connector に直接書く。属性の名前が違う
+		names := map[string]string{"protocols": "sslEnabledProtocols", "certificateKeystoreFile": "keystoreFile", "ciphers": "ciphers"}
+		return []tomcatHost{{scope: scope, legacy: true, attr: func(name string) (serverxml.Attr, bool) {
+			old, ok := names[name]
+			if !ok {
+				return serverxml.Attr{}, false
+			}
+			a, ok := conn.Attr[old]
+			return a, ok
+		}}}
+	}
+	var hosts []tomcatHost
+	for i := range conn.Hosts {
+		h := conn.Hosts[i]
+		s := scope
+		if len(conn.Hosts) > 1 {
+			hn := "_default_"
+			if v, ok := h.Attr["hostName"]; ok && tomcatHostName.MatchString(v.Value) {
+				hn = v.Value
+			}
+			s += " host " + hn
+		}
+		hosts = append(hosts, tomcatHost{scope: s, certs: h.Certificates, attr: func(name string) (serverxml.Attr, bool) { a, ok := h.Attr[name]; return a, ok }})
+	}
+	return hosts
 }
 
 // tomcatImplementation は、その Connector が JDK の実装で動くと言えるかを決める。言えるなら why に根拠、言えないなら reason に理由が入る。
@@ -228,134 +163,6 @@ func tomcatImplementation(conn serverxml.Connector, apr, sslOff bool, native tom
 		return "", "the AprLifecycleListener has SSLEngine=\"off\" while Tomcat Native (" + native.pkg + ") can be loaded; the behaviour differs between Tomcat versions and has not been resolved"
 	}
 	return "", "Tomcat runs with the OpenSSL implementation here (Tomcat Native " + native.pkg + " is loaded through the AprLifecycleListener); the values for that implementation are not resolved yet"
-}
-
-type tomcatNativeState struct {
-	installed bool
-	loadable  bool   // Tomcat の求める版以上で、読み込まれる
-	pkg       string // 「名前 版」
-	reason    string // 空でなければ、判断できない理由
-}
-
-// tomcatNative は、導入されている Tomcat Native が、この Tomcat に読み込まれるかを調べる（パッケージの版と、表の求める版を比べる）。
-func (c *Collector) tomcatNative(tb *ruleset.TomcatTable) tomcatNativeState {
-	var st tomcatNativeState
-	for _, p := range c.Builder.Packages() {
-		if !ruleset.MatchName(tomcatNativePackages, p.Name) {
-			continue
-		}
-		if st.installed {
-			return tomcatNativeState{reason: "more than one Tomcat Native package is installed; which one is loaded is not determined"}
-		}
-		st.installed, st.pkg = true, p.Name+" "+p.FullVersion()
-		m := tomcatNativeVersion.FindStringSubmatch(p.Version)
-		if m == nil {
-			return tomcatNativeState{reason: "the version of the installed Tomcat Native (" + st.pkg + ") cannot be read"}
-		}
-		have := [3]int{}
-		for i := range have {
-			have[i], _ = strconv.Atoi(m[i+1])
-		}
-		found := false
-		for _, r := range tb.NativeRequired {
-			need := [3]int{}
-			parts := strings.Split(r, ".")
-			for i := range need {
-				need[i], _ = strconv.Atoi(parts[i])
-			}
-			if need[0] != have[0] {
-				continue
-			}
-			found = true
-			st.loadable = have[1] > need[1] || (have[1] == need[1] && have[2] >= need[2])
-		}
-		if !found {
-			return tomcatNativeState{reason: "the installed Tomcat Native (" + st.pkg + ") belongs to a series that has not been measured with this Tomcat version"}
-		}
-	}
-	return st
-}
-
-// tomcatEnvironment は、起動時に読まれる環境ファイルから、JAVA_HOME と、Java の起動時の指定を調べる。
-// 読むのは「名前=値」の行だけ。値を確定できない場合や、TLS の設定を変えうる指定がある場合は、reason に理由が入る。
-func (c *Collector) tomcatEnvironment(files, scripts []string, javaHome string) (home, reason string) {
-	for _, s := range scripts {
-		if _, err := c.read(s); err == nil {
-			return "", s + " exists (setenv.sh is a script and is not interpreted); it can change the JDK and the options Java is started with"
-		}
-	}
-	for _, file := range files {
-		data, err := c.read(file)
-		if err != nil {
-			continue
-		}
-		for _, l := range strings.Split(string(data), "\n") {
-			l = strings.TrimSpace(l)
-			m := tomcatEnvLine.FindStringSubmatch(l)
-			if m == nil {
-				continue // コメント、空行、ほかの形の行
-			}
-			key, value := m[1], strings.TrimSpace(m[2])
-			if len(value) >= 2 && (value[0] == '"' || value[0] == '\'') && value[len(value)-1] == value[0] {
-				value = value[1 : len(value)-1]
-			}
-			switch {
-			case key == "JAVA_HOME" || key == "JRE_HOME":
-				if strings.ContainsAny(value, "$`\\\"' \t") || !strings.HasPrefix(value, "/") || len(value) > 1024 {
-					return "", key + " in " + file + " is not a plain path; the JDK that runs Tomcat is not determined"
-				}
-				javaHome = value
-			case tomcatOptionVars[key]:
-				for _, o := range tomcatRiskyOptions {
-					if strings.Contains(value, o) {
-						return "", key + " in " + file + " has an option (" + o + "...) that can change the TLS settings of Java; its effect is not interpreted"
-					}
-				}
-				if key == "LD_LIBRARY_PATH" {
-					return "", key + " in " + file + " changes where libraries (Tomcat Native) are loaded from"
-				}
-			}
-		}
-	}
-	if javaHome == "" {
-		return "", "JAVA_HOME is not set in " + strings.Join(files, " or ") + "; the JDK that runs Tomcat is not determined"
-	}
-	return javaHome, ""
-}
-
-// tomcatJDK は、JAVA_HOME の指す JDK を探し、その対応表と設定を読む。
-func (c *Collector) tomcatJDK(svc model.Service, javaHome string) (ctx jdkContext, dir, reason string) {
-	var jdkApp ruleset.AppRule
-	found := false
-	for _, a := range c.Rules.Apps {
-		if a.Grammar == "jdk" {
-			jdkApp, found = a, true
-		}
-	}
-	if !found {
-		return ctx, "", "no rule for the JDK is loaded"
-	}
-	real, err := c.Opener.Resolve(c.Prefix + javaHome)
-	if err != nil {
-		return ctx, "", "JAVA_HOME (" + javaHome + ") cannot be followed to a JDK; the JDK that runs Tomcat is not determined"
-	}
-	real = strings.TrimPrefix(real, c.Prefix)
-	// Java 9 以降は conf/security。Java 8 は jre/lib/security（JAVA_HOME が jre を指していれば lib/security）
-	for _, cand := range [][2]string{{real, "/conf/security/java.security"}, {real, "/jre/lib/security/java.security"}, {path.Dir(real), "/jre/lib/security/java.security"}} {
-		if cand[0] != real && path.Base(real) != "jre" {
-			continue
-		}
-		if _, err := c.read(cand[0] + cand[1]); err != nil {
-			continue
-		}
-		jdkApp.Direction = "inbound"
-		ctx, reason = c.jdkRead(jdkApp, svc, cand[0], cand[0]+cand[1])
-		if reason != "" {
-			reason = "the JDK that runs Tomcat (" + cand[0] + "): " + reason
-		}
-		return ctx, cand[0], reason
-	}
-	return ctx, "", "no java.security is found under JAVA_HOME (" + javaHome + "); the JDK that runs Tomcat is not determined"
 }
 
 // tomcatProtocols は、protocols の値を Tomcat と同じ読み方で解釈する（「+」「-」「,」で区切り、「-」は外す。all は表の一覧）。
@@ -415,89 +222,114 @@ func tomcatSuiteAuth(suite string) string {
 	return ""
 }
 
-func (c *Collector) tomcatHost(app ruleset.AppRule, svc model.Service, config, base string, h tomcatHost, tb *ruleset.TomcatTable, build ruleset.CipherBuild,
-	exact bool, pkg model.Package, ctx jdkContext, jdkDir, why, reason string) {
-	// 設定の記載を記録する
+// tomcatSettings は、範囲 1 つについて、server.xml に書かれていた値（解釈できたもの）。
+type tomcatSettings struct {
+	ciphers, protocols       serverxml.Attr
+	hasCiphers, hasProtocols bool
+	wantProtocols            []string // protocols を Tomcat の読み方で解釈したもの（記載がなければ、表の既定）
+	hasCipherSuites          bool
+	hasGroups                bool
+	kinds                    map[string]bool // サーバーの証明書の鍵の種類
+	kindsKnown               bool            // すべての証明書の種類が分かった
+}
+
+// tomcatRecord は、範囲 1 つの設定の記載を検証して記録し、解釈に使う値を返す。解釈できない値があれば、reason に理由が入る。
+func (c *Collector) tomcatRecord(in *tomcatInstall, h tomcatHost) (set tomcatSettings, reason string) {
 	rec := func(directive, value string, line int) {
-		if rule, ok := app.Directive(directive); ok {
-			c.record(app, svc, rule, value, config, line, h.scope, base)
+		if rule, ok := in.app.Directive(directive); ok {
+			c.record(in.app, in.svc, rule, value, in.config, line, h.scope, in.base)
 		}
 	}
-	ciphers, hasCiphers := h.attr("ciphers")
-	protocols, hasProtocols := h.attr("protocols")
-	if hasCiphers && len(ciphers.Value) <= tomcatMaxCiphers && tomcatCiphersValue.MatchString(ciphers.Value) {
-		rec("ciphers", strings.Join(strings.FieldsFunc(ciphers.Value, func(r rune) bool { return r == ':' || r == ',' || r == ' ' }), ":"), ciphers.Line)
-	} else if hasCiphers && reason == "" {
+	set.ciphers, set.hasCiphers = h.attr("ciphers")
+	set.protocols, set.hasProtocols = h.attr("protocols")
+	if set.hasCiphers && len(set.ciphers.Value) <= tomcatMaxCiphers && tomcatCiphersValue.MatchString(set.ciphers.Value) {
+		rec("ciphers", strings.Join(strings.FieldsFunc(set.ciphers.Value, func(r rune) bool { return r == ':' || r == ',' || r == ' ' }), ":"), set.ciphers.Line)
+	} else if set.hasCiphers {
 		reason = "the value of ciphers is not interpreted"
 	}
-	var wantProtocols []string
-	if tb != nil {
-		wantProtocols = tb.ProtocolsAll
+	if in.table != nil {
+		set.wantProtocols = in.table.ProtocolsAll
 	}
-	if hasProtocols && len(protocols.Value) <= 1024 && tomcatProtocolsValue.MatchString(protocols.Value) {
-		if tb != nil {
-			wantProtocols = tomcatProtocols(tb, protocols.Value)
-			if len(wantProtocols) > 0 {
-				rec("protocols", strings.Join(wantProtocols, " "), protocols.Line)
+	if set.hasProtocols && len(set.protocols.Value) <= 1024 && tomcatProtocolsValue.MatchString(set.protocols.Value) {
+		if in.table != nil {
+			set.wantProtocols = tomcatProtocols(in.table, set.protocols.Value)
+			if len(set.wantProtocols) > 0 {
+				rec("protocols", strings.Join(set.wantProtocols, " "), set.protocols.Line)
 			}
 		}
-	} else if hasProtocols && reason == "" {
+	} else if set.hasProtocols && reason == "" {
 		reason = "the value of protocols is not interpreted"
 	}
 	if ks, ok := h.attr("certificateKeystoreFile"); ok && h.legacy {
 		rec("certificateKeystoreFile", ks.Value, ks.Line)
 	}
-	kinds, kindsKnown := map[string]bool{}, len(h.certs) > 0
+	set.kinds, set.kindsKnown = map[string]bool{}, len(h.certs) > 0
 	for _, cert := range h.certs {
 		for _, d := range []string{"certificateFile", "certificateKeyFile", "certificateChainFile", "certificateKeystoreFile"} {
 			if a, ok := cert.Attr[d]; ok {
 				rec(d, a.Value, a.Line)
 			}
 		}
-		kind := ""
-		switch t := strings.ToUpper(strings.TrimSpace(cert.Attr["type"].Value)); t {
-		case "RSA", "EC", "DSA":
-			kind = t
-		case "", "UNDEFINED":
-			// 種類の指定がなければ、証明書のファイルから読む（キーストアの中身は読まない）
-			if a, ok := cert.Attr["certificateFile"]; ok && !strings.ContainsAny(a.Value, "$%") {
-				p := a.Value
-				if !strings.HasPrefix(p, "/") {
-					p = base + "/" + p
-				}
-				if ks, ok := c.certKinds([]string{p}); ok && len(ks) == 1 && ks[0].Key != "other" {
-					kind = ks[0].Key
-				}
-			}
+		if kind := c.tomcatCertKind(in, cert); kind != "" {
+			set.kinds[kind] = true
+		} else {
+			set.kindsKnown = false
 		}
-		if kind == "" {
-			kindsKnown = false
-			continue
-		}
-		kinds[kind] = true
 	}
-	_, hasCipherSuites := h.attr("cipherSuites")
+	_, set.hasCipherSuites = h.attr("cipherSuites")
 	groups, hasGroups := h.attr("groups")
-	if hasGroups {
+	if set.hasGroups = hasGroups; hasGroups {
 		rec("groups", strings.ReplaceAll(strings.ReplaceAll(groups.Value, " ", ""), ",", ":"), groups.Line)
 	}
+	return set, reason
+}
 
-	params := []string{model.ParamTLSProtocols, paramCiphers, paramTLS13, model.ParamTLSGroups}
-	if reason != "" {
-		for _, p := range params {
-			c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: p, Direction: app.Direction, Scope: h.scope,
-				Status: model.StatusUnresolved, Reason: reason})
+// tomcatCertKind は、証明書の鍵の種類（RSA / EC / DSA）を返す。分からなければ空。
+// type 属性があればそれ、なければ証明書のファイルから読む（キーストアの中身は読まない）。
+func (c *Collector) tomcatCertKind(in *tomcatInstall, cert serverxml.Certificate) string {
+	switch t := strings.ToUpper(strings.TrimSpace(cert.Attr["type"].Value)); t {
+	case "RSA", "EC", "DSA":
+		return t
+	case "", "UNDEFINED":
+		a, ok := cert.Attr["certificateFile"]
+		if !ok || strings.ContainsAny(a.Value, "$%") {
+			return ""
 		}
+		p := a.Value
+		if !strings.HasPrefix(p, "/") {
+			p = in.base + "/" + p
+		}
+		if ks, ok := c.certKinds([]string{p}); ok && len(ks) == 1 && ks[0].Key != "other" {
+			return ks[0].Key
+		}
+	}
+	return ""
+}
+
+// tomcatHost は、範囲 1 つについて、設定の記載を記録し、JDK の実装で受け入れるプロトコル・暗号スイート・グループを求めて記録する。
+// reason が空でなければ（JDK の実装で動くと言えない、環境が分からないなど）、値は求めず、その理由を残す。
+func (c *Collector) tomcatHost(in *tomcatInstall, h tomcatHost, why, reason string) {
+	app, svc, tb := in.app, in.svc, in.table
+	set, bad := c.tomcatRecord(in, h)
+	if reason == "" {
+		reason = bad
+	}
+	unresolved := func(reason string, params ...string) {
+		c.unresolved(svc, app.Direction, h.scope, reason, params...)
+	}
+	if reason != "" {
+		unresolved(reason, model.ParamTLSProtocols, paramCiphers, paramTLS13, model.ParamTLSGroups)
 		return
 	}
 
-	// Tomcat の解釈: 暗号指定 → スイートの名前。プロトコルは、SSLv2Hello（接続の始め方の形式で、プロトコルの版ではない）を除く
+	// Tomcat の解釈: 暗号指定 → スイートの名前
 	spec := tb.DefaultCiphers
-	tomcatProv := &model.Provenance{Image: build.Source.Image, OS: build.Source.OS, Package: build.Package, Version: build.Version}
-	first := model.ResolutionStep{Layer: "app-default", Op: "default", Source: tomcatProv}
-	if hasCiphers {
-		spec = ciphers.Value
-		first = model.ResolutionStep{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, paramCiphers, config, ciphers.Line)}
+	tomcatProv := &model.Provenance{Image: in.build.Source.Image, OS: in.build.Source.OS, Package: in.build.Package, Version: in.build.Version}
+	appDefault := model.ResolutionStep{Layer: "app-default", Op: "default", Source: tomcatProv}
+	first := appDefault
+	if set.hasCiphers {
+		spec = set.ciphers.Value
+		first = model.ResolutionStep{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, paramCiphers, in.config, set.ciphers.Line)}
 	}
 	names := tomcatciphers.Expand(tb, spec)
 	tls13Reason, tls13Note := "", ""
@@ -511,49 +343,50 @@ func (c *Collector) tomcatHost(app ruleset.AppRule, svc model.Service, config, b
 		}
 		names = append(only12, tb.DefaultCipherSuites...)
 		switch {
-		case !hasCipherSuites:
+		case !set.hasCipherSuites:
 		case tb.CipherSuitesIgnoredByJDK:
 			tls13Note = "the cipherSuites attribute is set, but with the JDK's TLS implementation it did not change the accepted TLS 1.3 suites on this Tomcat version (measured), so the default is listed"
 		default:
 			tls13Reason = "the cipherSuites attribute is set; its effect with the JDK's TLS implementation has not been measured on this Tomcat version"
 		}
 	}
+	// プロトコルは、SSLv2Hello（接続の始め方の形式で、プロトコルの版ではない）を除く
 	var protos []string
-	for _, p := range wantProtocols {
+	for _, p := range set.wantProtocols {
 		if p != "SSLv2Hello" {
 			protos = append(protos, p)
 		}
 	}
-	r := jsse.ResolveExplicit(ctx.table, ctx.input, protos, names)
+	r := jsse.ResolveExplicit(in.jdk.table, in.jdk.input, protos, names)
 
-	confidence := ctx.confidence
-	notes := []string{"Tomcat runs on the JDK's TLS implementation (JSSE) with the JDK in " + jdkDir + ": " + why,
+	confidence := in.jdk.confidence
+	notes := []string{"Tomcat runs on the JDK's TLS implementation (JSSE) with the JDK in " + in.jdkDir + ": " + why,
 		"Tomcat's own cipher table decides what the ciphers value means; of those, the suites that this JDK supports and has not disabled are accepted",
 		"not read: setenv.sh, environment added by systemd drop-ins, and a Tomcat Native library installed without a package"}
-	notes = append(notes, ctx.notes...)
-	if !exact {
+	notes = append(notes, in.jdk.notes...)
+	if !in.exact {
 		confidence = model.ConfidenceMedium
-		notes = append(notes, "the Tomcat table measured on "+build.Package+" "+build.Version+" is used for the installed "+pkg.Name+" "+
-			pkg.FullVersion()+" (same upstream version and distribution, different release)")
+		notes = append(notes, interpolatedNote("Tomcat", in.build, in.pkg))
 	}
-	steps := []model.ResolutionStep{first, {Layer: "library", Op: "intersect", Source: ctx.prov}, {Layer: ctx.layer, Op: "remove", Setting: ctx.settingID}}
-	emit := func(param string, values []string, conf string, st []model.ResolutionStep, extra ...string) {
+	byJDK := model.ResolutionStep{Layer: "library", Op: "intersect", Source: in.jdk.prov}
+	disabled := model.ResolutionStep{Layer: in.jdk.layer, Op: "remove", Setting: in.jdk.settingID}
+	emit := func(param string, values []string, conf string, first model.ResolutionStep, extra ...string) {
 		if values == nil {
 			values = []string{}
 		}
 		c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: param, Direction: app.Direction, Scope: h.scope,
-			Status: model.StatusResolved, Values: values, Confidence: conf, Steps: st, Notes: append(append([]string{}, notes...), extra...)})
+			Status: model.StatusResolved, Values: values, Confidence: conf, Steps: []model.ResolutionStep{first, byJDK, disabled},
+			Notes: append(append([]string{}, notes...), extra...)})
 	}
-	unresolved := func(param, reason string) {
-		c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: param, Direction: app.Direction, Scope: h.scope,
-			Status: model.StatusUnresolved, Reason: reason})
-	}
-	protoFirst := model.ResolutionStep{Layer: "app-default", Op: "default", Source: tomcatProv}
-	if hasProtocols {
-		protoFirst = model.ResolutionStep{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, model.ParamTLSProtocols, config, protocols.Line)}
-	}
-	emit(model.ParamTLSProtocols, r.Protocols, confidence, []model.ResolutionStep{protoFirst, steps[1], steps[2]})
 
+	// プロトコル
+	protoFirst := appDefault
+	if set.hasProtocols {
+		protoFirst = model.ResolutionStep{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, model.ParamTLSProtocols, in.config, set.protocols.Line)}
+	}
+	emit(model.ParamTLSProtocols, r.Protocols, confidence, protoFirst)
+
+	// 暗号スイート（TLS 1.2 以下と TLS 1.3）
 	var tls12, tls13 []string
 	for _, s := range r.Suites {
 		if !strings.Contains(s, "_WITH_") {
@@ -561,13 +394,13 @@ func (c *Collector) tomcatHost(app ruleset.AppRule, svc model.Service, config, b
 			continue
 		}
 		// サーバーの証明書の種類で成り立たないスイートは除く
-		if a := tomcatSuiteAuth(s); kindsKnown && a != "" && !kinds[a] {
+		if a := tomcatSuiteAuth(s); set.kindsKnown && a != "" && !set.kinds[a] {
 			continue
 		}
 		tls12 = append(tls12, s)
 	}
 	conf12, extra := confidence, []string(nil)
-	if !kindsKnown {
+	if !set.kindsKnown {
 		conf12 = model.ConfidenceMedium
 		extra = append(extra, "the kind of the server certificate is not known (a keystore whose contents are not read, or no type attribute), so the suites are not narrowed by certificate kind; "+
 			"suites that need a kind of certificate the server does not have are not usable")
@@ -575,41 +408,32 @@ func (c *Collector) tomcatHost(app ruleset.AppRule, svc model.Service, config, b
 	if len(h.certs) > 1 {
 		extra = append(extra, "with more than one certificate, Tomcat picks the certificate from the order of the suites the client offers; a client that offers suites for both kinds may be refused a suite that is listed here (measured)")
 	}
-	if hasGroups && (!kindsKnown || kinds["EC"]) {
+	if set.hasGroups && (!set.kindsKnown || set.kinds["EC"]) {
 		// EC の証明書の曲線が groups に含まれないと、ECDSA で認証するスイートは成り立たない（実測）。曲線は読んでいない
-		unresolved(paramCiphers, "the groups attribute is set and the server has (or may have) an EC certificate; whether the ECDSA suites work depends on the curve of that certificate, which is not read")
+		unresolved("the groups attribute is set and the server has (or may have) an EC certificate; whether the ECDSA suites work depends on the curve of that certificate, which is not read", paramCiphers)
 	} else {
-		emit(paramCiphers, tls12, conf12, steps, extra...)
-	}
-	if tls13Reason != "" {
-		unresolved(paramTLS13, tls13Reason)
-	} else {
-		st := steps
-		if tb.CipherSuitesAttribute {
-			st = []model.ResolutionStep{{Layer: "app-default", Op: "default", Source: tomcatProv}, steps[1], steps[2]}
-		}
-		if tls13Note != "" {
-			emit(paramTLS13, tls13, confidence, st, tls13Note)
-		} else {
-			emit(paramTLS13, tls13, confidence, st)
-		}
+		emit(paramCiphers, tls12, conf12, first, extra...)
 	}
 	switch {
-	case hasGroups:
-		unresolved(model.ParamTLSGroups, "the groups attribute is set; its effect depends on the Tomcat and Java versions and has not been resolved")
-	case r.GroupsBlocker != "":
-		unresolved(model.ParamTLSGroups, r.GroupsBlocker)
+	case tls13Reason != "":
+		unresolved(tls13Reason, paramTLS13)
+	case tb.CipherSuitesAttribute && tls13Note != "":
+		emit(paramTLS13, tls13, confidence, appDefault, tls13Note)
+	case tb.CipherSuitesAttribute:
+		emit(paramTLS13, tls13, confidence, appDefault)
 	default:
-		g := append([]string{}, r.Groups13...)
-		in := map[string]bool{}
-		for _, x := range g {
-			in[x] = true
-		}
-		for _, x := range r.Groups12 {
-			if !in[x] {
-				g = append(g, x)
-			}
-		}
-		emit(model.ParamTLSGroups, g, confidence, []model.ResolutionStep{{Layer: "library", Op: "default", Source: ctx.prov}, steps[2]})
+		emit(paramTLS13, tls13, confidence, first)
+	}
+
+	// 鍵交換のグループ
+	switch {
+	case set.hasGroups:
+		unresolved("the groups attribute is set; its effect depends on the Tomcat and Java versions and has not been resolved", model.ParamTLSGroups)
+	case r.GroupsBlocker != "":
+		unresolved(r.GroupsBlocker, model.ParamTLSGroups)
+	default:
+		c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: model.ParamTLSGroups, Direction: app.Direction, Scope: h.scope,
+			Status: model.StatusResolved, Values: jsseGroups(r), Confidence: confidence, Notes: append([]string{}, notes...),
+			Steps: []model.ResolutionStep{{Layer: "library", Op: "default", Source: in.jdk.prov}, disabled}})
 	}
 }

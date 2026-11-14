@@ -225,7 +225,7 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 				}
 			}
 		case strings.HasPrefix(f.Path, "java/") && strings.HasSuffix(f.Path, ".yaml") && strings.Count(f.Path, "/") == 1:
-			var jf jdkFile
+			var jf javaRulesFile
 			if err := decodeStrict(f.Data, &jf); err != nil {
 				return nil, fmt.Errorf("%s: %w", f.Path, err)
 			}

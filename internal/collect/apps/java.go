@@ -300,8 +300,7 @@ func (c *Collector) jdkRead(app ruleset.AppRule, svc model.Service, home, sec st
 			other+"); the table comes from another distributor's build of that version")
 	case !exact:
 		ctx.confidence = model.ConfidenceMedium
-		ctx.notes = append(ctx.notes, "the JDK table measured on "+build.Package+" "+build.Version+" is used for the installed "+pkg.Name+" "+
-			pkg.FullVersion()+" (same upstream version and distribution, different release)")
+		ctx.notes = append(ctx.notes, interpolatedNote("JDK", build, pkg))
 	}
 	return ctx, ""
 }
@@ -310,10 +309,7 @@ func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec st
 	params := []string{model.ParamTLSProtocols, paramCiphers, paramTLS13, model.ParamTLSGroups}
 	ctx, reason := c.jdkRead(app, svc, home, sec)
 	if reason != "" {
-		for _, p := range params {
-			c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: p, Direction: app.Direction, Scope: home,
-				Status: model.StatusUnresolved, Reason: reason})
-		}
+		c.unresolved(svc, app.Direction, home, reason, params...)
 		return
 	}
 	tb := ctx.table
@@ -344,10 +340,22 @@ func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec st
 	emit(paramCiphers, tls12, dheNote)
 	emit(paramTLS13, tls13, nil)
 	if r.GroupsBlocker != "" {
-		c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: model.ParamTLSGroups, Direction: app.Direction, Scope: home,
-			Status: model.StatusUnresolved, Reason: r.GroupsBlocker})
+		c.unresolved(svc, app.Direction, home, r.GroupsBlocker, model.ParamTLSGroups)
 		return
 	}
+	emit(model.ParamTLSGroups, jsseGroups(r), nil)
+}
+
+// unresolved は、指定した項目を「求められない」として、理由とともに記録する。
+func (c *Collector) unresolved(svc model.Service, direction, scope, reason string, params ...string) {
+	for _, p := range params {
+		c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: p, Direction: direction, Scope: scope,
+			Status: model.StatusUnresolved, Reason: reason})
+	}
+}
+
+// jsseGroups は、受け入れる鍵交換のグループを 1 つの一覧にする（TLS 1.3 のもの、続いて TLS 1.2 以下だけのもの）。
+func jsseGroups(r jsse.Result) []string {
 	groups := append([]string{}, r.Groups13...)
 	in := map[string]bool{}
 	for _, g := range groups {
@@ -358,5 +366,11 @@ func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec st
 			groups = append(groups, g)
 		}
 	}
-	emit(model.ParamTLSGroups, groups, nil)
+	return groups
+}
+
+// interpolatedNote は、リリースだけが違うパッケージ版の表で補ったことの注記。
+func interpolatedNote(what string, build ruleset.CipherBuild, pkg model.Package) string {
+	return "the " + what + " table measured on " + build.Package + " " + build.Version + " is used for the installed " + pkg.Name + " " +
+		pkg.FullVersion() + " (same upstream version and distribution, different release)"
 }
