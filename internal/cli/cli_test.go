@@ -1107,3 +1107,46 @@ func TestResultFileLimits(t *testing.T) {
 		t.Errorf("a normal result must be accepted: code=%d stderr=%q", code, stderr)
 	}
 }
+
+// Go の実行環境そのものが読む環境変数（GODEBUG など）が設定されていると、kagiya の挙動が変わりうる。
+// 設定されていたら、名前だけを警告として結果とログに残す（値は残さない）。
+func TestScanWarnsAboutRuntimeEnvironment(t *testing.T) {
+	fx := setup(t)
+	t.Setenv("GODEBUG", "madvdontneed=1,"+secretMarker)
+	t.Setenv("GOTRACEBACK", "crash")
+	if code, _, stderr := run(fx.scanArgs()...); code != 0 {
+		t.Fatalf("exit code %d, stderr: %s", code, stderr)
+	}
+	raw, _ := os.ReadFile(singleFile(t, fx.out, ".json"))
+	var inv struct {
+		Meta struct {
+			Warnings []string `json:"warnings"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(raw, &inv); err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(inv.Meta.Warnings, " | ")
+	if !strings.Contains(joined, "GODEBUG") || !strings.Contains(joined, "GOTRACEBACK") {
+		t.Errorf("warnings = %q", joined)
+	}
+	logRaw, _ := os.ReadFile(singleFile(t, fx.logs, ".log"))
+	if !bytes.Contains(logRaw, []byte(`"event":"runtime-environment"`)) {
+		t.Error("the log does not record the runtime environment variables")
+	}
+	if bytes.Contains(raw, []byte(secretMarker)) || bytes.Contains(logRaw, []byte(secretMarker)) || bytes.Contains(raw, []byte("madvdontneed")) {
+		t.Error("the value of an environment variable is recorded")
+	}
+
+	// 設定されていなければ、警告は出ない
+	t.Setenv("GODEBUG", "")
+	t.Setenv("GOTRACEBACK", "")
+	fx2 := setup(t)
+	if code, _, stderr := run(fx2.scanArgs()...); code != 0 {
+		t.Fatalf("exit code %d, stderr: %s", code, stderr)
+	}
+	raw, _ = os.ReadFile(singleFile(t, fx2.out, ".json"))
+	if bytes.Contains(raw, []byte("GODEBUG")) {
+		t.Error("a warning is recorded although the variable is not set")
+	}
+}
