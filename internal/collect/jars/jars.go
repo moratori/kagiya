@@ -6,7 +6,6 @@
 package jars
 
 import (
-	"path"
 	"strings"
 
 	"kagiya/internal/inventory"
@@ -63,7 +62,8 @@ func (c *Collector) Collect(paths []string) {
 
 func (c *Collector) archive(p string) {
 	// JAR そのものが暗号ライブラリ（単体で置かれたもの）
-	c.library(p, path.Base(p), "")
+	// ディスク上のパスなので、区切りは / と \\ のどちらもありうる（ファイルの扱いは safefs に任せ、ここではパスの文字列だけを見る）
+	c.library(p, p[strings.LastIndexAny(p, "/\\")+1:], "")
 
 	f, err := c.Opener.Open(p)
 	if err != nil {

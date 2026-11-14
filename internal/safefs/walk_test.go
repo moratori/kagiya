@@ -154,12 +154,17 @@ func (f *fakeMounts) ByDevice(major, minor uint32) (Verdict, Mount, bool) {
 	return v, Mount{Major: major, Minor: minor}, ok
 }
 
+// fakeDevice は、どのディレクトリも、fakeMounts が「許可」で返すマウントと同じデバイス（8:1）にあることにする。
+// 実際のデバイス番号は実行環境によって違い、そのままだと「マウント表と合わないデバイス」として起点ごと読み飛ばされる環境がある
+// （CI の amd64 の実行環境で起きた）。
+func fakeDevice(fs.FileInfo) (uint32, uint32, bool) { return 8, 1, true }
+
 func TestWalkSkipsNetworkFSWithoutTouching(t *testing.T) {
 	root := tmpDir(t)
 	write(t, root+"/local/a.pem", "A")
 	write(t, root+"/mnt/share/b.pem", "B")
 	m := &fakeMounts{denied: map[string]string{root + "/mnt/share": "nfs4"}}
-	res := run(t, &Walker{Mounts: m}, root)
+	res := run(t, &Walker{Mounts: m, devOf: fakeDevice}, root)
 	if strings.Join(res.files, ",") != "/local/a.pem" {
 		t.Errorf("visited %v", res.files)
 	}
@@ -178,7 +183,7 @@ func TestWalkRootOnDeniedMountIsSkipped(t *testing.T) {
 	root := tmpDir(t)
 	write(t, root+"/a.pem", "A")
 	m := &fakeMounts{denied: map[string]string{filepath.Dir(root): "cifs"}}
-	res := run(t, &Walker{Mounts: m}, root)
+	res := run(t, &Walker{Mounts: m, devOf: fakeDevice}, root)
 	if len(res.files) != 0 {
 		t.Errorf("visited %v", res.files)
 	}

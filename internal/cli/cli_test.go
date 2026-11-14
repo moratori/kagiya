@@ -84,6 +84,28 @@ func (fx fixture) scanArgs(extra ...string) []string {
 		"--exclude", fx.root + "/excluded", "--cpu-limit", "100", "--io-limit", "0", "--label", "system=test"}, extra...)
 }
 
+// noProblemsUnder は、スキャンの結果に、root の下のファイルについての「問題のある読み飛ばし」がないことを確かめる。
+// スキャンは実行環境そのもの（/etc の設定など）も読むので、--strict の終了コードで確かめると、テストの対象と関係のない
+// 読み飛ばし（root 以外で実行したときに読めない設定ファイルなど）で失敗する。対象のディレクトリの下だけを見る。
+func noProblemsUnder(t *testing.T, outDir, root string) {
+	t.Helper()
+	raw, err := os.ReadFile(singleFile(t, outDir, ".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var inv struct {
+		Skipped []struct{ Path, Reason, Detail string } `json:"skipped"`
+	}
+	if err := json.Unmarshal(raw, &inv); err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range inv.Skipped {
+		if strings.HasPrefix(s.Path, root) && s.Reason != "excluded" && s.Reason != "not-found" {
+			t.Errorf("a file under the scanned directory was skipped: %s (%s %s)", s.Path, s.Reason, s.Detail)
+		}
+	}
+}
+
 func singleFile(t *testing.T, dir, suffix string) string {
 	t.Helper()
 	ents, err := os.ReadDir(dir)
@@ -400,9 +422,10 @@ func TestScanTrustedCertificateWithAuxData(t *testing.T) {
 	os.WriteFile(fx.root+"/trust/ca-bundle.trust.crt", block, 0o644)
 
 	if code, _, stderr := run("scan", "--roots", fx.root+"/trust", "--output-dir", fx.out, "--log-dir", fx.logs,
-		"--cpu-limit", "100", "--io-limit", "0", "--strict"); code != 0 {
+		"--cpu-limit", "100", "--io-limit", "0"); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
+	noProblemsUnder(t, fx.out, fx.root)
 	raw, _ := os.ReadFile(singleFile(t, fx.out, ".json"))
 	if !bytes.Contains(raw, []byte(`"id": "cert:sha256:`+fp(fx.ecDER)+`"`)) {
 		t.Errorf("trusted certificate was not recognised (fingerprint must cover the certificate only)")
@@ -439,10 +462,11 @@ func TestScanKeyMaterial(t *testing.T) {
 		os.WriteFile(filepath.Join(root, to), data, 0o600)
 	}
 
-	code, _, stderr := run("scan", "--roots", root, "--output-dir", out, "--log-dir", logs, "--cpu-limit", "100", "--io-limit", "0", "--strict")
+	code, _, stderr := run("scan", "--roots", root, "--output-dir", out, "--log-dir", logs, "--cpu-limit", "100", "--io-limit", "0")
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
+	noProblemsUnder(t, out, root)
 	raw, _ := os.ReadFile(singleFile(t, out, ".json"))
 	logRaw, _ := os.ReadFile(singleFile(t, logs, ".log"))
 
@@ -496,8 +520,11 @@ func TestScanKeyMaterial(t *testing.T) {
 	if err := json.Unmarshal(raw, &inv); err != nil {
 		t.Fatal(err)
 	}
-	if len(inv.Skipped) != 0 {
-		t.Errorf("skipped: %+v", inv.Skipped)
+	// 鍵素材のディレクトリの下に、読み飛ばしがないこと（実行環境そのものの設定の読み飛ばしは、ここでは見ない）
+	for _, sk := range inv.Skipped {
+		if strings.HasPrefix(sk.Path, root) {
+			t.Errorf("skipped: %+v", sk)
+		}
 	}
 	types := map[string]int{}
 	asset := map[string]int{}
