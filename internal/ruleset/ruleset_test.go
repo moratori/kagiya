@@ -1174,3 +1174,113 @@ func TestBuiltinJDKTableForJavaVersion(t *testing.T) {
 		t.Error("application defaults must not be matched across distributions")
 	}
 }
+
+// Tomcat の対応表を読み込める。出典のない表、形のおかしい表は受け付けない。
+func TestLoadTomcatTables(t *testing.T) {
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	with := func(y string) map[string]string {
+		m := map[string]string{"java/t.yaml": y}
+		for k, v := range base {
+			m[k] = v
+		}
+		return m
+	}
+	head := "tomcat_tables:\n  - server: mycat\n    upstream: \"10.1.5\"\n"
+	build := "    builds:\n      - package: mycat10\n        version: \"10.1.5-1~deb13u1\"\n        source:\n          image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n          os: \"X\"\n"
+	flags := "    default_ciphers: \"HIGH:!kRSA\"\n    protocols_all: [SSLv2Hello, TLSv1.2, TLSv1.3]\n    ciphersuites_attribute: true\n    default_ciphersuites: [TLS_AES_256_GCM_SHA384]\n    strength_ends: true\n    native_required: [\"1.3.4\", \"2.0.12\"]\n"
+	suites := "    suites:\n      - {name: TLS_RSA_WITH_AES_128_CBC_SHA, id: \"0x00,0x2F\", jsse: [TLS_RSA_WITH_AES_128_CBC_SHA], words: [\"AES128-SHA\", \"TLS_RSA_WITH_AES_128_CBC_SHA\"]}\n" +
+		"      - {name: TLS_AES_256_GCM_SHA384, id: \"0x13,0x02\", jsse: [TLS_AES_256_GCM_SHA384], words: [\"TLS_AES_256_GCM_SHA384\"]}\n"
+	classes := "    classes:\n      \"HIGH\": [0, 1]\n      \"kRSA\": [0]\n"
+	ok := head + build + flags + suites + classes
+	rs, err := Load(mapFS(with(ok)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tb, b, exact, found := rs.TomcatTableFor("mycat", "mycat10", "10.1.5-1~deb13u1")
+	if !found || !exact || b.Source.OS != "X" {
+		t.Fatalf("found=%v exact=%v build=%+v", found, exact, b)
+	}
+	if tb.DefaultCiphers != "HIGH:!kRSA" || len(tb.ProtocolsAll) != 3 || !tb.CipherSuitesAttribute || len(tb.DefaultCipherSuites) != 1 || !tb.StrengthEnds ||
+		strings.Join(tb.NativeRequired, " ") != "1.3.4 2.0.12" || len(tb.Suites) != 2 {
+		t.Errorf("table = %+v", tb)
+	}
+	// 語を引く: 複数のスイートを指す語と、スイートの名前
+	if got, ok := tb.Word("HIGH"); !ok || len(got) != 2 || got[0] != 0 || got[1] != 1 {
+		t.Errorf("HIGH = %v %v", got, ok)
+	}
+	if got, ok := tb.Word("AES128-SHA"); !ok || len(got) != 1 || got[0] != 0 {
+		t.Errorf("AES128-SHA = %v %v", got, ok)
+	}
+	if _, ok := tb.Word("high"); ok {
+		t.Error("words are case sensitive")
+	}
+	// リリースだけが違う版は補間し、上流の版が違うものは代用しない
+	if tb2, _, exact, found := rs.TomcatTableFor("mycat", "mycat10", "10.1.5-2~deb13u1"); !found || exact || tb2 != tb {
+		t.Errorf("interpolated lookup: found=%v exact=%v", found, exact)
+	}
+	for _, c := range [][3]string{{"mycat", "mycat10", "10.1.6-1~deb13u1"}, {"mycat", "other", "10.1.5-1~deb13u1"}, {"tomcat", "mycat10", "10.1.5-1~deb13u1"}} {
+		if _, _, _, found := rs.TomcatTableFor(c[0], c[1], c[2]); found {
+			t.Errorf("%v must not match any table", c)
+		}
+	}
+	for name, y := range map[string]string{
+		"no builds":          head + flags + suites + classes,
+		"no source":          head + "    builds:\n      - package: mycat10\n        version: \"10.1.5-1~deb13u1\"\n" + flags + suites + classes,
+		"wrong upstream":     "tomcat_tables:\n  - server: mycat\n    upstream: \"10.1.6\"\n" + build + flags + suites + classes,
+		"no suites":          head + build + flags + classes,
+		"no default ciphers": head + build + strings.Replace(flags, "    default_ciphers: \"HIGH:!kRSA\"\n", "", 1) + suites + classes,
+		"no protocols":       head + build + strings.Replace(flags, "    protocols_all: [SSLv2Hello, TLSv1.2, TLSv1.3]\n", "", 1) + suites + classes,
+		"index out of range": head + build + flags + suites + "    classes:\n      \"HIGH\": [0, 2]\n",
+		"negative index":     head + build + flags + suites + "    classes:\n      \"HIGH\": [-1]\n",
+		"class is a name":    head + build + flags + suites + "    classes:\n      \"AES128-SHA\": [1]\n",
+		"bad word":           head + build + flags + suites + "    classes:\n      \"HI GH\": [0]\n",
+		"duplicate suite":    head + build + flags + suites + "      - {name: TLS_AES_256_GCM_SHA384, id: \"0x13,0x02\", jsse: [TLS_AES_256_GCM_SHA384], words: []}\n" + classes,
+		"bad jsse name":      head + build + flags + "    suites:\n      - {name: TLS_X, id: \"0x00,0x2F\", jsse: [\"TLS X\"], words: []}\n" + classes,
+		"bad native version": head + build + strings.Replace(flags, "\"2.0.12\"", "\"two\"", 1) + suites + classes,
+		"tls13 not in table": head + build + strings.Replace(flags, "[TLS_AES_256_GCM_SHA384]", "[TLS_AES_128_GCM_SHA256]", 1) + suites + classes,
+		"unknown key":        head + build + flags + "    surprise: 1\n" + suites + classes,
+		"duplicate build":    ok + "  - server: mycat\n    upstream: \"10.1.5\"\n" + build + flags + suites + classes,
+	} {
+		if _, err := Load(mapFS(with(y))); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+}
+
+// 内蔵の Tomcat の対応表が読め、パッケージ版から引ける。
+func TestBuiltinTomcatTables(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tb, b, exact, ok := rs.TomcatTableFor("tomcat", "tomcat10", "10.1.60-1~deb13u1")
+	if !ok || !exact || !strings.Contains(b.Source.Image, "debian@sha256:") {
+		t.Fatalf("exact lookup: ok=%v exact=%v build=%+v", ok, exact, b)
+	}
+	if tb.DefaultCiphers != "HIGH:!aNULL:!eNULL:!DES:!RC4:!MD5:!kRSA" || !tb.CipherSuitesAttribute || len(tb.DefaultCipherSuites) != 3 || len(tb.Suites) < 200 ||
+		strings.Join(tb.NativeRequired, " ") != "1.3.9 2.0.16" {
+		t.Errorf("table: ciphers=%q attribute=%v tls13=%v suites=%d native=%v", tb.DefaultCiphers, tb.CipherSuitesAttribute, tb.DefaultCipherSuites, len(tb.Suites), tb.NativeRequired)
+	}
+	// RHEL 系の 9.0.121 は、2 つのディストリの版で同じ表
+	for _, v := range []string{"9.0.121-1.el8_10", "9.0.121-1.el9_8"} {
+		if _, _, exact, ok := rs.TomcatTableFor("tomcat", "tomcat", v); !ok || !exact {
+			t.Errorf("tomcat %s: ok=%v exact=%v", v, ok, exact)
+		}
+	}
+	// 古い版は、TLS 1.3 のスイートを別の属性で持たない
+	old, _, _, ok := rs.TomcatTableFor("tomcat", "tomcat9", "9.0.31-1ubuntu0.9")
+	if !ok || old.CipherSuitesAttribute || len(old.DefaultCipherSuites) != 0 || strings.Join(old.NativeRequired, " ") != "1.2.14" {
+		t.Errorf("9.0.31: ok=%v %v %v %v", ok, old.CipherSuitesAttribute, old.DefaultCipherSuites, old.NativeRequired)
+	}
+	// どの表も出典を持ち、既定の暗号指定に出てくる語を引ける
+	if len(rs.TomcatTables) < 7 {
+		t.Errorf("tables = %d", len(rs.TomcatTables))
+	}
+	for _, tb := range rs.TomcatTables {
+		for _, w := range []string{"HIGH", "aNULL", "kRSA", "MD5"} {
+			if got, ok := tb.Word(w); !ok || len(got) == 0 {
+				t.Errorf("Tomcat %s: word %s not found", tb.Upstream, w)
+			}
+		}
+	}
+}
