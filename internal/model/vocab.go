@@ -14,6 +14,16 @@ const (
 	ConfidenceMedium = "medium" // 近い版の実測を当てはめた、または絞り込みの一部をしていない
 )
 
+// 実効値の読み方についての説明（EffectiveValue.Qualifiers）。確度を下げる理由にはしない（docs/confidence.md の 6.5〜6.7 節）。
+const (
+	// 証明書の種類が分からないので、RSA の証明書の場合と EC の証明書の場合に受け入れるものを、合わせて挙げた
+	QualifierAnyCertificateKind = "any-certificate-kind"
+	// 動かす JDK を 1 つに決められず、見つけた JDK のどれで動いていても同じ値だった
+	QualifierAnyJDKFound = "any-jdk-found"
+	// 受け入れるものが 1 つもない設定
+	QualifierNothingAccepted = "nothing-accepted"
+)
+
 // 利用の確からしさ（Activity.Level）。
 const (
 	ActivityRunning    = "running"    // 稼働中のプロセスが使っている

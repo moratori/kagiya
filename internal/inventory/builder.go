@@ -4,6 +4,7 @@ package inventory
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"kagiya/internal/confidence"
 	"regexp"
 	"runtime"
 	"sort"
@@ -190,7 +191,7 @@ func (b *Builder) AddService(s model.Service) { b.services = append(b.services, 
 func (b *Builder) Settings() []model.Setting { return b.settings }
 
 // AddEffective は実効値を記録する。
-func (b *Builder) AddEffective(e model.EffectiveValue) {
+func (b *Builder) AddEffective(e model.EffectiveValue, rules ...confidence.Rule) {
 	key := e.Service + "\x00" + e.Parameter + "\x00" + e.Direction
 	if e.Scope != "" {
 		key += "\x00" + e.Scope

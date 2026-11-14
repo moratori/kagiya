@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"kagiya/internal/confidence"
 	"kagiya/internal/logx"
 	"kagiya/internal/model"
 	"kagiya/internal/ruleset"
@@ -178,5 +179,45 @@ func TestUnmeasuredIsDeduplicatedAndSorted(t *testing.T) {
 	got := b.Inventory().Unmeasured
 	if len(got) != 2 || got[0].Kind != "app-defaults" || got[1].Name != "openssl-libs" {
 		t.Errorf("unmeasured = %+v", got)
+	}
+}
+
+// 確度は、Builder が、渡されたルールの材料から決める（docs/confidence.md の 4 章の原則 3）。呼び出し側が入れた値は使わない。
+func TestAddEffectiveDecidesConfidence(t *testing.T) {
+	rs, err := ruleset.Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := NewBuilder(rs, logx.New(&bytes.Buffer{}, time.Now))
+	exactVerified := confidence.Rule{Match: confidence.Exact, VerifiedByHandshake: true}
+	filledVerified := confidence.Rule{Match: confidence.Filled, VerifiedByHandshake: true}
+	filledUnverified := confidence.Rule{Match: confidence.Filled, VerifiedByHandshake: false}
+	e := func(param string) model.EffectiveValue {
+		return model.EffectiveValue{Service: "svc:x", Parameter: param, Status: model.StatusResolved, Values: []string{"a"}, Confidence: "low"}
+	}
+	b.AddEffective(e("p.high"), exactVerified)
+	b.AddEffective(e("p.medium"), exactVerified, filledVerified)
+	b.AddEffective(e("p.low"), filledUnverified, exactVerified)
+	b.AddEffective(e("p.configured"), confidence.ConfigurationOnly)
+	// ルールを渡さない呼び出しは、プログラムの誤り。高にはしない
+	b.AddEffective(e("p.none"))
+	// 求められなかった値には、確度も説明も付かない
+	b.AddEffective(model.EffectiveValue{Service: "svc:x", Parameter: "p.unresolved", Status: model.StatusUnresolved, Reason: "r",
+		Confidence: "high", Qualifiers: []string{model.QualifierAnyJDKFound}}, exactVerified)
+	// 説明は、重複をまとめて、決まった並びで残す
+	q := e("p.qualified")
+	q.Qualifiers = []string{model.QualifierNothingAccepted, model.QualifierAnyCertificateKind, model.QualifierNothingAccepted}
+	b.AddEffective(q, exactVerified)
+	want := map[string]string{"p.high": "high", "p.medium": "medium", "p.low": "low", "p.configured": "high", "p.none": "low", "p.unresolved": "", "p.qualified": "high"}
+	for _, got := range b.Inventory().EffectiveValues {
+		if got.Confidence != want[got.Parameter] {
+			t.Errorf("%s: confidence %q, want %q", got.Parameter, got.Confidence, want[got.Parameter])
+		}
+		if got.Parameter == "p.unresolved" && len(got.Qualifiers) != 0 {
+			t.Errorf("an unresolved value has qualifiers: %v", got.Qualifiers)
+		}
+		if got.Parameter == "p.qualified" && strings.Join(got.Qualifiers, ",") != model.QualifierAnyCertificateKind+","+model.QualifierNothingAccepted {
+			t.Errorf("qualifiers = %v", got.Qualifiers)
+		}
 	}
 }

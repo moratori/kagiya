@@ -337,14 +337,16 @@ type SettingLocation struct {
 // 求められなかった場合は Status が unresolved になり、理由を Reason に残す（推測で埋めない）。
 // 「許可されている」値であり、実際の通信でどれが選ばれているかを示すものではない。
 type EffectiveValue struct {
-	ID         string           `json:"id"`
-	Service    string           `json:"service"`
-	Parameter  string           `json:"parameter"`
-	Direction  string           `json:"direction,omitempty"`
-	Scope      string           `json:"scope,omitempty"` // 設定の範囲（nginx の server、Apache の VirtualHost）。全体なら空
-	Status     string           `json:"status"`          // resolved | unresolved
-	Values     []string         `json:"values,omitempty"`
-	Confidence string           `json:"confidence,omitempty"` // high | medium（補間した、または一部の絞り込みができなかった）
+	ID         string   `json:"id"`
+	Service    string   `json:"service"`
+	Parameter  string   `json:"parameter"`
+	Direction  string   `json:"direction,omitempty"`
+	Scope      string   `json:"scope,omitempty"` // 設定の範囲（nginx の server、Apache の VirtualHost）。全体なら空
+	Status     string   `json:"status"`          // resolved | unresolved
+	Values     []string `json:"values,omitempty"`
+	Confidence string   `json:"confidence,omitempty"` // high | medium | low。決め方は docs/confidence.md（internal/confidence だけが決める）
+	// 実効値の読み方についての説明（vocab.go の Qualifier...）。確度とは別に、値が実際より広い場合などを伝える
+	Qualifiers []string         `json:"qualifiers,omitempty"`
 	Reason     string           `json:"reason,omitempty"`
 	Notes      []string         `json:"notes,omitempty"` // 確度を下げた理由など
 	Steps      []ResolutionStep `json:"steps,omitempty"` // どの層の値から、どう求めたか

@@ -71,3 +71,6 @@ func Lowest(levels ...string) string {
 	}
 	return lowest
 }
+
+// ConfigurationOnly は、ルールを 1 つも使わずに求めた実効値（設定ファイルに、名前の一覧がそのまま書かれている場合）に渡す。
+var ConfigurationOnly = Rule{Match: Exact, VerifiedByHandshake: true}
