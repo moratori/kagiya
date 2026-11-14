@@ -1391,3 +1391,57 @@ func TestBuiltinJavaLibraries(t *testing.T) {
 		}
 	}
 }
+
+// アプリに同梱される Tomcat（tomcat-embed-core）の対応表を読み込める。中身が同じ版は 1 つの表にまとめ、版ごとにチェックサムを持つ。
+func TestLoadEmbeddedTomcatTables(t *testing.T) {
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	with := func(y string) map[string]string {
+		m := map[string]string{"java/e.yaml": y}
+		for k, v := range base {
+			m[k] = v
+		}
+		return m
+	}
+	sum := strings.Repeat("ab", 32)
+	head := "tomcat_embedded_tables:\n  - artifact: my-embed-core\n"
+	versions := "    versions:\n      - {version: \"10.1.5\", sha256: \"" + sum + "\"}\n      - {version: \"10.1.6\", sha256: \"" + sum + "\"}\n"
+	source := "    source:\n      image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n      os: \"X\"\n"
+	body := "    default_ciphers: \"HIGH:!kRSA\"\n    protocols_all: [TLSv1.2, TLSv1.3]\n    ciphersuites_attribute: true\n    default_ciphersuites: [TLS_AES_256_GCM_SHA384]\n    strength_ends: true\n" +
+		"    suites:\n      - {name: TLS_RSA_WITH_AES_128_CBC_SHA, id: \"0x00,0x2F\", jsse: [TLS_RSA_WITH_AES_128_CBC_SHA], words: [\"AES128-SHA\"]}\n" +
+		"      - {name: TLS_AES_256_GCM_SHA384, id: \"0x13,0x02\", jsse: [TLS_AES_256_GCM_SHA384], words: [\"TLS_AES_256_GCM_SHA384\"]}\n" +
+		"    classes:\n      \"HIGH\": [0, 1]\n      \"kRSA\": [0]\n"
+	ok := head + versions + source + body
+	rs, err := Load(mapFS(with(ok)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tb, src, found := rs.EmbeddedTomcatTableFor("my-embed-core", "10.1.6")
+	if !found || src.OS != "X" || tb.DefaultCiphers != "HIGH:!kRSA" || len(tb.Suites) != 2 || !tb.CipherSuitesAttribute {
+		t.Fatalf("found=%v source=%+v table=%+v", found, src, tb)
+	}
+	if got, ok := tb.Word("HIGH"); !ok || len(got) != 2 {
+		t.Errorf("HIGH = %v %v", got, ok)
+	}
+	// 版は完全に一致するものだけ（補間しない）。成果物の名前も一致するものだけ
+	for _, c := range [][2]string{{"my-embed-core", "10.1.7"}, {"my-embed-core", "10.1"}, {"other-core", "10.1.5"}, {"my-embed-core", ""}} {
+		if _, _, found := rs.EmbeddedTomcatTableFor(c[0], c[1]); found {
+			t.Errorf("%v must not match", c)
+		}
+	}
+	for name, y := range map[string]string{
+		"no versions":                      head + source + body,
+		"no source":                        head + versions + body,
+		"bad checksum":                     head + strings.Replace(versions, sum, "xyz", 1) + source + body,
+		"duplicate version":                head + versions + "      - {version: \"10.1.5\", sha256: \"" + sum + "\"}\n" + source + body,
+		"same version twice in two tables": ok + "  - artifact: my-embed-core\n" + versions + source + body,
+		"bad version":                      head + "    versions:\n      - {version: \"ten\", sha256: \"" + sum + "\"}\n" + source + body,
+		"no suites":                        head + versions + source + "    default_ciphers: \"HIGH\"\n    protocols_all: [TLSv1.2]\n",
+		"index out of range":               head + versions + source + strings.Replace(body, "[0, 1]", "[0, 5]", 1),
+		"bad artifact":                     "tomcat_embedded_tables:\n  - artifact: \"My Core\"\n" + versions + source + body,
+		"unknown key":                      head + versions + source + "    surprise: 1\n" + body,
+	} {
+		if _, err := Load(mapFS(with(y))); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+}
