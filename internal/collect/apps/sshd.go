@@ -250,3 +250,6 @@ func modifyList(def []string, modifier string, items []string) (out []string, op
 	}
 	return nil, "", false
 }
+
+// sshdMatchScope は、Match の条件を、範囲の名前にする。
+func sshdMatchScope(cond string) string { return "Match " + cond }

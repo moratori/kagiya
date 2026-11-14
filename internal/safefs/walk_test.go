@@ -340,3 +340,32 @@ func TestMountTableByDevice(t *testing.T) {
 		t.Error("ByDevice for unknown device must report not found")
 	}
 }
+
+// zfsMounts は、すべての場所が ZFS の上にあることにする。
+type zfsMounts struct{}
+
+func (zfsMounts) Check(p string) (Verdict, Mount) {
+	return Allow, Mount{MountPoint: "/", FSType: "zfs", Major: 8, Minor: 1}
+}
+func (zfsMounts) ByDevice(major, minor uint32) (Verdict, Mount, bool) {
+	return Allow, Mount{}, false
+}
+
+// ZFS の .zfs（スナップショットの入口）には入らない。開くと、カーネルがスナップショットを自動でマウントする
+// （＝システムのマウントの状態を変える）ため（独立したレビューの指摘 A-10）。ZFS 以外では、同じ名前でもふつうのディレクトリ。
+func TestWalkSkipsZFSSnapshotDirectory(t *testing.T) {
+	root := tmpDir(t)
+	write(t, root+"/.zfs/snapshot/daily/etc/a.pem", "x")
+	write(t, root+"/keep/b.pem", "x")
+	res := run(t, &Walker{Mounts: zfsMounts{}, devOf: fakeDevice}, root)
+	if strings.Join(res.files, ",") != "/keep/b.pem" {
+		t.Errorf("files = %v", res.files)
+	}
+	if s := res.skips["/.zfs"]; s.Reason != "pseudo-fs" {
+		t.Errorf("skip record = %+v", s)
+	}
+	res = run(t, &Walker{Mounts: &fakeMounts{}, devOf: fakeDevice}, root)
+	if len(res.files) != 2 {
+		t.Errorf("on other filesystems a directory named .zfs is an ordinary one: %v", res.files)
+	}
+}

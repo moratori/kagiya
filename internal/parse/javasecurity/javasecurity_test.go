@@ -152,3 +152,16 @@ func TestLoadProblems(t *testing.T) {
 		t.Errorf("ok=%+v problems=%v", e, f.Problems)
 	}
 }
+
+// 長すぎる項目の報告に、項目の名前（行の先頭）を入れない（ほかのパーサと同じく、定型文にする。独立したレビューの指摘 B-2）。
+func TestLongEntryProblemHasNoContent(t *testing.T) {
+	f := Load("/a", mapFS{"/a": "secretlookingname" + strings.Repeat("x", 70000) + "\njdk.tls.disabledAlgorithms=SSLv3\n"}, nil)
+	if len(f.Problems) == 0 {
+		t.Fatal("no problem is reported")
+	}
+	for _, p := range f.Problems {
+		if strings.Contains(p, "secretlooking") {
+			t.Errorf("the problem text contains file content: %s", p[:80])
+		}
+	}
+}

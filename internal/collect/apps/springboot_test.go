@@ -656,3 +656,20 @@ func TestJavaAppsOpenLimit(t *testing.T) {
 		t.Errorf("the archives that were not opened must be recorded: %+v", inv.Skipped)
 	}
 }
+
+// .conf の JAVA_HOME が、見つかっている JDK のどれでもない場所を指している場合は、そこを読みに行かない
+// （JAR を置ける利用者が、任意のディレクトリを JDK として読ませることができてしまうため。独立したレビューの指摘 B-2）。
+func TestSpringBootExecutableJarUnknownJavaHome(t *testing.T) {
+	conf := map[string]string{"application.properties": sbBase + sbKS}
+	_, inv := sbCollect(t, sbHost{config: conf, script: true, unit: sbJar, files: map[string]string{
+		sbConf:                         "JAVA_HOME=/srv/upload/fakejdk\n",
+		"/srv/upload/fakejdk/bin/java": "#!java",
+		"/srv/upload/fakejdk/conf/security/java.security": "jdk.tls.disabledAlgorithms=TLSv1.3\n",
+	}})
+	e := sbEff(t, inv, "tls.ciphersuites-tls13")
+	// 見つかっている JDK（21）の結果になる。偽の JDK の設定（TLS 1.3 を無効にする）は使われない
+	checkSuites(t, e, 3, jdkTLS13, "medium")
+	if n := strings.Join(e.Notes, " "); !strings.Contains(n, "every JDK") || strings.Contains(n, "fakejdk/conf") {
+		t.Errorf("notes = %v", e.Notes)
+	}
+}
