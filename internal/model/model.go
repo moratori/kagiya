@@ -25,8 +25,10 @@ type Inventory struct {
 	Components []Component `json:"components"`
 	// 評価: スキャン時点の評価ポリシーによる判定（参考値。レポートの生成時には、その時点のポリシーで判定し直す）
 	Assessment *Assessment `json:"assessment,omitempty"`
-	Skipped    []Skipped   `json:"skipped"`
-	Coverage   Coverage    `json:"coverage"`
+	// 測定が要る版: 対応表にない版（missing）と、近い版の表で補った版（interpolated）。パッケージの名前と版だけ
+	Unmeasured []Unmeasured `json:"unmeasured,omitempty"`
+	Skipped    []Skipped    `json:"skipped"`
+	Coverage   Coverage     `json:"coverage"`
 }
 
 // Component はアプリケーションのバイナリ、または暗号ライブラリ。
@@ -382,4 +384,15 @@ type Assessment struct {
 	Assets map[string]Verdict `json:"assets"`
 	// 設定から求めた値（「種類:名前」。例 tls-suite:ECDHE-RSA-AES256-GCM-SHA384、ssh-kex:curve25519-sha256）→ 判定
 	Values map[string]Verdict `json:"values"`
+}
+
+// Unmeasured は、対応表（既定値、暗号スイート、JDK など）に、その版そのものがなかったもの。
+// 利用者が、この一覧だけを開発側に渡して、測定を頼めるようにする（場所やホストの情報は含まない）。
+type Unmeasured struct {
+	Kind    string `json:"kind"`    // app-defaults | cipher-table | group-table | jdk | tomcat | spring-boot | embedded-tomcat
+	Name    string `json:"name"`    // パッケージ、または成果物の名前
+	Version string `json:"version"` // 導入されている版
+	Status  string `json:"status"`  // missing: 表になく、値を求められなかった / interpolated: 近い版の表で補った
+	// interpolated のとき、補うのに使った版
+	Measured string `json:"measured,omitempty"`
 }

@@ -163,3 +163,20 @@ func TestGuardYields(t *testing.T) {
 		t.Errorf("yield was called %d times, want 3", n)
 	}
 }
+
+// 測定が要る版の記録は、同じものを 1 つにまとめ、決まった順に並べる。
+func TestUnmeasuredIsDeduplicatedAndSorted(t *testing.T) {
+	rs, err := ruleset.Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := NewBuilder(rs, logx.New(&bytes.Buffer{}, time.Now))
+	for i := 0; i < 3; i++ {
+		b.NoteUnmeasured(model.Unmeasured{Kind: "cipher-table", Name: "openssl-libs", Version: "3.0.7-27.el9", Status: "missing"})
+	}
+	b.NoteUnmeasured(model.Unmeasured{Kind: "app-defaults", Name: "nginx-core", Version: "1.20.1-20.el9", Status: "interpolated", Measured: "1.20.1-32.el9_9.1"})
+	got := b.Inventory().Unmeasured
+	if len(got) != 2 || got[0].Kind != "app-defaults" || got[1].Name != "openssl-libs" {
+		t.Errorf("unmeasured = %+v", got)
+	}
+}

@@ -405,3 +405,6 @@ func (b *Builder) overflow(what string, max int) {
 	b.overflowed[what] = true
 	b.Skip(safefs.Skip{Reason: "limit", Detail: "more than " + strconv.Itoa(max) + " " + what + "; the rest are not recorded"})
 }
+
+// NoteUnmeasured は、対応表にその版そのものがなかったことを記録する。
+func (b *Builder) NoteUnmeasured(u model.Unmeasured) {}

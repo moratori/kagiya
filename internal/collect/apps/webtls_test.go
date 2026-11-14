@@ -407,3 +407,49 @@ func TestNginxEffectiveInterpolatedAppDefaults(t *testing.T) {
 		t.Errorf("notes = %v", e.Notes)
 	}
 }
+
+// 表にない版（測っていない版）と、近い版の表で補った版は、「測定が要るもの」として結果に記録する
+// （利用者が、その一覧だけを開発側に渡せるように。パッケージの名前と版だけで、場所やホストの情報は含まない）。
+func TestUnmeasuredVersionsAreRecorded(t *testing.T) {
+	find := func(inv *model.Inventory, kind, name, version string) (model.Unmeasured, bool) {
+		for _, u := range inv.Unmeasured {
+			if u.Kind == kind && u.Name == name && u.Version == version {
+				return u, true
+			}
+		}
+		return model.Unmeasured{}, false
+	}
+	// 補った版: 開発元の版と系列が同じで、作り直しの番号だけが違う
+	_, inv := collect(t, "ubuntu2404", withPackage("1:9.6p1-3ubuntu13.99", func(p string, b *inventory.Builder) {
+		os.WriteFile(p+"/etc/ssh/sshd_config", []byte("Ciphers aes256-ctr\n"), 0o644)
+	}))
+	if u, ok := find(inv, "app-defaults", "openssh-server", "1:9.6p1-3ubuntu13.99"); !ok || u.Status != "interpolated" || u.Measured != ubuntu2404Version {
+		t.Errorf("interpolated defaults: %+v (all: %+v)", u, inv.Unmeasured)
+	}
+	// 測っていない版: 開発元の版が違う
+	_, inv = collect(t, "ubuntu2404", withPackage("1:9.9p1-1ubuntu1", func(p string, b *inventory.Builder) {
+		os.WriteFile(p+"/etc/ssh/sshd_config", []byte("Ciphers aes256-ctr\n"), 0o644)
+	}))
+	if u, ok := find(inv, "app-defaults", "openssh-server", "1:9.9p1-1ubuntu1"); !ok || u.Status != "missing" || u.Measured != "" {
+		t.Errorf("missing defaults: %+v (all: %+v)", u, inv.Unmeasured)
+	}
+	// 表にある版そのものなら、記録しない
+	_, inv = collect(t, "ubuntu2404", func(p string, b *inventory.Builder) {
+		os.WriteFile(p+"/etc/ssh/sshd_config", []byte("Ciphers aes256-ctr\n"), 0o644)
+	})
+	for _, u := range inv.Unmeasured {
+		if u.Name == "openssh-server" {
+			t.Errorf("a measured version must not be listed: %+v", u)
+		}
+	}
+	// Spring Boot と、同梱の Tomcat
+	plain := map[string]string{"application.properties": sbBase + sbKS}
+	_, inv = sbCollect(t, sbHost{boot: "3.5.99", config: plain, unit: sbStart})
+	if u, ok := find(inv, "spring-boot", "spring-boot", "3.5.99"); !ok || u.Status != "missing" {
+		t.Errorf("spring boot: %+v", inv.Unmeasured)
+	}
+	_, inv = sbCollect(t, sbHost{libs: []string{"spring-boot-3.5.16.jar", "tomcat-embed-core-10.1.999.jar"}, config: plain, unit: sbStart})
+	if u, ok := find(inv, "embedded-tomcat", "tomcat-embed-core", "10.1.999"); !ok || u.Status != "missing" {
+		t.Errorf("embedded tomcat: %+v", inv.Unmeasured)
+	}
+}
