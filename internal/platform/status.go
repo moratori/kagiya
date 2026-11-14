@@ -9,5 +9,6 @@ type Status struct {
 	// 書き込める場所を出力先とログ先だけに限る仕組み（Landlock）: applied | failed | unsupported
 	Landlock       string   `json:"landlock"`
 	MemoryLimitMiB int64    `json:"memory_limit_mib"` // メモリの使用量の上限（Go のソフトリミット）
+	MaxProcs       int      `json:"max_procs"`        // 同時に使うプロセッサの数の上限
 	Notes          []string `json:"notes,omitempty"`
 }

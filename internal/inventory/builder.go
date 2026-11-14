@@ -41,6 +41,11 @@ type Builder struct {
 	skipByReason map[string]int
 	skipTotal    int
 	problemSkips int
+
+	yield       func()         // 処理の区切りごとに呼ぶ（流量制限の休止）
+	skipLogged  map[string]int // 読み飛ばしを 1 件ずつログに書いた数（理由ごと）
+	overflowed  map[string]bool
+	skipSummary bool
 }
 
 func NewBuilder(rs *ruleset.RuleSet, log *logx.Logger) *Builder {
@@ -55,7 +60,19 @@ func (b *Builder) Skip(k safefs.Skip) {
 	if k.Reason != "excluded" && k.Reason != "not-found" && k.Reason != "unrecognized-setting" && k.Reason != "not-interpreted" {
 		b.problemSkips++
 	}
-	b.log.Warn("skip", "path", k.Path, "reason", k.Reason, "detail", k.Detail)
+	// 除外の指定で外したものは、件数だけを数える（「見せたくないので外した」場所の名前を、結果にもログにも残さない。
+	// 名前のパターンで外した場合に、当てはまったファイルの数だけ記録が増えるのも防ぐ）
+	if k.Reason == "excluded" {
+		return
+	}
+	// ログに 1 件ずつ書くのは、理由ごとに決まった数まで。総数は、最後に 1 行で出す
+	if b.skipLogged == nil {
+		b.skipLogged = map[string]int{}
+	}
+	if b.skipLogged[k.Reason] < maxLoggedSkipsPerReason {
+		b.skipLogged[k.Reason]++
+		b.log.Warn("skip", "path", k.Path, "reason", k.Reason, "detail", k.Detail)
+	}
 	if len(b.skipped) < maxSkippedInResult {
 		b.skipped = append(b.skipped, model.Skipped{Path: k.Path, Reason: k.Reason, Detail: k.Detail})
 	}
@@ -72,12 +89,32 @@ func (b *Builder) Asset(id string, make func() model.Asset) *model.Asset {
 	}
 	a := make()
 	a.ID = id
+	max := b.MaxAssets
+	if max <= 0 {
+		max = defaultMaxAssets
+	}
+	if len(b.assets) >= max {
+		// 上限を超えた分は、記録しない（呼び出す側が書き込めるよう、値は返す）
+		b.overflow("assets", max)
+		return &a
+	}
 	b.assets[id] = &a
 	return &a
 }
 
 // Occur は資産の出現を記録する。ID は資産・コレクタ・場所から決まり、スキャンをまたいで安定する。
 func (b *Builder) Occur(assetID, collector string, loc model.Location, detail *model.Detail) {
+	if _, recorded := b.assets[assetID]; !recorded && b.overflowed["assets"] {
+		return // 記録しなかった資産への出現は残さない
+	}
+	max := b.MaxOccurrences
+	if max <= 0 {
+		max = defaultMaxOccurrences
+	}
+	if len(b.occurrences) >= max {
+		b.overflow("occurrences", max)
+		return
+	}
 	h := sha256.Sum256([]byte(assetID + "\x00" + collector + "\x00" + loc.Path + "\x00" + loc.Container + "\x00" + strconv.Itoa(loc.Index)))
 	b.occurrences = append(b.occurrences, model.Occurrence{
 		ID: "occ:" + hex.EncodeToString(h[:12]), Asset: assetID, Collector: collector,
@@ -253,6 +290,17 @@ func (b *Builder) Component(id string, make func() model.Component) *model.Compo
 
 // Inventory は集めた内容を結果の形にする（Meta と走査統計は呼び出し側が埋める）。
 func (b *Builder) Inventory() *model.Inventory {
+	if !b.skipSummary && b.skipTotal > 0 {
+		// 読み飛ばしの、理由ごとの総数と、そのうち 1 件ずつはログに書かなかった数
+		b.skipSummary = true
+		notLogged := map[string]int{}
+		for reason, n := range b.skipByReason {
+			if d := n - b.skipLogged[reason]; d > 0 {
+				notLogged[reason] = d
+			}
+		}
+		b.log.Info("skip-summary", "by_reason", b.skipByReason, "not_logged_one_by_one", notLogged)
+	}
 	b.assignActivity()
 	inv := &model.Inventory{Schema: model.Schema, Assets: []model.Asset{}, Occurrences: b.occurrences, Skipped: b.skipped}
 	inv.Services, inv.Settings = b.services, b.settings
@@ -311,6 +359,9 @@ func (b *Builder) Guard(path, doing string, f func()) {
 	defer func() {
 		r := recover()
 		if r == nil {
+			if b.yield != nil {
+				b.yield()
+			}
 			return
 		}
 		kind := "a panic"
@@ -331,8 +382,26 @@ func (b *Builder) Stopped() bool { return b.stop != nil && b.stop() }
 // maxLoggedSkipsPerReason は、読み飛ばしを 1 件ずつログに書く数の、理由ごとの上限。
 const maxLoggedSkipsPerReason = 1000
 
+// 資産と出現の数の、既定の上限（結果は全体をメモリに持つので、際限なく増えないようにする）。
+const (
+	defaultMaxAssets      = 500_000
+	defaultMaxOccurrences = 2_000_000
+)
+
 // SetYield は、処理の区切りごとに呼ぶ関数（流量制限の休止）を決める。
-func (b *Builder) SetYield(yield func()) {}
+func (b *Builder) SetYield(yield func()) { b.yield = yield }
 
 // Overflowed は、資産や出現の数が上限を超えて、記録を打ち切ったかを返す。
-func (b *Builder) Overflowed() bool { return false }
+func (b *Builder) Overflowed() bool { return len(b.overflowed) > 0 }
+
+// overflow は、上限を超えたことを 1 回だけ記録する。
+func (b *Builder) overflow(what string, max int) {
+	if b.overflowed == nil {
+		b.overflowed = map[string]bool{}
+	}
+	if b.overflowed[what] {
+		return
+	}
+	b.overflowed[what] = true
+	b.Skip(safefs.Skip{Reason: "limit", Detail: "more than " + strconv.Itoa(max) + " " + what + "; the rest are not recorded"})
+}

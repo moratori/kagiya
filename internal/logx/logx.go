@@ -20,7 +20,9 @@ type Logger struct {
 	writeFailure error
 
 	// MaxBytes は、ログ全体の大きさの上限（0 なら上限なし）。
-	MaxBytes int64
+	MaxBytes  int64
+	written   int64
+	truncated bool
 }
 
 func New(w io.Writer, now func() time.Time) *Logger {
@@ -80,6 +82,18 @@ func (l *Logger) log(level, event string, kv []any) {
 		l.warns++
 	case "error":
 		l.errs++
+	}
+	// 大きさの上限: 超える行は書かず、「以降は省略」と 1 回だけ書く（件数は数え続ける）
+	if l.MaxBytes > 0 {
+		if l.truncated {
+			return
+		}
+		if l.written+int64(b.Len()) > l.MaxBytes {
+			l.truncated = true
+			b.Reset()
+			b.WriteString(`{"time":"` + l.now().UTC().Format(time.RFC3339) + `","level":"warn","event":"log-truncated","detail":"the log reached its size limit; later records are not written"}` + "\n")
+		}
+		l.written += int64(b.Len())
 	}
 	if _, err := l.w.Write(b.Bytes()); err != nil && l.writeFailure == nil {
 		l.writeFailure = err

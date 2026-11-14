@@ -45,6 +45,16 @@ var scanHook func(phase string)
 // メモリの使用量の上限（設計書 6 章）。
 const memoryLimitMiB = 512
 
+const (
+	// 同時に使うプロセッサの数。処理は 1 つのゴルーチンで進むので、絞っても速さはほぼ変わらない。絞らないと、メモリの回収が
+	// 空いているコアをすべて使い、「1 コアの 25%」のような上限が守られない
+	maxProcs = 2
+	// --max-file-size に指定できる上限（MiB）。読むファイルは、この大きさまでメモリに載る
+	maxFileSizeLimitMiB = 1024
+	// ログ全体の大きさの上限
+	maxLogBytes = 64 << 20
+)
+
 var labelPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
 
 type scanOptions struct {
@@ -87,7 +97,7 @@ func parseScanOptions(args []string, stderr io.Writer) (*scanOptions, error) {
 	if fs.NArg() != 0 {
 		return nil, fmt.Errorf("unexpected argument %q", fs.Arg(0))
 	}
-	if o.maxFileSizeMiB <= 0 || o.cpuLimit <= 0 || o.cpuLimit > 100 || o.ioLimitMiB < 0 || o.maxDuration < 0 {
+	if o.maxFileSizeMiB <= 0 || o.maxFileSizeMiB > maxFileSizeLimitMiB || o.cpuLimit <= 0 || o.cpuLimit > 100 || o.ioLimitMiB < 0 || o.maxDuration < 0 {
 		return nil, errors.New("invalid limit value")
 	}
 	var err error
@@ -160,6 +170,8 @@ func runScan(args []string, stderr io.Writer) int {
 	// 何かを読む前に、優先度を下げ、通信とプロセス起動を封じる。
 	hardening := platform.Harden()
 	hardening.MemoryLimitMiB = platform.LimitMemory(memoryLimitMiB)
+	runtime.GOMAXPROCS(maxProcs)
+	hardening.MaxProcs = maxProcs
 	started := time.Now().UTC()
 
 	mounts := loadMounts()
@@ -229,6 +241,7 @@ func runScan(args []string, stderr io.Writer) int {
 		return fatal(err)
 	}
 	log := logx.New(logFile, time.Now)
+	log.MaxBytes = maxLogBytes
 	log.Info("scan-start", "scan_id", scanID, "tool_version", Version, "rules_source", rulesMeta.Source,
 		"rules_version", rs.Version, "rules_sha256", rs.SHA256, "roots", opts.roots, "excludes", opts.excludes,
 		"output_dir", opts.outputDir, "elevated", platform.Elevated())
@@ -277,24 +290,14 @@ func runScan(args []string, stderr io.Writer) int {
 	// 止める合図は、処理の区切り（ファイル、JAR、アプリ、コレクタ）と、流量制限の休止の間に確かめる
 	builder.SetStop(stopped)
 	limiter.Stop = stopped
+	// 流量制限の休止は、探索の後のフェーズでも、処理の区切りごとに入れる
+	builder.SetYield(limiter.Yield)
 
 	// パッケージ管理データベース（導入済みパッケージの版）
 	opener := &safefs.Opener{Limiter: limiter, OnSkip: builder.Skip}
 	if mounts.table != nil {
 		opener.Mounts = mounts.table
 	}
-	// OS 全体の暗号設定（暗号ポリシー、OpenSSL のシステム既定の設定、FIPS モード）
-	opener.AllowPseudo = []string{"/proc/sys/crypto"}
-	builder.Guard("", "collecting the OS settings", (&osconf.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect)
-
-	builder.Guard("", "collecting the package records", (&pkgs.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect)
-
-	// アプリケーションのバイナリと、リンクしている暗号ライブラリ
-	builder.Guard("", "collecting the libraries of applications", (&bins.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect)
-
-	// アプリケーションの設定値と、サービスの有効化状態
-	(&apps.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect()
-
 	excludes, _ := safefs.NewExcludes(opts.excludes)
 	walker := &safefs.Walker{
 		Excludes:    excludes,
@@ -307,43 +310,80 @@ func runScan(args []string, stderr io.Writer) int {
 		walker.Mounts = mounts.table
 	}
 
-	incomplete := stopReason()
-	for _, root := range opts.roots {
-		if incomplete != "" {
-			log.Error("scan-incomplete", "reason", incomplete)
-			break
+	// 処理の本体。途中で panic が起きても（コレクタごと・ファイルごとの回復をすり抜けたものでも）、そこまでの結果を
+	// 「未完了」として書き出せるように、ここで受け止める。panic の値は入力の断片を含みうるので、どこにも出さない
+	incomplete := ""
+	func() {
+		current := ""
+		phase := func(name string) {
+			current = name
+			if scanHook != nil {
+				scanHook(name)
+			}
 		}
-		err := walker.Walk(ctx, root, crawl.Visit)
-		switch {
-		case err == nil:
-		case errors.Is(err, context.DeadlineExceeded):
-			incomplete = "max-duration"
-		case errors.Is(err, context.Canceled):
-			incomplete = "interrupted"
-		case errors.Is(err, fs.ErrNotExist):
-			builder.Skip(safefs.Skip{Path: root, Reason: "not-found"})
-		default:
-			builder.Skip(safefs.Skip{Path: root, Reason: "invalid-root"})
-			log.Error("invalid-root", "path", root, "detail", err.Error())
-		}
-		if incomplete != "" {
-			log.Error("scan-incomplete", "reason", incomplete)
-			break
-		}
-	}
+		defer func() {
+			if r := recover(); r != nil {
+				incomplete = "internal-error"
+				log.Error("internal-error", "phase", current)
+			}
+		}()
+		phase("collectors")
+		// OS 全体の暗号設定（暗号ポリシー、OpenSSL のシステム既定の設定、FIPS モード）
+		opener.AllowPseudo = []string{"/proc/sys/crypto"}
+		builder.Guard("", "collecting the OS settings", (&osconf.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect)
 
-	// 探索で見つかった JAR の中の、同梱されている暗号ライブラリ（途中で打ち切られた場合は読まない）
-	if incomplete == "" {
-		archives, more := crawl.Archives()
-		(&jars.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect(archives)
-		// Java のアプリ（Spring Boot）: 見つかった JAR と、起動の定義から参照されている JAR の中の設定
-		(&apps.Collector{Opener: opener, Builder: builder, Rules: rs}).CollectJavaApps(archives)
-		if more > 0 {
-			builder.Skip(safefs.Skip{Path: "", Reason: "limit", Detail: strconv.Itoa(more) + " more archive(s) were found than are kept; they are not opened"})
+		builder.Guard("", "collecting the package records", (&pkgs.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect)
+
+		// アプリケーションのバイナリと、リンクしている暗号ライブラリ
+		builder.Guard("", "collecting the libraries of applications", (&bins.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect)
+
+		// アプリケーションの設定値と、サービスの有効化状態
+		(&apps.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect()
+
+		phase("walk")
+		incomplete = stopReason()
+		for _, root := range opts.roots {
+			if incomplete != "" {
+				log.Error("scan-incomplete", "reason", incomplete)
+				break
+			}
+			err := walker.Walk(ctx, root, crawl.Visit)
+			switch {
+			case err == nil:
+			case errors.Is(err, context.DeadlineExceeded):
+				incomplete = "max-duration"
+			case errors.Is(err, context.Canceled):
+				incomplete = "interrupted"
+			case errors.Is(err, fs.ErrNotExist):
+				builder.Skip(safefs.Skip{Path: root, Reason: "not-found"})
+			default:
+				builder.Skip(safefs.Skip{Path: root, Reason: "invalid-root"})
+				log.Error("invalid-root", "path", root, "detail", err.Error())
+			}
+			if incomplete != "" {
+				log.Error("scan-incomplete", "reason", incomplete)
+				break
+			}
 		}
-		if incomplete = stopReason(); incomplete != "" {
-			log.Error("scan-incomplete", "reason", incomplete)
+
+		// 探索で見つかった JAR の中の、同梱されている暗号ライブラリ（途中で打ち切られた場合は読まない）
+		if incomplete == "" {
+			phase("archives")
+			archives, more := crawl.Archives()
+			(&jars.Collector{Opener: opener, Builder: builder, Rules: rs}).Collect(archives)
+			// Java のアプリ（Spring Boot）: 見つかった JAR と、起動の定義から参照されている JAR の中の設定
+			(&apps.Collector{Opener: opener, Builder: builder, Rules: rs}).CollectJavaApps(archives)
+			if more > 0 {
+				builder.Skip(safefs.Skip{Path: "", Reason: "limit", Detail: strconv.Itoa(more) + " more archive(s) were found than are kept; they are not opened"})
+			}
+			if incomplete = stopReason(); incomplete != "" {
+				log.Error("scan-incomplete", "reason", incomplete)
+			}
 		}
+	}()
+	if incomplete == "" && builder.Overflowed() {
+		incomplete = "limit" // 資産や出現の数が上限を超え、記録を打ち切った
+		log.Error("scan-incomplete", "reason", incomplete)
 	}
 	// ここから先（結果の書き出し）は、止める合図があっても最後まで行う
 	builder.SetStop(nil)
