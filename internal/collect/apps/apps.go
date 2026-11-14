@@ -116,6 +116,8 @@ func (c *Collector) application(app ruleset.AppRule) {
 		c.mysql(app, svc, config)
 	case "jdk":
 		c.jdk(app, svc)
+	case "tomcat":
+		c.tomcat(app, svc, config)
 	}
 }
 

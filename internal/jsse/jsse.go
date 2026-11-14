@@ -342,3 +342,47 @@ func (c *Constraints) groups(named string, on map[string]bool, old bool) (g13, g
 	}
 	return g13, g12, ""
 }
+
+// ResolveExplicit は、アプリが有効にするプロトコルと暗号スイートを自分で指定した場合（Tomcat など）に、受け入れるものを求める。
+//
+// アプリの指定のうち、この JDK が対応していて、無効にされていないものが残る（JDK の既定で有効かどうかは関係しない）。
+// protocols と suites は、アプリが指定した名前（Java での名前）。知らない名前は、JDK が対応していないものとして落とす。
+// Result の Supported は使わない。鍵交換のグループは、アプリが何も指定しない場合と同じ求め方をする。
+func ResolveExplicit(t *ruleset.JDKTable, in Input, protocols, suites []string) Result {
+	c := Parse(t, in.Disabled, in.Properties)
+	var r Result
+	want := map[string]bool{}
+	for _, p := range protocols {
+		want[p] = true
+	}
+	on := map[string]bool{}
+	for _, p := range t.Protocols { // 並びは JDK の表のとおり
+		if want[p.Name] && c.ProtocolAllowed(p.Name) {
+			r.Protocols = append(r.Protocols, p.Name)
+			on[p.Name] = true
+		}
+	}
+	old := on["TLSv1.2"] || on["TLSv1.1"] || on["TLSv1"] || on["SSLv3"]
+	known := map[string]bool{}
+	for _, s := range t.Suites {
+		known[s.Name] = true
+	}
+	seen := map[string]bool{}
+	for _, s := range suites {
+		if s == scsv || seen[s] || !known[s] || c.suiteDisabled(s) {
+			continue
+		}
+		seen[s] = true
+		switch {
+		case tls13Only(s):
+			if !on["TLSv1.3"] {
+				continue
+			}
+		case !old, needsTLS12(s) && !on["TLSv1.2"]:
+			continue
+		}
+		r.Suites = append(r.Suites, s)
+	}
+	r.Groups13, r.Groups12, r.GroupsBlocker = c.groups(in.NamedGroups, on, old)
+	return r
+}

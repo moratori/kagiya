@@ -109,15 +109,20 @@ func (c *Collector) jdkReleaseVersion(home string) string {
 	return ""
 }
 
-func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec string) {
-	params := []string{model.ParamTLSProtocols, paramCiphers, paramTLS13, model.ParamTLSGroups}
-	fail := func(reason string) {
-		for _, p := range params {
-			c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: p, Direction: app.Direction, Scope: home,
-				Status: model.StatusUnresolved, Reason: reason})
-		}
-	}
+// jdkContext は、ある JDK について、対応表と、無効にする方式の設定を読んだ結果。
+type jdkContext struct {
+	table      *ruleset.JDKTable
+	input      jsse.Input // 無効にする方式の値と、include で取り込まれる値
+	prov       *model.Provenance
+	layer      string // 無効にする方式の記載がある層（app-config か os-policy）
+	settingID  string // その記載を記録した設定値の ID
+	confidence string
+	notes      []string // 補間したことの注記
+}
 
+// jdkRead は、JDK のディレクトリ（home）と java.security（sec）から、対応表と設定を読む。根拠になる記載は、svc の設定値として記録する。
+// 求められない場合は、reason に理由が入る。
+func (c *Collector) jdkRead(app ruleset.AppRule, svc model.Service, home, sec string) (ctx jdkContext, reason string) {
 	// 設定値。暗号ポリシーとのつなぎ方は表（その版で確かめたこと）に従うので、先に表を引く
 	pkg, reason := c.jdkPackage(app, home)
 	var tb *ruleset.JDKTable
@@ -228,26 +233,39 @@ func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec st
 		}
 	}
 	if reason != "" {
-		fail(reason)
-		return
+		return jdkContext{}, reason
 	}
-
-	r := jsse.Resolve(tb, jsse.Input{Disabled: disabled.Value, Properties: props})
-	prov := &model.Provenance{Image: build.Source.Image, OS: build.Source.OS, Package: build.Package, Version: build.Version}
-	steps := []model.ResolutionStep{{Layer: "library", Op: "default", Source: prov}, {Layer: layer, Op: "remove", Setting: settingID}}
-	confidence := model.ConfidenceHigh
-	notes := []string{"these are the defaults of this JDK, used unless the application chooses its own protocols, cipher suites or groups; " +
-		"options given when Java is started (-D options, an extra security properties file) are not read"}
+	ctx = jdkContext{table: tb, input: jsse.Input{Disabled: disabled.Value, Properties: props}, layer: layer, settingID: settingID, confidence: model.ConfidenceHigh,
+		prov: &model.Provenance{Image: build.Source.Image, OS: build.Source.OS, Package: build.Package, Version: build.Version}}
 	switch {
 	case other != "":
-		confidence = model.ConfidenceMedium
-		notes = append(notes, "the JDK table measured on "+build.Package+" "+build.Version+" is used for this JDK because its release file reports the same upstream Java version ("+
+		ctx.confidence = model.ConfidenceMedium
+		ctx.notes = append(ctx.notes, "the JDK table measured on "+build.Package+" "+build.Version+" is used for this JDK because its release file reports the same upstream Java version ("+
 			other+"); the table comes from another distributor's build of that version")
 	case !exact:
-		confidence = model.ConfidenceMedium
-		notes = append(notes, "the JDK table measured on "+build.Package+" "+build.Version+" is used for the installed "+pkg.Name+" "+
+		ctx.confidence = model.ConfidenceMedium
+		ctx.notes = append(ctx.notes, "the JDK table measured on "+build.Package+" "+build.Version+" is used for the installed "+pkg.Name+" "+
 			pkg.FullVersion()+" (same upstream version and distribution, different release)")
 	}
+	return ctx, ""
+}
+
+func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec string) {
+	params := []string{model.ParamTLSProtocols, paramCiphers, paramTLS13, model.ParamTLSGroups}
+	ctx, reason := c.jdkRead(app, svc, home, sec)
+	if reason != "" {
+		for _, p := range params {
+			c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: p, Direction: app.Direction, Scope: home,
+				Status: model.StatusUnresolved, Reason: reason})
+		}
+		return
+	}
+	tb := ctx.table
+	r := jsse.Resolve(tb, ctx.input)
+	steps := []model.ResolutionStep{{Layer: "library", Op: "default", Source: ctx.prov}, {Layer: ctx.layer, Op: "remove", Setting: ctx.settingID}}
+	confidence := ctx.confidence
+	notes := append([]string{"these are the defaults of this JDK, used unless the application chooses its own protocols, cipher suites or groups; " +
+		"options given when Java is started (-D options, an extra security properties file) are not read"}, ctx.notes...)
 	emit := func(param string, values, extra []string) {
 		c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: param, Direction: app.Direction, Scope: home,
 			Status: model.StatusResolved, Values: values, Confidence: confidence, Steps: steps,

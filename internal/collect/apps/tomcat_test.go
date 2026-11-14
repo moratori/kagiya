@@ -146,7 +146,7 @@ func TestTomcatConfigured(t *testing.T) {
 		t.Errorf("steps = %s", l)
 	}
 	set := find(inv, "tls.ciphers")
-	if len(set) != 1 || set[0].Location.Path != prefix+tcDebConf || set[0].Location.Line != 6 || strings.Join(set[0].Values, ":") != "ECDHE+AESGCM:ECDHE+CHACHA20:!aNULL" || e.Steps[0].Setting != set[0].ID {
+	if len(set) != 1 || set[0].Location.Path != prefix+tcDebConf || set[0].Location.Line != 7 || strings.Join(set[0].Values, ":") != "ECDHE+AESGCM:ECDHE+CHACHA20:!aNULL" || e.Steps[0].Setting != set[0].ID {
 		t.Errorf("ciphers setting = %+v (step %+v)", set, e.Steps[0])
 	}
 	if ps := find(inv, "tls.protocols"); len(ps) != 1 || strings.Join(ps[0].Values, ",") != "TLSv1.2" {

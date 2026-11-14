@@ -60,6 +60,7 @@ var parameterLabel = map[string]string{
 	"tls.groups":                        "鍵交換のグループ",
 	"tls.prefer-server-ciphers":         "サーバー側の優先順を使う",
 	"tls.certificate":                   "証明書",
+	"tls.keystore":                      "キーストア",
 	"tls.private-key":                   "秘密鍵",
 	"tls.certificate-chain":             "証明書チェーン",
 	"tls.dh-params":                     "DH パラメータ",

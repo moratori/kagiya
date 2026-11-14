@@ -182,7 +182,7 @@ func (rs *RuleSet) addApp(a AppRule, ids map[string]bool) error {
 			return fmt.Errorf("app %q: path %q must be a clean absolute path", a.ID, p)
 		}
 	}
-	if a.Grammar != "" && a.Grammar != "sshd" && a.Grammar != "nginx" && a.Grammar != "apache" && a.Grammar != "haproxy" && a.Grammar != "stunnel" && a.Grammar != "postfix" && a.Grammar != "postgresql" && a.Grammar != "dovecot" && a.Grammar != "mycnf" && a.Grammar != "jdk" {
+	if a.Grammar != "" && a.Grammar != "sshd" && a.Grammar != "nginx" && a.Grammar != "apache" && a.Grammar != "haproxy" && a.Grammar != "stunnel" && a.Grammar != "postfix" && a.Grammar != "postgresql" && a.Grammar != "dovecot" && a.Grammar != "mycnf" && a.Grammar != "jdk" && a.Grammar != "tomcat" {
 		return fmt.Errorf("app %q: unknown grammar %q", a.ID, a.Grammar)
 	}
 	if a.Direction != "" && a.Direction != "inbound" && a.Direction != "outbound" {

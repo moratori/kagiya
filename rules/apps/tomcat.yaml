@@ -1,0 +1,42 @@
+# Apache Tomcat（ディストリのパッケージで導入したもの）。
+# server.xml の Connector / SSLHostConfig / Certificate から、TLS の設定を読む。パスワードの属性は読まない。
+# 受け入れるプロトコルと暗号スイートは、Tomcat の対応表（rules/java/tomcat.yaml）と、Tomcat を動かす JDK の対応表
+# （rules/java/openjdk.yaml）から求める。OpenSSL の実装（Tomcat Native）で動く場合は、まだ求めない。
+app:
+  id: tomcat
+  # 起動に使われるスクリプト（ユニットの ExecStart）。Tomcat 本体は JAR で、実行ファイルはない
+  binaries:
+    - "/usr/libexec/tomcat/server"
+    - "/usr/libexec/tomcat9/tomcat-start.sh"
+    - "/usr/libexec/tomcat10/tomcat-start.sh"
+    - "/usr/libexec/tomcat11/tomcat-start.sh"
+  packages: ["tomcat", "tomcat9", "tomcat10", "tomcat11"]
+  grammar: tomcat
+  config_files:
+    - "/etc/tomcat/server.xml"
+    - "/etc/tomcat9/server.xml"
+    - "/etc/tomcat10/server.xml"
+    - "/etc/tomcat11/server.xml"
+  units: ["tomcat.service", "tomcat9.service", "tomcat10.service", "tomcat11.service"]
+  direction: inbound
+  directives:
+    - { name: protocols, parameter: tls.protocols, type: words }
+    - { name: ciphers, parameter: tls.ciphers, type: cipher-string }
+    - { name: groups, parameter: tls.groups, type: colon-list }
+    - { name: certificateFile, parameter: tls.certificate, type: path }
+    - { name: certificateKeyFile, parameter: tls.private-key, type: path }
+    - { name: certificateChainFile, parameter: tls.certificate-chain, type: path }
+    - { name: certificateKeystoreFile, parameter: tls.keystore, type: path }
+  sources:
+    - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+      os: "Debian GNU/Linux 13 (trixie)"
+      note: "tomcat10 10.1.60-1~deb13u1 / tomcat11 11.0.22-1~deb13u1。設定は /etc/tomcat10/server.xml。ユニットは tomcat10.service（CATALINA_HOME=/usr/share/tomcat10、CATALINA_BASE=/var/lib/tomcat10、ExecStart=/bin/sh /usr/libexec/tomcat10/tomcat-start.sh）。Java は /usr/lib/jvm/default-java（実測で、起動したプロセスは /usr/lib/jvm/java-21-openjdk-arm64/bin/java）"
+    - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "tomcat10 10.1.55-1ubuntu2~24.04.1。配置は Debian と同じ。libtcnative-2 2.0.14-1~24.04.1 が読み込まれ、OpenSSL の実装で動く（起動時の記録: Loaded Apache Tomcat Native library [2.0.14]）"
+    - image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+      os: "Ubuntu 22.04.5 LTS"
+      note: "tomcat9 9.0.58-1ubuntu0.2。設定は /etc/tomcat9/server.xml。libtcnative-1 1.2.31-1build1 が読み込まれ、OpenSSL の実装で動く"
+    - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      note: "tomcat 9.0.121-1.el9_8。設定は /etc/tomcat/server.xml。ユニットは tomcat.service（EnvironmentFile=/etc/tomcat/tomcat.conf と /etc/sysconfig/tomcat、ExecStart=/usr/libexec/tomcat/server start）。/etc/tomcat/tomcat.conf に JAVA_HOME=\"/usr/lib/jvm/jre\"、CATALINA_HOME=\"/usr/share/tomcat\"。Tomcat Native のパッケージはなく、JDK の実装で動く"

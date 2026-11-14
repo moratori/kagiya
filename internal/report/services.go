@@ -96,6 +96,8 @@ func (b *builder) step(s model.ResolutionStep) string {
 		return "既定の一覧の先頭に追加" + at
 	case "profile":
 		return "システムの暗号ポリシーの内容に置き換え"
+	case "intersect":
+		return "実行環境（JDK）が対応しているものに限定" + src
 	case "expand":
 		return "暗号ライブラリでの展開" + src
 	case "security-level":

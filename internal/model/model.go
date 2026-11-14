@@ -338,7 +338,7 @@ type EffectiveValue struct {
 // ResolutionStep は、実効値を求める過程の1段。
 type ResolutionStep struct {
 	Layer   string      `json:"layer"`             // app-default | os-policy | app-config | library
-	Op      string      `json:"op"`                // default | override | append | remove | prepend | profile | expand | security-level | filter-certificates | filter-dh-parameters
+	Op      string      `json:"op"`                // default | override | append | remove | prepend | profile | expand | security-level | filter-certificates | filter-dh-parameters | intersect
 	Setting string      `json:"setting,omitempty"` // 根拠になった設定値の ID
 	Source  *Provenance `json:"source,omitempty"`  // 既定値の出典
 }
