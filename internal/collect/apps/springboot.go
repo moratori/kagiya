@@ -11,6 +11,7 @@ import (
 	"kagiya/internal/parse/jarfile"
 	"kagiya/internal/parse/javacmd"
 	"kagiya/internal/parse/springconf"
+	"kagiya/internal/parse/supervisorconf"
 	"kagiya/internal/parse/unitfile"
 	"kagiya/internal/ruleset"
 	"kagiya/internal/safefs"
@@ -53,14 +54,68 @@ var springEnvOverrides = []string{"SERVER_SSL_", "SPRING_SSL_", "SPRING_CONFIG_"
 
 // javaLaunch は、起動の定義から読んだ、Java アプリの起動のしかた。
 type javaLaunch struct {
-	unit    unitInfo
-	cmd     javacmd.Command
-	workDir string
+	name     string         // 説明に出す、起動の定義の名前（ユニット名、または supervisord のプログラム名と設定ファイル）
+	activity model.Activity // 起動するよう設定されているか
+	cmd      javacmd.Command
+	workDir  string
 	// 環境変数による指定
 	envProfiles    []string
 	envProfilesSet bool
 	envOverride    string // 空でなければ、TLS の設定を上書きする環境変数の名前
 	envRisky       string // 空でなければ、Java の起動オプションを足す環境変数に、TLS の設定を変えうる指定がある
+	envUnknown     string // 空でなければ、値を確定できない環境変数（置き換えを含む）のうち、結果に関わるものの名前
+}
+
+// applyEnv は、起動の定義の環境変数を調べる（プロファイルの指定、TLS の設定の上書き、Java の起動オプションの追加）。
+// unknown は、値を確定できなかった環境変数の名前。
+func (l *javaLaunch) applyEnv(env map[string]string, unknown map[string]bool) {
+	relevant := func(name string) bool {
+		if name == "SPRING_PROFILES_ACTIVE" || name == "JAVA_TOOL_OPTIONS" || name == "JDK_JAVA_OPTIONS" {
+			return true
+		}
+		for _, prefix := range springEnvOverrides {
+			if strings.HasPrefix(name, prefix) {
+				return true
+			}
+		}
+		return false
+	}
+	for name := range unknown {
+		if relevant(name) && (l.envUnknown == "" || name < l.envUnknown) {
+			l.envUnknown = name
+		}
+	}
+	for name, value := range env {
+		switch {
+		case name == "SPRING_PROFILES_ACTIVE":
+			l.envProfilesSet = true
+			for _, p := range strings.Split(value, ",") {
+				if p = strings.TrimSpace(p); p != "" {
+					l.envProfiles = append(l.envProfiles, p)
+				}
+			}
+		case name == "JAVA_TOOL_OPTIONS" || name == "JDK_JAVA_OPTIONS":
+			if c2, ok := javacmd.Parse(append(append([]string{"/java"}, strings.Fields(value)...), "-jar", "x.jar")); !ok || c2.Risky != "" || c2.Overrides {
+				l.envRisky = name
+			}
+		case relevant(name):
+			if l.envOverride == "" || name < l.envOverride {
+				l.envOverride = name
+			}
+		}
+	}
+}
+
+// jarPath は、起動コマンドの JAR の絶対パスを返す（相対パスは作業ディレクトリから。決まらなければ空）。
+func (l *javaLaunch) jarPath() string {
+	jar := l.cmd.Jar
+	if !strings.HasPrefix(jar, "/") {
+		if l.workDir == "" {
+			return ""
+		}
+		jar = l.workDir + "/" + jar
+	}
+	return path.Clean(jar)
 }
 
 // CollectJavaApps は、Java のアプリ（いまは Spring Boot）を調べる。archives は、探索で見つかった JAR（接頭辞つきの絶対パス）。
@@ -143,45 +198,74 @@ func (c *Collector) javaLaunches() map[string]*javaLaunch {
 			if !ok {
 				continue
 			}
-			l := &javaLaunch{unit: u, cmd: cmd}
+			tmp := ruleset.AppRule{Units: []string{u.name}}
+			l := &javaLaunch{name: u.name, cmd: cmd, activity: c.activity(tmp, []unitInfo{u}, false, model.Component{})}
 			if wd := u.unit.Values("Service", "WorkingDirectory"); len(wd) > 0 && strings.HasPrefix(wd[len(wd)-1], "/") {
 				l.workDir = path.Clean(wd[len(wd)-1])
 			}
-			jar := cmd.Jar
-			if !strings.HasPrefix(jar, "/") {
-				if l.workDir == "" {
-					continue // 相対パスの JAR は、作業ディレクトリが分からなければ決まらない
-				}
-				jar = l.workDir + "/" + jar
+			jar := l.jarPath()
+			if jar == "" {
+				continue // 相対パスの JAR は、作業ディレクトリが分からなければ決まらない
 			}
-			jar = path.Clean(jar)
+			env := map[string]string{}
 			for name, v := range c.unitEnv(u) {
-				switch {
-				case name == "SPRING_PROFILES_ACTIVE":
-					l.envProfilesSet = true
-					for _, p := range strings.Split(v.value, ",") {
-						if p = strings.TrimSpace(p); p != "" {
-							l.envProfiles = append(l.envProfiles, p)
-						}
-					}
-				case name == "JAVA_TOOL_OPTIONS" || name == "JDK_JAVA_OPTIONS":
-					if c2, ok := javacmd.Parse(append(append([]string{"/java"}, strings.Fields(v.value)...), "-jar", "x.jar")); !ok || c2.Risky != "" || c2.Overrides {
-						l.envRisky = name
-					}
-				default:
-					for _, prefix := range springEnvOverrides {
-						if strings.HasPrefix(name, prefix) && (l.envOverride == "" || name < l.envOverride) {
-							l.envOverride = name
-						}
-					}
-				}
+				env[name] = v.value
 			}
+			l.applyEnv(env, nil)
 			if _, dup := out[jar]; !dup {
 				out[jar] = l
 			}
 		}
 	}
+	c.supervisorLaunches(out)
 	return out
+}
+
+// supervisord の設定ファイルの置き場（Debian / Ubuntu の supervisor パッケージで確かめた。本体の設定が conf.d/*.conf を取り込む）。
+var supervisorFiles = []string{"/etc/supervisor/supervisord.conf", "/etc/supervisor/conf.d/*.conf"}
+
+const supervisorUnit = "supervisor.service"
+
+// supervisorLaunches は、supervisord のプログラムのうち「java ... -jar <JAR>」で起動するものを、out に足す（systemd のユニットの定義がある JAR は、そちらを使う）。
+func (c *Collector) supervisorLaunches(out map[string]*javaLaunch) {
+	var files []string
+	for _, pattern := range supervisorFiles {
+		if strings.Contains(pattern, "*") {
+			files = append(files, c.globDeep(pattern)...)
+		} else {
+			files = append(files, pattern)
+		}
+	}
+	// supervisord そのものが、起動するよう設定されているか
+	enabled := c.activity(ruleset.AppRule{Units: []string{supervisorUnit}}, nil, false, model.Component{})
+	for _, file := range files {
+		data, err := c.read(file)
+		if err != nil {
+			continue
+		}
+		for _, p := range supervisorconf.Parse(data) {
+			if p.Unexpanded {
+				continue // 置き換え（%(...)s）があると、どの JAR を起動するのか決まらない
+			}
+			cmd, ok := javacmd.Parse(p.Argv)
+			if !ok {
+				continue
+			}
+			l := &javaLaunch{name: "the supervisord program " + p.Name + " (" + file + ")", cmd: cmd, workDir: p.Directory}
+			l.activity = model.Activity{Level: model.ActivityInstalled, Evidence: []model.Evidence{{Kind: "supervisor-program", Path: c.Prefix + file, Detail: p.Name}}}
+			if p.Autostart && enabled.Level == model.ActivityEnabled {
+				l.activity = model.Activity{Level: model.ActivityEnabled, Evidence: append(enabled.Evidence, l.activity.Evidence...)}
+			}
+			jar := l.jarPath()
+			if jar == "" {
+				continue
+			}
+			l.applyEnv(p.Env, p.EnvUnexpanded)
+			if _, dup := out[jar]; !dup {
+				out[jar] = l
+			}
+		}
+	}
 }
 
 // springBoot は、JAR 1 つを調べる。Spring Boot のアプリであれば記録して true を返す。
@@ -216,9 +300,7 @@ func (c *Collector) springBoot(app ruleset.AppRule, jar string, launch *javaLaun
 	svc := model.Service{ID: "svc:" + app.ID + ":" + jar, App: app.ID, ConfigFiles: []string{c.Prefix + jar}}
 	svc.Activity = model.Activity{Level: model.ActivityInstalled, Evidence: []model.Evidence{{Kind: "archive-present", Path: c.Prefix + jar}}}
 	if launch != nil {
-		tmp := app
-		tmp.Units = []string{launch.unit.name}
-		svc.Activity = c.activity(tmp, []unitInfo{launch.unit}, false, model.Component{})
+		svc.Activity = launch.activity
 	}
 	c.Builder.AddService(svc)
 
@@ -492,12 +574,14 @@ func (sb *springBootApp) outside(a *jarfile.Archive) string {
 		switch {
 		case l.cmd.Risky != "":
 			return "the application is started with an option (" + l.cmd.Risky + "...) that can change the TLS settings of Java; its effect is not interpreted"
+		case l.envUnknown != "":
+			return "the value of " + l.envUnknown + " in the environment of " + l.name + " is not determined (it is filled in when the application is started)"
 		case l.envRisky != "":
-			return l.envRisky + " in the environment of " + l.unit.name + " adds Java options that are not interpreted"
+			return l.envRisky + " in the environment of " + l.name + " adds Java options that are not interpreted"
 		case l.cmd.Overrides:
-			return "TLS settings or the location of configuration files are given on the command line in " + l.unit.name + "; they override the configuration in the JAR and are not interpreted"
+			return "TLS settings or the location of configuration files are given on the command line in " + l.name + "; they override the configuration in the JAR and are not interpreted"
 		case l.envOverride != "":
-			return "TLS settings or the location of configuration files are given in the environment of " + l.unit.name + " (" + l.envOverride + "); they override the configuration in the JAR and are not interpreted"
+			return "TLS settings or the location of configuration files are given in the environment of " + l.name + " (" + l.envOverride + "); they override the configuration in the JAR and are not interpreted"
 		}
 		if l.workDir != "" && l.workDir != dirs[0] {
 			dirs = append(dirs, l.workDir)
@@ -578,7 +662,7 @@ func (sb *springBootApp) resolve(t springTLS) {
 			java = strings.TrimPrefix(real, c.Prefix)
 		}
 		homes = []string{path.Dir(path.Dir(java))}
-		why = "the JDK is the one named in " + l.unit.name + " (" + l.cmd.Java + ", the JDK in " + homes[0] + ")"
+		why = "the JDK is the one named in " + l.name + " (" + l.cmd.Java + ", the JDK in " + homes[0] + ")"
 	} else {
 		homes = c.jdkHomes()
 		why = "no launch definition was found for this JAR, so it is not known which JDK runs it; the values are those that are the same with every JDK found on this host (" +
