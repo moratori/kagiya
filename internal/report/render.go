@@ -379,8 +379,6 @@ func (h *htmlWriter) host(v *view, multi bool) {
 	h.w(raw("\">各ソフトでの暗号利用状況</h2>\n"))
 	if len(v.Services) == 0 {
 		h.w(raw(`<p>サービスは見つかりませんでした。</p>`))
-	} else {
-		h.w(raw(`<p class="sub">見つかったサービスです。名前を選ぶと開きます。</p>`))
 	}
 	h.w(raw("\n"))
 	for i := range v.Services {
