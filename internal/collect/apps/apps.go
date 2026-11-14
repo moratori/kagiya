@@ -37,6 +37,11 @@ func (c *Collector) Collect() {
 		if app.Grammar == "" || app.Grammar == "springboot" {
 			continue // Spring Boot は、探索で見つかった JAR を調べる（CollectJavaApps）
 		}
+		if app.Grammar == "wildfly" {
+			// WildFly は、展開して置く。置かれた場所ごとに、別のサービスとして調べる
+			c.Builder.Guard("", "reading the settings of "+app.ID, func() { c.wildfly(app) })
+			continue
+		}
 		c.Builder.Guard("", "reading the settings of "+app.ID, func() { c.application(app) })
 	}
 }

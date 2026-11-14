@@ -193,6 +193,11 @@ func (c *Collector) tomcatEnvironment(files, scripts []string, javaHome string) 
 
 // tomcatJDK は、JAVA_HOME の指す JDK を探し、その対応表と設定を読む。
 func (c *Collector) tomcatJDK(svc model.Service, javaHome string) (ctx jdkContext, dir, reason string) {
+	return c.javaHomeJDK(svc, javaHome, "Tomcat")
+}
+
+// javaHomeJDK は、JDK のディレクトリ（JAVA_HOME）から、その JDK の対応表と設定を読む。who は、その JDK で動くもの（理由の文に使う）。
+func (c *Collector) javaHomeJDK(svc model.Service, javaHome, who string) (ctx jdkContext, dir, reason string) {
 	var jdkApp ruleset.AppRule
 	found := false
 	for _, a := range c.Rules.Apps {
@@ -205,7 +210,7 @@ func (c *Collector) tomcatJDK(svc model.Service, javaHome string) (ctx jdkContex
 	}
 	real, err := c.Opener.Resolve(c.Prefix + javaHome)
 	if err != nil {
-		return ctx, "", "JAVA_HOME (" + javaHome + ") cannot be followed to a JDK; the JDK that runs Tomcat is not determined"
+		return ctx, "", "JAVA_HOME (" + javaHome + ") cannot be followed to a JDK; the JDK that runs " + who + " is not determined"
 	}
 	real = strings.TrimPrefix(real, c.Prefix)
 	// Java 9 以降は conf/security。Java 8 は jre/lib/security（JAVA_HOME が jre を指していれば lib/security）
@@ -219,9 +224,9 @@ func (c *Collector) tomcatJDK(svc model.Service, javaHome string) (ctx jdkContex
 		jdkApp.Direction = "inbound"
 		ctx, reason = c.jdkRead(jdkApp, svc, cand[0], cand[0]+cand[1])
 		if reason != "" {
-			reason = "the JDK that runs Tomcat (" + cand[0] + "): " + reason
+			reason = "the JDK that runs " + who + " (" + cand[0] + "): " + reason
 		}
 		return ctx, cand[0], reason
 	}
-	return ctx, "", "no java.security is found under JAVA_HOME (" + javaHome + "); the JDK that runs Tomcat is not determined"
+	return ctx, "", "no java.security is found under JAVA_HOME (" + javaHome + "); the JDK that runs " + who + " is not determined"
 }

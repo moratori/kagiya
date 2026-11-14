@@ -219,7 +219,7 @@ func shortID(id string) string {
 // 測定が要る版の、種類の表示名。
 var unmeasuredKind = map[string]string{
 	"app-defaults": "既定値", "cipher-table": "暗号スイートの表", "group-table": "鍵交換のグループの表", "jdk": "JDK の表",
-	"tomcat": "Tomcat の表", "spring-boot": "Spring Boot", "embedded-tomcat": "同梱の Tomcat",
+	"tomcat": "Tomcat の表", "spring-boot": "Spring Boot", "embedded-tomcat": "同梱の Tomcat", "wildfly": "WildFly の表",
 }
 
 // unmeasuredRows は、全ホストの「測定が要る版」を、OS・種類・名前・版ごとに 1 行にまとめる。ホスト名や場所は持たない。

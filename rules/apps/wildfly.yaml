@@ -1,0 +1,28 @@
+# WildFly（開発元の配布物を展開して置いたもの。ディストリのパッケージにはない）。
+# standalone.xml から、TLS を待ち受ける設定（Undertow の https-listener と、それが指す Elytron の server-ssl-context。
+# WildFly 24 までは、古い形式の security-realm も）を読む。パスワードの記載（credential-reference、keystore-password など）は読まない。
+# 受け入れるプロトコルと暗号スイートは、WildFly の対応表（rules/java/wildfly.yaml）と、WildFly を動かす JDK の対応表
+# （rules/java/openjdk.yaml）から求める。
+# 置き場所は決まっていないので、よく使われる場所を探す（下の config_files）。ここにない場所に置かれた WildFly は、見つけられない。
+app:
+  id: wildfly
+  grammar: wildfly
+  config_files:
+    - "/opt/*/standalone/configuration/standalone.xml"
+    - "/opt/*/*/standalone/configuration/standalone.xml"
+    - "/usr/local/*/standalone/configuration/standalone.xml"
+    - "/usr/share/*/standalone/configuration/standalone.xml"
+    - "/srv/*/standalone/configuration/standalone.xml"
+  units: ["wildfly.service"]
+  direction: inbound
+  directives:
+    - { name: cipher-suite-filter, parameter: tls.ciphers, type: cipher-string }
+    - { name: cipher-suite-names, parameter: tls.ciphersuites-tls13, type: colon-list }
+    - { name: protocols, parameter: tls.protocols, type: words }
+    - { name: enabled-protocols, parameter: tls.protocols, type: words }
+    - { name: enabled-cipher-suites, parameter: tls.ciphers, type: words }
+    - { name: key-store, parameter: tls.keystore, type: path }
+  sources:
+    - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "WildFly 19.0.0.Final〜42.0.0.Final（54 版）の配布物（Maven Central の org.wildfly:wildfly-dist の zip）を /opt/wildfly に展開して確かめた。設定は standalone/configuration/standalone.xml。版は、30 までは modules/system/layers/base/org/jboss/as/product/main/dir/META-INF/MANIFEST.MF の JBoss-Product-Release-Version、31 以降は同じディレクトリの wildfly-feature-pack-product-conf-<版>.jar の中のマニフェストの同じ項目（54 版すべてで確かめた）。配布物に付いている systemd のユニット（docs/contrib/scripts/systemd/wildfly.service）は、ExecStart=/opt/wildfly/bin/launch.sh $WILDFLY_MODE $WILDFLY_CONFIG $WILDFLY_BIND、EnvironmentFile=-/etc/wildfly/wildfly.conf。Java は、bin/standalone.conf の JAVA_HOME（既定ではコメント）か、環境変数の JAVA_HOME、なければ PATH の java"

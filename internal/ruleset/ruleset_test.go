@@ -285,8 +285,8 @@ func TestBuiltinAppsAndLibraries(t *testing.T) {
 	apps := map[string]AppRule{}
 	for _, a := range rs.Apps {
 		apps[a.ID] = a
-		// 実行できる JAR のアプリ（Spring Boot）は、実行ファイルを持たない
-		if len(a.Sources) == 0 || (len(a.Binaries) == 0 && a.Grammar != "springboot") {
+		// 実行できる JAR のアプリ（Spring Boot）と、展開して置く WildFly は、実行ファイルを持たない
+		if len(a.Sources) == 0 || (len(a.Binaries) == 0 && a.Grammar != "springboot" && a.Grammar != "wildfly") {
 			t.Errorf("app %s lacks sources or binaries", a.ID)
 		}
 	}

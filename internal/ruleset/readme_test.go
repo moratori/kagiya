@@ -273,6 +273,13 @@ func rulesReadme(rs *RuleSet) string {
 			" 版 | Tomcat 自身に、暗号の指定の解釈の表を出力させた |\n")
 	}
 
+	for _, t := range rs.WildFlyTables {
+		if n := len(t.Versions); n > 0 {
+			b.WriteString("| WildFly | " + t.Versions[0].Version + "〜" + t.Versions[n-1].Version + "（この間の正式版すべて）<br>計 " + strconv.Itoa(n) +
+				" 版 | 各版の配布物を展開して起動し、設定を変えた場面ごとに、受け入れるものを数え上げた。暗号の指定の解釈は、WildFly の部品（Elytron）自身に解釈させた結果と突き合わせた |\n")
+		}
+	}
+
 	// 4. 耐量子のアルゴリズムに対応している版
 	b.WriteString("\n## 暗号ライブラリが耐量子のアルゴリズムに対応している版\n\n")
 	b.WriteString("「対応」は、ライブラリがその方式を持っていることです（使う設定になっているかは別）。「確かめた範囲」の外の版は、前後から推定します。\n\n")
@@ -327,7 +334,7 @@ func rulesReadme(rs *RuleSet) string {
 	b.WriteString("| `apps/` | 対応しているソフトウェアの定義（設定ファイルの場所、読む項目） |\n")
 	b.WriteString("| `defaults/` | ソフトウェアの既定値（パッケージの版ごと） |\n")
 	b.WriteString("| `ciphers/`、`groups/` | OpenSSL の暗号スイートと鍵交換のグループの表（パッケージの版ごと） |\n")
-	b.WriteString("| `java/` | JDK、Tomcat、Spring Boot の表 |\n")
+	b.WriteString("| `java/` | JDK、Tomcat、Spring Boot、WildFly の表 |\n")
 	b.WriteString("| `libraries/` | 暗号ライブラリの見分け方と、耐量子のアルゴリズムに対応している版 |\n")
 	b.WriteString("| `os/` | パッケージの役割、証明書ストアの場所 |\n")
 	return b.String()

@@ -139,6 +139,16 @@ func wfHost(t *testing.T, version, xml string, extra map[string]string, pkgs ...
 	}
 	if len(pkgs) == 0 {
 		pkgs = []model.Package{pkgJava17Ubu}
+	}
+	// JDK は、渡されたパッケージのものだけを置く
+	has := map[string]bool{}
+	for _, p := range pkgs {
+		has[p.Name] = true
+	}
+	if !has[pkgJava17Ubu.Name] {
+		delete(files, wfJava17+"/conf/security/java.security")
+	}
+	if !has[pkgJava11Ubu.Name] {
 		delete(files, wfJava11+"/conf/security/java.security")
 	}
 	return jdkHost(t, files, pkgs...)
@@ -210,7 +220,7 @@ func TestWildFlyElytronDefault(t *testing.T) {
 	if e13 := wfEff(t, inv, "tls.ciphersuites-tls13"); e13.Status != "resolved" || len(e13.Values) != 0 || !strings.Contains(strings.Join(e13.Notes, " "), "cipher-suite-names") {
 		t.Errorf("tls13 = %+v", e13)
 	}
-	if g := wfEff(t, inv, "tls.groups"); g.Status != "resolved" || sortedJoin(g.Values) != "secp256r1,secp384r1,secp521r1,x25519,x448" { // 測定での、TLS 1.2 の ECDHE のグループ
+	if g := wfEff(t, inv, "tls.groups"); g.Status != "resolved" || sortedJoin(g.Values) != "P-256,P-384,P-521,X25519,X448" { // 測定での、TLS 1.2 の ECDHE のグループ（secp256r1 secp384r1 secp521r1 x25519 x448。本体での正式な名前で比べる）
 		t.Errorf("groups = %+v", g)
 	}
 	// キーストアの場所は記録する。パスワードは、どこにも出ない
