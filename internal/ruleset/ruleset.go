@@ -48,6 +48,7 @@ type RuleSet struct {
 	TomcatTables         []*TomcatTable
 	EmbeddedTomcatTables []*EmbeddedTomcatTable
 	SpringBootTables     []*SpringBootTable
+	WildFlyTables        []*WildFlyTable
 
 	byAlias     map[string]int
 	storePaths  map[string]string // パス → ストア ID
@@ -257,6 +258,11 @@ func Load(fsys fs.FS) (*RuleSet, error) {
 			}
 			for _, t := range jf.SpringBootTables {
 				if err := rs.addSpringBootTable(t, ids); err != nil {
+					return nil, fmt.Errorf("%s: %w", f.Path, err)
+				}
+			}
+			for _, t := range jf.WildFlyTables {
+				if err := rs.addWildFlyTable(t, ids); err != nil {
 					return nil, fmt.Errorf("%s: %w", f.Path, err)
 				}
 			}

@@ -53,6 +53,7 @@ type javaRulesFile struct {
 	TomcatTables         []*TomcatTable         `yaml:"tomcat_tables"`
 	EmbeddedTomcatTables []*EmbeddedTomcatTable `yaml:"tomcat_embedded_tables"`
 	SpringBootTables     []*SpringBootTable     `yaml:"spring_boot_tables"`
+	WildFlyTables        []*WildFlyTable        `yaml:"wildfly_tables"`
 }
 
 var (

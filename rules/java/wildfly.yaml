@@ -1,0 +1,393 @@
+# WildFly の TLS の対応表。standalone.xml の暗号の指定（Elytron の server-ssl-context の cipher-suite-filter。OpenSSL に似た書き方）を、
+# スイートの一覧に直すのに使う。
+#
+# WildFly（Elytron）は、暗号の指定を、自分の持つ表で解釈する（OpenSSL には渡さない。JDK の実装で動く場合）。
+# 解釈の結果は、JDK が対応しているスイートの並びから選ばれる。実際に受け入れるのは、そのうち JDK が無効にしていないもの。
+#
+# 採取方法: 開発元の配布物（Maven Central の org.wildfly:wildfly-dist の zip）を展開し、Elytron の JAR の中の表
+#           （org/wildfly/security/ssl/MechanismDatabase.properties）を取り出した。あわせて、設定を変えた場面ごとにサーバーを起動し、
+#           同じコンテナ内からのハンドシェイクで、受け入れるものを数え上げた。
+#           表は、測った 54 版すべてで同一（SHA-256: 105ab8b96d86feb1d11da4006ef318e37205ddf748f71e60ac6971adee0244dc）。
+#           測定結果は、古い形式の設定（security-realm）を持つ版（19〜24）どうし、持たない版（25 以降）どうしで、全場面が同一。
+# 表のもとになったファイルは、WildFly Elytron（Apache License 2.0）の一部。ここには、スイートごとの属性（事実）だけを写している。
+# このファイルは検証ラボの生成スクリプト（lab/phase2/gen-wildfly.py）で作った。手で編集しない。
+wildfly_tables:
+  - source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "official distribution archives (org.wildfly:wildfly-dist on Maven Central) unpacked in the container; the cipher table taken from the Elytron JAR; each server started with OpenJDK (11.0.33, 17.0.21.0.3) and the accepted protocols, suites and groups enumerated by handshake"
+    elytron_table_sha256: "105ab8b96d86feb1d11da4006ef318e37205ddf748f71e60ac6971adee0244dc"
+    # 暗号の指定を書かない場合の指定と、プロトコルの既定（起動したサーバー自身に、管理用コマンドで尋ねた）。
+    # TLS 1.3 は、TLS 1.3 用の指定（cipher-suite-names）を書いたときだけ受け入れる（実測）
+    default_cipher_suite_filter: "DEFAULT"
+    default_protocols: ["TLSv1", "TLSv1.1", "TLSv1.2"]
+    tls13_requires_cipher_suite_names: true
+    legacy_default_protocols: ["TLSv1", "TLSv1.1", "TLSv1.2"]
+    versions:
+      - { version: "19.0.0.Final", sha256: "7348253db43d384158f89ca33399679764ebb139a11d82431ba0ff282e4f456f", legacy_realm: true }
+      - { version: "19.1.0.Final", sha256: "5c79d5529f8acbfa3f981dc5a82cb6423cb5b3bf525caeb571418641f2055f28", legacy_realm: true }
+      - { version: "20.0.0.Final", sha256: "7232124e5b2c74fd6fd992ef7d7dea74a06ec88f9f960c432729fd8860d69bbc", legacy_realm: true }
+      - { version: "20.0.1.Final", sha256: "2a08152e6172443cc2d732c6bd582407817d6f8ce42cddaddb559b9fa43918f2", legacy_realm: true }
+      - { version: "21.0.0.Final", sha256: "cf7f5a0fa0c3af5d764f94253a9866f203dac6439da9b6b39be570e10e0220d9", legacy_realm: true }
+      - { version: "21.0.1.Final", sha256: "422754071c41d21e4fda66166aca35fa6209104c7e3112485581503f74f8e8f3", legacy_realm: true }
+      - { version: "21.0.2.Final", sha256: "f38e9fa684e46610f268623e5474f3030171bd368fc9d268b3781ec12fb2963c", legacy_realm: true }
+      - { version: "22.0.0.Final", sha256: "9ac7490e2624a1bd73af89c6db25900031bdb6c673f2acd375f7e8c102a0d0d7", legacy_realm: true }
+      - { version: "22.0.1.Final", sha256: "0ec1c475212258bca43c5351197a4b5b3d050b2b4d53f3f331e530ea424aa819", legacy_realm: true }
+      - { version: "23.0.0.Final", sha256: "f0ff980f45861424befd8fa8fafdbf1891f6897027a224c920b121a709a32d43", legacy_realm: true }
+      - { version: "23.0.1.Final", sha256: "b8ab4f94eb5325839fa71491ebc5da9b30cc767aec37c105a7cb1300d806e78c", legacy_realm: true }
+      - { version: "23.0.2.Final", sha256: "36d15fb68a966117c9b09eedeb90ccb07b4793477d63331d81afc52219ffdbf7", legacy_realm: true }
+      - { version: "24.0.0.Final", sha256: "5a3e0f3504ecab8cd675560b4f6c337c5d9de01201d4e12810b30f8751299ad6", legacy_realm: true }
+      - { version: "24.0.1.Final", sha256: "04817f0d407f4e552052809347b2eb998a4b747895b87d00e80bd9f423273128", legacy_realm: true }
+      - { version: "25.0.0.Final", sha256: "f0a23fd071b78c955163d7ec702143b555b7ac3caa3a61dfe5b931c1fba75f0d" }
+      - { version: "25.0.1.Final", sha256: "789b16fc1bea4999fbe9e5186ab6a806ca6ead8588ee6d53e5694b26ddb66700" }
+      - { version: "26.0.0.Final", sha256: "2e67414d66c60f174dd80c5342684be12551dbdaee28ebc5521ec3cf791a1bfe" }
+      - { version: "26.0.1.Final", sha256: "00481bebd31ad1fa7c44acfacc7dc6a2f3321cbee2bd23bcbd674d479432ab4d" }
+      - { version: "26.1.0.Final", sha256: "baea965c9e5aeaa9d00f36ac8c04397ad1dfb15f56b538fa374cdd302627ee8b" }
+      - { version: "26.1.1.Final", sha256: "8a4e68f580c1823f7d24122130a6e1a45072038e1cb1bf6689db6c8dcb2d7300" }
+      - { version: "26.1.2.Final", sha256: "ff041ac20b1a5805c4ea14d9720c44b859d41a55898d9ed3df9ce8a5aa0d9325" }
+      - { version: "26.1.3.Final", sha256: "dd615f2d0d9864683fd45827dd78a3e7fed2b0ee84e1a758ad571fc6edb37ebc" }
+      - { version: "27.0.0.Final", sha256: "2fe3cea126236b00dea2192fafa6debb751234f0403ea07ebef984c1c6634df2" }
+      - { version: "27.0.1.Final", sha256: "3609e9d7b7cbc75c317b93ccb3d6c015ed8877c6d6714ed53c0a6dd44dfba0c4" }
+      - { version: "28.0.0.Final", sha256: "6642990e43798f4f8ec7907c4d42193a25b0558a4cf8339ce72596a46991ee27" }
+      - { version: "28.0.1.Final", sha256: "8000605d800fcb003bac939ee25971b051775df6eb766d8e8de2c0e52dc071fe" }
+      - { version: "29.0.0.Final", sha256: "01229c0c9121f77d66ff6eac1a84cde4238f994e0044cf21ec1638abc7f0d31c" }
+      - { version: "29.0.1.Final", sha256: "b76d722ea0985dcf667a22879abfd1a19517629561eca1ecc7c7fd34193a5615" }
+      - { version: "30.0.0.Final", sha256: "f18f4d3eb3dfeabce6c5516cff40b61583358d592a423287c9fa3af15f83dca8" }
+      - { version: "30.0.1.Final", sha256: "a7f36db55d4260bd8d32b6449e67d8b4ba1006dec38e6cf12baf9198a1e5965d" }
+      - { version: "31.0.0.Final", sha256: "12f8afa2ae23b2b9791145dc695d38975a546885612c14c439fdf3505a6899e5" }
+      - { version: "31.0.1.Final", sha256: "c9fd2f75b3b12aea2aed20bfa32d74bcc6f8c234238aaf093f24a953fbde29be" }
+      - { version: "32.0.0.Final", sha256: "76466bd4976b7f6cea4f7b3470cf1534852a5fabbe13e33c144e46548676d19c" }
+      - { version: "32.0.1.Final", sha256: "5b68be820e2bcc59e65c017ec79a21877e2fa10e7cff70efca785caa72a5d06a" }
+      - { version: "33.0.0.Final", sha256: "19cb67a2b6f071329f2ed4823bd5bd549fa7a1586c08f1dd49e8aefec868592e" }
+      - { version: "33.0.1.Final", sha256: "564d3c7fce9476ea0977da778c3299fd39b8ec36de694b4d318c9aa060a14d9f" }
+      - { version: "33.0.2.Final", sha256: "890e74ecd1bd721226760a3c89b8d9eef7199b7bbff3b441116dab5dfc2b9a6b" }
+      - { version: "34.0.0.Final", sha256: "9135ceb4157b3c660b3b723aec90462ec4f03e92e227de1eaa9208ee744b9708" }
+      - { version: "34.0.1.Final", sha256: "6354e2871db34669b492ad2f5da5974f069ddea7b7a494bc122ed04719f716c8" }
+      - { version: "35.0.0.Final", sha256: "eafd0c0d0cedd921b9c48939f83ee6387e8a32acbd61a32dbba3ccceaae77b52" }
+      - { version: "35.0.1.Final", sha256: "1e4ac11ac3970ae6a73156dd11b88ce5243220d96ab346498c88c562262a62ac" }
+      - { version: "36.0.0.Final", sha256: "c9de21f31d35f1321bb23acd12a4acdadbd3acd48494717b406900fc4b128f38" }
+      - { version: "36.0.1.Final", sha256: "a063f39c28c734e9a45a3d414852b69f2810190041939ab4bcfd5e355dd49406" }
+      - { version: "37.0.0.Final", sha256: "122ac5716462d48a91dc6f4c37f40011fe22cb53731f67a4ecde6a5929b2ef35" }
+      - { version: "37.0.1.Final", sha256: "bbb9722f7d55e07f034f02ec08f9902c5262eb6ce2bb61bc929cba3cf08c054c" }
+      - { version: "38.0.0.Final", sha256: "1f0fab4bf60523e5cb3e58a3ccc5b59e3ac55c48a9b1a11fed84490b29df1ece" }
+      - { version: "38.0.1.Final", sha256: "9461f0bf09dc7ca47b2dd4441563ce5986e146ff300eae97842af3f17e4f0e32" }
+      - { version: "39.0.0.Final", sha256: "47eec06e364b567ae38644c83243653595a67d38acbcc82925ff07a59a30c387" }
+      - { version: "39.0.1.Final", sha256: "2f2f24e786a4a3d0e3fb348aa45f70d7278be00844bc8593a2a50d4d8714f97a" }
+      - { version: "40.0.0.Final", sha256: "40675f93afeb115bcb8053a69c5bf16c2822631d5df8ed96ac3bd8b792ed44a4" }
+      - { version: "40.0.1.Final", sha256: "74b842587047b53ca67bff7e9f879e66eed25e9be30d84de1c34217100de13fd" }
+      - { version: "41.0.0.Final", sha256: "85768d52743935dba403b03170a00434f8e145bc9920c8fb7b441ea726d30147" }
+      - { version: "41.0.1.Final", sha256: "783e6405a132a1f088b1a8f885040ef1e0ae3976a788a992147bc3e443dfe1b6" }
+      - { version: "42.0.0.Final", sha256: "3162d4ce32d26cefdd814e6dfe53670645a78945cdd6a68b69e26bb127241fd6" }
+    aliases:
+      - { name: "TLS_RSA_FIPS_WITH_DES_CBC_SHA", target: "TLS_RSA_WITH_DES_CBC_SHA" }
+      - { name: "TLS_RSA_FIPS_WITH_3DES_EDE_CBC_SHA", target: "TLS_RSA_WITH_3DES_EDE_CBC_SHA" }
+    suites:
+      - { name: "TLS_RSA_WITH_ARIA_128_CBC_SHA256", openssl: ["ARIA128-CBC-SHA256"], kx: "RSA", auth: "RSA", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_WITH_ARIA_256_CBC_SHA384", openssl: ["ARIA256-CBC-SHA384"], kx: "RSA", auth: "RSA", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_WITH_ARIA_128_GCM_SHA256", openssl: ["ARIA128-GCM-SHA256"], kx: "RSA", auth: "RSA", enc: "ARIA128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_WITH_ARIA_256_GCM_SHA384", openssl: ["ARIA256-GCM-SHA384"], kx: "RSA", auth: "RSA", enc: "ARIA256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_RSA_WITH_ARIA_128_CBC_SHA256", openssl: ["DH-RSA-ARIA128-CBC-SHA256"], kx: "DHr", auth: "DH", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_RSA_WITH_ARIA_256_CBC_SHA384", openssl: ["DH-RSA-ARIA256-CBC-SHA384"], kx: "DHr", auth: "DH", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_RSA_WITH_ARIA_128_GCM_SHA256", openssl: ["DH-RSA-ARIA128-GCM-SHA256"], kx: "DHr", auth: "DH", enc: "ARIA128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_RSA_WITH_ARIA_256_GCM_SHA384", openssl: ["DH-RSA-ARIA256-GCM-SHA384"], kx: "DHr", auth: "DH", enc: "ARIA256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_DSS_WITH_ARIA_128_CBC_SHA256", openssl: ["DH-DSS-ARIA128-CBC-SHA256"], kx: "DHd", auth: "DH", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_DSS_WITH_ARIA_256_CBC_SHA384", openssl: ["DH-DSS-ARIA256-CBC-SHA384"], kx: "DHd", auth: "DH", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_DSS_WITH_ARIA_128_GCM_SHA256", openssl: ["DH-DSS-ARIA128-GCM-SHA256"], kx: "DHd", auth: "DH", enc: "ARIA128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_DSS_WITH_ARIA_256_GCM_SHA384", openssl: ["DH-DSS-ARIA256-GCM-SHA248"], kx: "DHd", auth: "DH", enc: "ARIA256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_RSA_WITH_ARIA_128_CBC_SHA256", openssl: ["DHE-RSA-ARIA128-CBC-SHA256"], kx: "DHE", auth: "RSA", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_RSA_WITH_ARIA_256_CBC_SHA384", openssl: ["DHE-RSA-ARIA256-CBC-SHA384"], kx: "DHE", auth: "RSA", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_RSA_WITH_ARIA_128_GCM_SHA256", openssl: ["DHE-RSA-ARIA128-GCM-SHA256"], kx: "DHE", auth: "RSA", enc: "ARIA128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_RSA_WITH_ARIA_256_GCM_SHA384", openssl: ["DHE-RSA-ARIA256-GCM-SHA384"], kx: "DHE", auth: "RSA", enc: "ARIA256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_DSS_WITH_ARIA_128_CBC_SHA256", openssl: ["DHE-DSS-ARIA128-CBC-SHA256"], kx: "DHE", auth: "DSS", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_DSS_WITH_ARIA_256_CBC_SHA384", openssl: ["DHE-DSS-ARIA256-CBC-SHA384"], kx: "DHE", auth: "DSS", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_DSS_WITH_ARIA_128_GCM_SHA256", openssl: ["DHE-DSS-ARIA128-GCM-SHA256"], kx: "DHE", auth: "DSS", enc: "ARIA128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_DSS_WITH_ARIA_256_GCM_SHA384", openssl: ["DHE-DSS-ARIA256-GCM-SHA384"], kx: "DHE", auth: "DSS", enc: "ARIA256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDH_RSA_WITH_ARIA_128_CBC_SHA256", openssl: ["ECDH-RSA-ARIA128-CBC-SHA256"], kx: "ECDHr", auth: "ECDH", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDH_RSA_WITH_ARIA_256_CBC_SHA384", openssl: ["ECDH-RSA-ARIA256-CBC-SHA384"], kx: "ECDHr", auth: "ECDH", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDH_RSA_WITH_ARIA_128_GCM_SHA256", openssl: ["ECDH-ARIA128-GCM-SHA256"], kx: "ECDHr", auth: "ECDH", enc: "ARIA128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDH_RSA_WITH_ARIA_256_GCM_SHA384", openssl: ["ECDH-ARIA256-GCM-SHA384"], kx: "ECDHr", auth: "ECDH", enc: "ARIA256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDH_ECDSA_WITH_ARIA_128_CBC_SHA256", openssl: ["ECDH-ECDSA-ARIA128-CBC-SHA256"], kx: "ECDHe", auth: "ECDH", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDH_ECDSA_WITH_ARIA_256_CBC_SHA384", openssl: ["ECDH-ECDSA-ARIA256-CBC-SHA384"], kx: "ECDHe", auth: "ECDH", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDH_ECDSA_WITH_ARIA_128_GCM_SHA256", openssl: ["ECDH-ECDSA-ARIA128-GCM-SHA256"], kx: "ECDHe", auth: "ECDH", enc: "ARIA128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDH_ECDSA_WITH_ARIA_256_GCM_SHA384", openssl: ["ECDH-ECDSA-ARIA256-GCM-SHA384"], kx: "ECDHe", auth: "ECDH", enc: "ARIA256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_RSA_WITH_ARIA_128_CBC_SHA256", openssl: ["ECDHE-RSA-ARIA128-CBC-SHA256"], kx: "ECDHE", auth: "RSA", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_RSA_WITH_ARIA_256_CBC_SHA384", openssl: ["ECDHE-RSA-ARIA256-CBC-SHA384"], kx: "ECDHE", auth: "RSA", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256", openssl: ["ECDHE-ARIA128-GCM-SHA256"], kx: "ECDHE", auth: "RSA", enc: "ARIA128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384", openssl: ["ECDHE-ARIA256-GCM-SHA384"], kx: "ECDHE", auth: "RSA", enc: "ARIA256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_ARIA_128_CBC_SHA256", openssl: ["ECDHE-ECDSA-ARIA128-CBC-SHA256"], kx: "ECDHE", auth: "ECDSA", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_ARIA_256_CBC_SHA384", openssl: ["ECDHE-ECDSA-ARIA256-CBC-SHA384"], kx: "ECDHE", auth: "ECDSA", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256", openssl: ["ECDHE-ECDSA-ARIA128-GCM-SHA256"], kx: "ECDHE", auth: "ECDSA", enc: "ARIA128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384", openssl: ["ECDHE-ECDSA-ARIA256-GCM-SHA384"], kx: "ECDHE", auth: "ECDSA", enc: "ARIA256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_anon_WITH_ARIA_128_CBC_SHA256", openssl: ["DH-anon-ARIA128-CBC-SHA256", "ADH-ARIA128-CBC-SHA256"], kx: "DHE", auth: "NULL", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_anon_WITH_ARIA_256_CBC_SHA384", openssl: ["DH-anon-ARIA256-CBC-SHA384", "ADH-ARIA256-CBC-SHA384"], kx: "DHE", auth: "NULL", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_anon_WITH_ARIA_128_GCM_SHA256", openssl: ["ADH-ARIA128-GCM-SHA256"], kx: "DHE", auth: "NULL", enc: "ARIA128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_anon_WITH_ARIA_256_GCM_SHA384", openssl: ["ADH-ARIA256-GCM-SHA384"], kx: "DHE", auth: "NULL", enc: "ARIA256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_PSK_WITH_ARIA_128_CBC_SHA256", openssl: ["PSK-ARIA128-CBC-SHA256"], kx: "PSK", auth: "PSK", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_PSK_WITH_ARIA_256_CBC_SHA384", openssl: ["PSK-ARIA256-CBC-SHA384"], kx: "PSK", auth: "PSK", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_PSK_WITH_ARIA_128_GCM_SHA256", openssl: ["PSK-ARIA128-GCM-SHA256"], kx: "PSK", auth: "PSK", enc: "ARIA128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_PSK_WITH_ARIA_256_GCM_SHA384", openssl: ["PSK-ARIA256-GCM-SHA384"], kx: "PSK", auth: "PSK", enc: "ARIA256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_PSK_WITH_ARIA_128_CBC_SHA256", openssl: ["DHE-PSK-ARIA128-CBC-SHA256"], kx: "DHEPSK", auth: "PSK", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_PSK_WITH_ARIA_256_CBC_SHA384", openssl: ["DHE-PSK-ARIA256-CBC-SHA384"], kx: "DHEPSK", auth: "PSK", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_PSK_WITH_ARIA_128_GCM_SHA256", openssl: ["DHE-PSK-ARIA128-GCM-SHA256"], kx: "DHEPSK", auth: "PSK", enc: "ARIA128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_PSK_WITH_ARIA_256_GCM_SHA384", openssl: ["DHE-PSK-ARIA256-GCM-SHA384"], kx: "DHEPSK", auth: "PSK", enc: "ARIA256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_PSK_WITH_ARIA_128_CBC_SHA256", openssl: ["RSA-PSK-ARIA128-CBC-SHA256"], kx: "RSAPSK", auth: "PSK", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_PSK_WITH_ARIA_256_CBC_SHA384", openssl: ["RSA-PSK-ARIA256-CBC-SHA384"], kx: "RSAPSK", auth: "PSK", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_PSK_WITH_ARIA_128_GCM_SHA256", openssl: ["RSA-PSK-ARIA128-GCM-SHA256"], kx: "RSAPSK", auth: "PSK", enc: "ARIA128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_PSK_WITH_ARIA_256_GCM_SHA384", openssl: ["RSA-PSK-ARIA256-GCM-SHA384"], kx: "RSAPSK", auth: "PSK", enc: "ARIA256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_PSK_WITH_ARIA_128_CBC_SHA256", openssl: ["ECDHE-PSK-ARIA128-CBC-SHA256"], kx: "ECDHEPSK", auth: "PSK", enc: "ARIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_PSK_WITH_ARIA_256_CBC_SHA384", openssl: ["ECDHE-PSK-ARIA256-CBC-SHA384"], kx: "ECDHEPSK", auth: "PSK", enc: "ARIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256", openssl: ["ECDHE-RSA-CHACHA20-POLY1305"], kx: "ECDHE", auth: "RSA", enc: "CHACHA20", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256", openssl: ["ECDHE-ECDSA-CHACHA20-POLY1305"], kx: "ECDHE", auth: "ECDSA", enc: "CHACHA20", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256", openssl: ["ECDHE-PSK-CHACHA20-POLY1305"], kx: "ECDHEPSK", auth: "PSK", enc: "CHACHA20", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256", openssl: ["DHE-RSA-CHACHA20-POLY1305"], kx: "DHE", auth: "RSA", enc: "CHACHA20", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256", openssl: ["DHE-PSK-CHACHA20-POLY1305"], kx: "DHEPSK", auth: "PSK", enc: "CHACHA20", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_PSK_WITH_CHACHA20_POLY1305_SHA256", openssl: ["PSK-CHACHA20-POLY1305"], kx: "PSK", auth: "PSK", enc: "CHACHA20", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_PSK_WITH_CHACHA20_POLY1305_SHA256", openssl: ["RSA-PSK-CHACHA20-POLY1305"], kx: "RSAPSK", auth: "RSA", enc: "CHACHA20", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_WITH_NULL_SHA256", openssl: ["NULL-SHA256"], kx: "RSA", auth: "RSA", enc: "NULL", mac: "SHA256", protocol: "TLSv1.2", level: "NONE", bits: 0 }
+      - { name: "TLS_RSA_WITH_AES_128_CBC_SHA256", openssl: ["AES128-SHA256"], kx: "RSA", auth: "RSA", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_WITH_AES_256_CBC_SHA256", openssl: ["AES256-SHA256"], kx: "RSA", auth: "RSA", enc: "AES256", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_WITH_AES_128_GCM_SHA256", openssl: ["AES128-GCM-SHA256"], kx: "RSA", auth: "RSA", enc: "AES128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_WITH_AES_256_GCM_SHA384", openssl: ["AES256-GCM-SHA384"], kx: "RSA", auth: "RSA", enc: "AES256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_WITH_AES_128_CCM", openssl: ["AES128-CCM"], kx: "RSA", auth: "RSA", enc: "AES128CCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_WITH_AES_256_CCM", openssl: ["AES256-CCM"], kx: "RSA", auth: "RSA", enc: "AES256CCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_WITH_AES_128_CCM_8", openssl: ["AES128-CCM8"], kx: "RSA", auth: "RSA", enc: "AES128CCM8", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_WITH_AES_256_CCM_8", openssl: ["AES256-CCM8"], kx: "RSA", auth: "RSA", enc: "AES256CCM8", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_RSA_WITH_AES_128_CBC_SHA256", openssl: ["DH-RSA-AES128-SHA256"], kx: "DHr", auth: "DH", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_RSA_WITH_AES_256_CBC_SHA256", openssl: ["DH-RSA-AES256-SHA256"], kx: "DHr", auth: "DH", enc: "AES256", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_RSA_WITH_AES_128_GCM_SHA256", openssl: ["DH-RSA-AES128-GCM-SHA256"], kx: "DHr", auth: "DH", enc: "AES128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_RSA_WITH_AES_256_GCM_SHA384", openssl: ["DH-RSA-AES256-GCM-SHA384"], kx: "DHr", auth: "DH", enc: "AES256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_DSS_WITH_AES_128_CBC_SHA256", openssl: ["DH-DSS-AES128-SHA256"], kx: "DHd", auth: "DH", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_DSS_WITH_AES_256_CBC_SHA256", openssl: ["DH-DSS-AES256-SHA256"], kx: "DHd", auth: "DH", enc: "AES256", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_DSS_WITH_AES_128_GCM_SHA256", openssl: ["DH-DSS-AES128-GCM-SHA256"], kx: "DHd", auth: "DH", enc: "AES128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_DSS_WITH_AES_256_GCM_SHA384", openssl: ["DH-DSS-AES256-GCM-SHA384"], kx: "DHd", auth: "DH", enc: "AES256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256", openssl: ["DHE-RSA-AES128-SHA256"], kx: "DHE", auth: "RSA", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256", openssl: ["DHE-RSA-AES256-SHA256"], kx: "DHE", auth: "RSA", enc: "AES256", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256", openssl: ["DHE-RSA-AES128-GCM-SHA256"], kx: "DHE", auth: "RSA", enc: "AES128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384", openssl: ["DHE-RSA-AES256-GCM-SHA384"], kx: "DHE", auth: "RSA", enc: "AES256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_RSA_WITH_AES_128_CCM", openssl: ["DHE-RSA-AES128-CCM"], kx: "DHE", auth: "RSA", enc: "AES128CCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_RSA_WITH_AES_256_CCM", openssl: ["DHE-RSA-AES256-CCM"], kx: "DHE", auth: "RSA", enc: "AES256CCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_RSA_WITH_AES_128_CCM_8", openssl: ["DHE-RSA-AES128-CCM8"], kx: "DHE", auth: "RSA", enc: "AES128CCM8", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_RSA_WITH_AES_256_CCM_8", openssl: ["DHE-RSA-AES256-CCM8"], kx: "DHE", auth: "RSA", enc: "AES256CCM8", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_DSS_WITH_AES_128_CBC_SHA256", openssl: ["DHE-DSS-AES128-SHA256"], kx: "DHE", auth: "DSS", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_DSS_WITH_AES_256_CBC_SHA256", openssl: ["DHE-DSS-AES256-SHA256"], kx: "DHE", auth: "DSS", enc: "AES256", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_DSS_WITH_AES_128_GCM_SHA256", openssl: ["DHE-DSS-AES128-GCM-SHA256"], kx: "DHE", auth: "DSS", enc: "AES128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_DSS_WITH_AES_256_GCM_SHA384", openssl: ["DHE-DSS-AES256-GCM-SHA384"], kx: "DHE", auth: "DSS", enc: "AES256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256", openssl: ["ECDH-RSA-AES128-SHA256"], kx: "ECDHr", auth: "ECDH", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384", openssl: ["ECDH-RSA-AES256-SHA384"], kx: "ECDHr", auth: "ECDH", enc: "AES256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256", openssl: ["ECDH-RSA-AES128-GCM-SHA256"], kx: "ECDHr", auth: "ECDH", enc: "AES128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384", openssl: ["ECDH-RSA-AES256-GCM-SHA384"], kx: "ECDHr", auth: "ECDH", enc: "AES256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256", openssl: ["ECDH-ECDSA-AES128-SHA256"], kx: "ECDHe", auth: "ECDH", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384", openssl: ["ECDH-ECDSA-AES256-SHA384"], kx: "ECDHe", auth: "ECDH", enc: "AES256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256", openssl: ["ECDH-ECDSA-AES128-GCM-SHA256"], kx: "ECDHe", auth: "ECDH", enc: "AES128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384", openssl: ["ECDH-ECDSA-AES256-GCM-SHA384"], kx: "ECDHe", auth: "ECDH", enc: "AES256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256", openssl: ["ECDHE-RSA-AES128-SHA256"], kx: "ECDHE", auth: "RSA", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384", openssl: ["ECDHE-RSA-AES256-SHA384"], kx: "ECDHE", auth: "RSA", enc: "AES256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", openssl: ["ECDHE-RSA-AES128-GCM-SHA256"], kx: "ECDHE", auth: "RSA", enc: "AES128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", openssl: ["ECDHE-RSA-AES256-GCM-SHA384"], kx: "ECDHE", auth: "RSA", enc: "AES256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256", openssl: ["ECDHE-ECDSA-AES128-SHA256"], kx: "ECDHE", auth: "ECDSA", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384", openssl: ["ECDHE-ECDSA-AES256-SHA384"], kx: "ECDHE", auth: "ECDSA", enc: "AES256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", openssl: ["ECDHE-ECDSA-AES128-GCM-SHA256"], kx: "ECDHE", auth: "ECDSA", enc: "AES128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", openssl: ["ECDHE-ECDSA-AES256-GCM-SHA384"], kx: "ECDHE", auth: "ECDSA", enc: "AES256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_anon_WITH_AES_128_CBC_SHA256", openssl: ["ADH-AES128-SHA256"], kx: "DHE", auth: "NULL", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_anon_WITH_AES_256_CBC_SHA256", openssl: ["ADH-AES256-SHA256"], kx: "DHE", auth: "NULL", enc: "AES256", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_anon_WITH_AES_128_GCM_SHA256", openssl: ["ADH-AES128-GCM-SHA256"], kx: "DHE", auth: "NULL", enc: "AES128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_anon_WITH_AES_256_GCM_SHA384", openssl: ["ADH-AES256-GCM-SHA384"], kx: "DHE", auth: "NULL", enc: "AES256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_CBC_SHA256", openssl: ["ECDHE-ECDSA-CAMELLIA128-SHA256"], kx: "ECDHE", auth: "ECDSA", enc: "CAMELLIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDH_ECDSA_WITH_CAMELLIA_128_CBC_SHA256", openssl: ["ECDH-ECDSA-CAMELLIA128-SHA256"], kx: "ECDHe", auth: "ECDH", enc: "CAMELLIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256", openssl: ["ECDHE-RSA-CAMELLIA128-SHA256"], kx: "ECDHE", auth: "RSA", enc: "CAMELLIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDH_RSA_WITH_CAMELLIA_128_CBC_SHA256", openssl: ["ECDH-RSA-CAMELLIA128-SHA256"], kx: "ECDHr", auth: "ECDH", enc: "CAMELLIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_CAMELLIA_256_CBC_SHA384", openssl: ["ECDHE-ECDSA-CAMELLIA256-SHA384"], kx: "ECDHE", auth: "ECDSA", enc: "CAMELLIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDH_ECDSA_WITH_CAMELLIA_256_CBC_SHA384", openssl: ["ECDH-ECDSA-CAMELLIA256-SHA384"], kx: "ECDHe", auth: "ECDH", enc: "CAMELLIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384", openssl: ["ECDHE-RSA-CAMELLIA256-SHA384"], kx: "ECDHE", auth: "RSA", enc: "CAMELLIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDH_RSA_WITH_CAMELLIA_256_CBC_SHA384", openssl: ["ECDH-RSA-CAMELLIA256-SHA384"], kx: "ECDHr", auth: "ECDH", enc: "CAMELLIA256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256", openssl: ["CAMELLIA128-SHA256"], kx: "RSA", auth: "RSA", enc: "CAMELLIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA256", openssl: ["DH-DSS-CAMELLIA128-SHA256"], kx: "DHd", auth: "DH", enc: "CAMELLIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA256", openssl: ["DH-RSA-CAMELLIA128-SHA256"], kx: "DHr", auth: "DH", enc: "CAMELLIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA256", openssl: ["DHE-DSS-CAMELLIA128-SHA256"], kx: "DHE", auth: "DSS", enc: "CAMELLIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256", openssl: ["DHE-RSA-CAMELLIA128-SHA256"], kx: "DHE", auth: "RSA", enc: "CAMELLIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_anon_WITH_CAMELLIA_128_CBC_SHA256", openssl: ["ADH-CAMELLIA128-SHA256"], kx: "DHE", auth: "NULL", enc: "CAMELLIA128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256", openssl: ["CAMELLIA256-SHA256"], kx: "RSA", auth: "RSA", enc: "CAMELLIA256", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA256", openssl: ["DH-DSS-CAMELLIA256-SHA256"], kx: "DHd", auth: "DH", enc: "CAMELLIA256", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA256", openssl: ["DH-RSA-CAMELLIA256-SHA256"], kx: "DHr", auth: "DH", enc: "CAMELLIA256", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA256", openssl: ["DHE-DSS-CAMELLIA256-SHA256"], kx: "DHE", auth: "DSS", enc: "CAMELLIA256", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256", openssl: ["DHE-RSA-CAMELLIA256-SHA256"], kx: "DHE", auth: "RSA", enc: "CAMELLIA256", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_anon_WITH_CAMELLIA_256_CBC_SHA256", openssl: ["ADH-CAMELLIA256-SHA256"], kx: "DHE", auth: "NULL", enc: "CAMELLIA256", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_PSK_WITH_AES_128_GCM_SHA256", openssl: ["PSK-AES128-GCM-SHA256"], kx: "PSK", auth: "PSK", enc: "AES128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_PSK_WITH_AES_256_GCM_SHA384", openssl: ["PSK-AES256-GCM-SHA384"], kx: "PSK", auth: "PSK", enc: "AES256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_PSK_WITH_AES_128_CBC_SHA256", openssl: ["PSK-AES128-CBC-SHA256"], kx: "PSK", auth: "PSK", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_PSK_WITH_AES_256_CBC_SHA384", openssl: ["PSK-AES256-CBC-SHA384"], kx: "PSK", auth: "PSK", enc: "AES256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_PSK_WITH_AES_128_CCM", openssl: ["PSK-AES128-CCM"], kx: "PSK", auth: "PSK", enc: "AES128CCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_PSK_WITH_AES_256_CCM", openssl: ["PSK-AES256-CCM"], kx: "PSK", auth: "PSK", enc: "AES256CCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_PSK_WITH_AES_128_CCM_8", openssl: ["PSK-AES128-CCM8"], kx: "PSK", auth: "PSK", enc: "AES128CCM8", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_PSK_WITH_AES_256_CCM_8", openssl: ["PSK-AES256-CCM8"], kx: "PSK", auth: "PSK", enc: "AES256CCM8", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_PSK_WITH_NULL_SHA256", openssl: ["PSK-NULL-SHA256"], kx: "PSK", auth: "PSK", enc: "NULL", mac: "SHA256", protocol: "TLSv1.2", level: "NONE", bits: 0 }
+      - { name: "TLS_PSK_WITH_NULL_SHA384", openssl: ["PSK-NULL-SHA384"], kx: "PSK", auth: "PSK", enc: "NULL", mac: "SHA384", protocol: "TLSv1.2", level: "NONE", bits: 0 }
+      - { name: "TLS_DHE_PSK_WITH_AES_128_GCM_SHA256", openssl: ["DHE-PSK-AES128-GCM-SHA256"], kx: "DHEPSK", auth: "PSK", enc: "AES128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_PSK_WITH_AES_256_GCM_SHA384", openssl: ["DHE-PSK-AES256-GCM-SHA384"], kx: "DHEPSK", auth: "PSK", enc: "AES256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_PSK_WITH_AES_128_CBC_SHA256", openssl: ["DHE-PSK-AES128-CBC-SHA256"], kx: "DHEPSK", auth: "PSK", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_PSK_WITH_AES_256_CBC_SHA384", openssl: ["DHE-PSK-AES256-CBC-SHA384"], kx: "DHEPSK", auth: "PSK", enc: "AES256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_PSK_WITH_AES_128_CCM", openssl: ["DHE-PSK-AES128-CCM"], kx: "DHEPSK", auth: "PSK", enc: "AES128CCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_PSK_WITH_AES_256_CCM", openssl: ["DHE-PSK-AES256-CCM"], kx: "DHEPSK", auth: "PSK", enc: "AES256CCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_PSK_WITH_AES_128_CCM_8", openssl: ["DHE-PSK-AES128-CCM8"], kx: "DHEPSK", auth: "PSK", enc: "AES128CCM8", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_PSK_WITH_AES_256_CCM_8", openssl: ["DHE-PSK-AES256-CCM8"], kx: "DHEPSK", auth: "PSK", enc: "AES256CCM8", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_PSK_WITH_NULL_SHA256", openssl: ["DHE-PSK-NULL-SHA256"], kx: "DHEPSK", auth: "PSK", enc: "NULL", mac: "SHA256", protocol: "TLSv1.2", level: "NONE", bits: 0 }
+      - { name: "TLS_DHE_PSK_WITH_NULL_SHA384", openssl: ["DHE-PSK-NULL-SHA384"], kx: "DHEPSK", auth: "PSK", enc: "NULL", mac: "SHA384", protocol: "TLSv1.2", level: "NONE", bits: 0 }
+      - { name: "TLS_RSA_PSK_WITH_AES_128_GCM_SHA256", openssl: ["RSA-PSK-AES128-GCM-SHA256"], kx: "RSAPSK", auth: "PSK", enc: "AES128GCM", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_PSK_WITH_AES_256_GCM_SHA384", openssl: ["RSA-PSK-AES256-GCM-SHA384"], kx: "RSAPSK", auth: "PSK", enc: "AES256GCM", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_PSK_WITH_AES_128_CBC_SHA256", openssl: ["RSA-PSK-AES128-CBC-SHA256"], kx: "RSAPSK", auth: "PSK", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_PSK_WITH_AES_256_CBC_SHA384", openssl: ["RSA-PSK-AES256-CBC-SHA384"], kx: "RSAPSK", auth: "PSK", enc: "AES256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_PSK_WITH_NULL_SHA256", openssl: ["RSA-PSK-NULL-SHA256"], kx: "RSAPSK", auth: "PSK", enc: "NULL", mac: "SHA256", protocol: "TLSv1.2", level: "NONE", bits: 0 }
+      - { name: "TLS_RSA_PSK_WITH_NULL_SHA384", openssl: ["RSA-PSK-NULL-SHA384"], kx: "RSAPSK", auth: "PSK", enc: "NULL", mac: "SHA384", protocol: "TLSv1.2", level: "NONE", bits: 0 }
+      - { name: "TLS_ECDHE_PSK_WITH_NULL_SHA", openssl: ["ECDHE-PSK-NULL-SHA"], kx: "ECDHEPSK", auth: "PSK", enc: "NULL", mac: "SHA1", protocol: "TLSv1.2", level: "NONE", bits: 0 }
+      - { name: "TLS_ECDHE_PSK_WITH_RC4_128_SHA", openssl: ["ECDHE-PSK-RC4-SHA"], kx: "ECDHEPSK", auth: "PSK", enc: "RC4", mac: "SHA1", protocol: "TLSv1.2", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_ECDHE_PSK_WITH_3DES_EDE_CBC_SHA", openssl: ["ECDHE-PSK-3DES-EDE-SHA"], kx: "ECDHEPSK", auth: "PSK", enc: "3DES", mac: "SHA1", protocol: "TLSv1.2", level: "HIGH", bits: 168 }
+      - { name: "TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA", openssl: ["ECDHE-PSK-AES128-CBC-SHA"], kx: "ECDHEPSK", auth: "PSK", enc: "AES128", mac: "SHA1", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA", openssl: ["ECDHE-PSK-AES256-CBC-SHA"], kx: "ECDHEPSK", auth: "PSK", enc: "AES128", mac: "SHA1", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256", openssl: ["ECDHE-PSK-AES128-CBC-SHA256"], kx: "ECDHEPSK", auth: "PSK", enc: "AES128", mac: "SHA256", protocol: "TLSv1.2", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA384", openssl: ["ECDHE-PSK-AES256-CBC-SHA384"], kx: "ECDHEPSK", auth: "PSK", enc: "AES256", mac: "SHA384", protocol: "TLSv1.2", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_PSK_WITH_NULL_SHA256", openssl: ["ECDHE-PSK-NULL-SHA256"], kx: "ECDHEPSK", auth: "PSK", enc: "NULL", mac: "SHA256", protocol: "TLSv1.2", level: "NONE", bits: 0 }
+      - { name: "TLS_ECDHE_PSK_WITH_NULL_SHA384", openssl: ["ECDHE-PSK-NULL-SHA384"], kx: "ECDHEPSK", auth: "PSK", enc: "NULL", mac: "SHA384", protocol: "TLSv1.2", level: "NONE", bits: 0 }
+      - { name: "TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA", openssl: ["EXP-EDH-RSA-DES-CBC-SHA"], kx: "DHE", auth: "RSA", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "EXP40", export: true, bits: 56 }
+      - { name: "TLS_DHE_RSA_WITH_DES_CBC_SHA", openssl: ["EDH-RSA-DES-CBC-SHA"], kx: "DHE", auth: "RSA", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "LOW", bits: 56 }
+      - { name: "TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA", openssl: ["EDH-RSA-DES-CBC3-SHA"], kx: "DHE", auth: "RSA", enc: "3DES", mac: "SHA1", protocol: "SSLv3", level: "HIGH", bits: 168 }
+      - { name: "TLS_DH_anon_EXPORT_WITH_RC4_40_MD5", openssl: ["EXP-ADH-RC4-MD5"], kx: "DHE", auth: "NULL", enc: "RC4", mac: "MD5", protocol: "SSLv3", level: "EXP40", export: true, bits: 128 }
+      - { name: "TLS_DH_anon_WITH_RC4_128_MD5", openssl: ["ADH-RC4-MD5"], kx: "DHE", auth: "NULL", enc: "RC4", mac: "MD5", protocol: "SSLv3", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_DH_anon_EXPORT_WITH_DES40_CBC_SHA", openssl: ["EXP-ADH-DES-CBC-SHA"], kx: "DHE", auth: "NULL", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "EXP40", export: true, bits: 128 }
+      - { name: "TLS_DH_anon_WITH_DES_CBC_SHA", openssl: ["ADH-DES-CBC-SHA"], kx: "DHE", auth: "NULL", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "LOW", bits: 56 }
+      - { name: "TLS_DH_anon_WITH_3DES_EDE_CBC_SHA", openssl: ["ADH-DES-CBC3-SHA"], kx: "DHE", auth: "NULL", enc: "3DES", mac: "SHA1", protocol: "SSLv3", level: "HIGH", bits: 168 }
+      - { name: "TLS_RSA_EXPORT1024_WITH_RC4_56_MD5", openssl: ["EXP1024-RC4-MD5"], kx: "RSA", auth: "RSA", enc: "RC4", mac: "MD5", protocol: "TLSv1", level: "EXP56", export: true, bits: 128 }
+      - { name: "TLS_RSA_EXPORT1024_WITH_RC2_CBC_56_MD", openssl: ["EXP1024-RC2-CBC-MD5"], kx: "RSA", auth: "RSA", enc: "RC2", mac: "MD5", protocol: "TLSv1", level: "EXP56", export: true, bits: 128 }
+      - { name: "TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA", openssl: ["EXP1024-DES-CBC-SHA"], kx: "RSA", auth: "RSA", enc: "DES", mac: "SHA1", protocol: "TLSv1", level: "EXP56", export: true, bits: 56 }
+      - { name: "TLS_DHE_DSS_EXPORT1024_WITH_DES_CBC_SHA", openssl: ["EXP1024-DHE-DSS-DES-CBC-SHA"], kx: "DHE", auth: "DSS", enc: "DES", mac: "SHA1", protocol: "TLSv1", level: "EXP56", export: true, bits: 56 }
+      - { name: "TLS_RSA_EXPORT1024_WITH_RC4_56_SHA", openssl: ["EXP1024-RC4-SHA"], kx: "RSA", auth: "RSA", enc: "RC4", mac: "SHA1", protocol: "TLSv1", level: "EXP56", export: true, bits: 128 }
+      - { name: "TLS_DHE_DSS_EXPORT1024_WITH_RC4_56_SHA", openssl: ["EXP1024-DHE-DSS-RC4-SHA"], kx: "DHE", auth: "DSS", enc: "RC4", mac: "SHA1", protocol: "TLSv1", level: "EXP56", export: true, bits: 128 }
+      - { name: "TLS_DHE_DSS_WITH_RC4_128_SHA", openssl: ["DHE-DSS-RC4-SHA"], kx: "DHE", auth: "DSS", enc: "RC4", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_RSA_WITH_AES_128_CBC_SHA", openssl: ["AES128-SHA"], kx: "RSA", auth: "RSA", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_DSS_WITH_AES_128_CBC_SHA", openssl: ["DH-DSS-AES128-SHA"], kx: "DHd", auth: "DH", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_RSA_WITH_AES_128_CBC_SHA", openssl: ["DH-RSA-AES128-SHA"], kx: "DHr", auth: "DH", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_DSS_WITH_AES_128_CBC_SHA", openssl: ["DHE-DSS-AES128-SHA"], kx: "DHE", auth: "DSS", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_RSA_WITH_AES_128_CBC_SHA", openssl: ["DHE-RSA-AES128-SHA"], kx: "DHE", auth: "RSA", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_anon_WITH_AES_128_CBC_SHA", openssl: ["ADH-AES128-SHA"], kx: "DHE", auth: "NULL", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_WITH_AES_256_CBC_SHA", openssl: ["AES256-SHA"], kx: "RSA", auth: "RSA", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_DSS_WITH_AES_256_CBC_SHA", openssl: ["DH-DSS-AES256-SHA"], kx: "DHd", auth: "DH", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_RSA_WITH_AES_256_CBC_SHA", openssl: ["DH-RSA-AES256-SHA"], kx: "DHr", auth: "DH", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_DSS_WITH_AES_256_CBC_SHA", openssl: ["DHE-DSS-AES256-SHA"], kx: "DHE", auth: "DSS", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_RSA_WITH_AES_256_CBC_SHA", openssl: ["DHE-RSA-AES256-SHA"], kx: "DHE", auth: "RSA", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_anon_WITH_AES_256_CBC_SHA", openssl: ["ADH-AES256-SHA"], kx: "DHE", auth: "NULL", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_SRP_SHA_WITH_3DES_EDE_CBC_SHA", openssl: ["SRP-3DES-EDE-CBC-SHA"], kx: "SRP", auth: "NULL", enc: "3DES", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 168 }
+      - { name: "TLS_SRP_SHA_RSA_WITH_3DES_EDE_CBC_SHA", openssl: ["SRP-RSA-3DES-EDE-CBC-SHA"], kx: "SRP", auth: "RSA", enc: "3DES", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 168 }
+      - { name: "TLS_SRP_SHA_DSS_WITH_3DES_EDE_CBC_SHA", openssl: ["SRP-DSS-3DES-EDE-CBC-SHA"], kx: "SRP", auth: "DSS", enc: "3DES", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 168 }
+      - { name: "TLS_SRP_SHA_WITH_AES_128_CBC_SHA", openssl: ["SRP-AES-128-CBC-SHA"], kx: "SRP", auth: "NULL", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_SRP_SHA_RSA_WITH_AES_128_CBC_SHA", openssl: ["SRP-RSA-AES-128-CBC-SHA"], kx: "SRP", auth: "RSA", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_SRP_SHA_DSS_WITH_AES_128_CBC_SHA", openssl: ["SRP-DSS-AES-128-CBC-SHA"], kx: "SRP", auth: "DSS", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_SRP_SHA_WITH_AES_256_CBC_SHA", openssl: ["SRP-AES-256-CBC-SHA"], kx: "SRP", auth: "NULL", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_SRP_SHA_RSA_WITH_AES_256_CBC_SHA", openssl: ["SRP-RSA-AES-256-CBC-SHA"], kx: "SRP", auth: "RSA", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_SRP_SHA_DSS_WITH_AES_256_CBC_SHA", openssl: ["SRP-DSS-AES-256-CBC-SHA"], kx: "SRP", auth: "DSS", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA", openssl: ["CAMELLIA128-SHA"], kx: "RSA", auth: "RSA", enc: "CAMELLIA128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA", openssl: ["DH-DSS-CAMELLIA128-SHA"], kx: "DHd", auth: "DH", enc: "CAMELLIA128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA", openssl: ["DH-RSA-CAMELLIA128-SHA"], kx: "DHr", auth: "DH", enc: "CAMELLIA128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA", openssl: ["DHE-DSS-CAMELLIA128-SHA"], kx: "DHE", auth: "DSS", enc: "CAMELLIA128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA", openssl: ["DHE-RSA-CAMELLIA128-SHA"], kx: "DHE", auth: "RSA", enc: "CAMELLIA128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_DH_anon_WITH_CAMELLIA_128_CBC_SHA", openssl: ["ADH-CAMELLIA128-SHA"], kx: "DHE", auth: "NULL", enc: "CAMELLIA128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA", openssl: ["CAMELLIA256-SHA"], kx: "RSA", auth: "RSA", enc: "CAMELLIA256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA", openssl: ["DH-DSS-CAMELLIA256-SHA"], kx: "DHd", auth: "DH", enc: "CAMELLIA256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA", openssl: ["DH-RSA-CAMELLIA256-SHA"], kx: "DHr", auth: "DH", enc: "CAMELLIA256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA", openssl: ["DHE-DSS-CAMELLIA256-SHA"], kx: "DHE", auth: "DSS", enc: "CAMELLIA256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA", openssl: ["DHE-RSA-CAMELLIA256-SHA"], kx: "DHE", auth: "RSA", enc: "CAMELLIA256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_DH_anon_WITH_CAMELLIA_256_CBC_SHA", openssl: ["ADH-CAMELLIA256-SHA"], kx: "DHE", auth: "NULL", enc: "CAMELLIA256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_WITH_SEED_CBC_SHA", openssl: ["SEED-SHA"], kx: "RSA", auth: "RSA", enc: "SEED", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_DH_DSS_WITH_SEED_CBC_SHA", openssl: ["DH-DSS-SEED-SHA"], kx: "DHd", auth: "DH", enc: "SEED", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_DH_RSA_WITH_SEED_CBC_SHA", openssl: ["DH-RSA-SEED-SHA"], kx: "DHr", auth: "DH", enc: "SEED", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_DHE_DSS_WITH_SEED_CBC_SHA", openssl: ["DHE-DSS-SEED-SHA"], kx: "DHE", auth: "DSS", enc: "SEED", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_DHE_RSA_WITH_SEED_CBC_SHA", openssl: ["DHE-RSA-SEED-SHA"], kx: "DHE", auth: "RSA", enc: "SEED", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_DH_anon_WITH_SEED_CBC_SHA", openssl: ["ADH-SEED-SHA"], kx: "DHE", auth: "NULL", enc: "SEED", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_GOSTR341094_WITH_28147_CNT_IMIT", openssl: ["GOST94-GOST89-GOST89"], kx: "GOST", auth: "GOST94", enc: "GOST2814789CNT", mac: "GOST89MAC", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_GOSTR341001_WITH_28147_CNT_IMIT", openssl: ["GOST2001-GOST89-GOST89"], kx: "GOST", auth: "GOST01", enc: "GOST2814789CNT", mac: "GOST89MAC", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_GOSTR341094_WITH_NULL_GOSTR3411", openssl: ["GOST94-NULL-GOST94"], kx: "GOST", auth: "GOST94", enc: "NULL", mac: "GOST94", protocol: "TLSv1", level: "NONE", bits: 0 }
+      - { name: "TLS_GOSTR341001_WITH_NULL_GOSTR3411", openssl: ["GOST2001-NULL-GOST94"], kx: "GOST", auth: "GOST01", enc: "NULL", mac: "GOST94", protocol: "TLSv1", level: "NONE", bits: 0 }
+      - { name: "TLS_GOSTR341094_RSA_WITH_28147_CNT_MD5", openssl: ["GOST-MD5"], kx: "RSA", auth: "RSA", enc: "GOST2814789CNT", mac: "MD5", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_WITH_28147_CNT_GOST94", openssl: ["GOST-GOST94"], kx: "RSA", auth: "RSA", enc: "GOST2814789CNT", mac: "GOST94", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_WITH_28147_CNT_GOST89MAC", openssl: ["GOST-GOST89MAC"], kx: "RSA", auth: "RSA", enc: "GOST2814789CNT", mac: "GOST89MAC", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_WITH_28147_CNT_GOST89STREAM", openssl: ["GOST-GOST89STREAM"], kx: "RSA", auth: "RSA", enc: "GOST2814789CNT", mac: "GOST89MAC", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDH_ECDSA_WITH_NULL_SHA", openssl: ["ECDH-ECDSA-NULL-SHA"], kx: "ECDHe", auth: "ECDH", enc: "NULL", mac: "SHA1", protocol: "TLSv1", level: "NONE", bits: 0 }
+      - { name: "TLS_ECDH_ECDSA_WITH_RC4_128_SHA", openssl: ["ECDH-ECDSA-RC4-SHA"], kx: "ECDHe", auth: "ECDH", enc: "RC4", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA", openssl: ["ECDH-ECDSA-DES-CBC3-SHA"], kx: "ECDHe", auth: "ECDH", enc: "3DES", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 168 }
+      - { name: "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA", openssl: ["ECDH-ECDSA-AES128-SHA"], kx: "ECDHe", auth: "ECDH", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA", openssl: ["ECDH-ECDSA-AES256-SHA"], kx: "ECDHe", auth: "ECDH", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_NULL_SHA", openssl: ["ECDHE-ECDSA-NULL-SHA"], kx: "ECDHE", auth: "ECDSA", enc: "NULL", mac: "SHA1", protocol: "TLSv1", level: "NONE", bits: 0 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA", openssl: ["ECDHE-ECDSA-RC4-SHA"], kx: "ECDHE", auth: "ECDSA", enc: "RC4", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA", openssl: ["ECDHE-ECDSA-DES-CBC3-SHA"], kx: "ECDHE", auth: "ECDSA", enc: "3DES", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 168 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA", openssl: ["ECDHE-ECDSA-AES128-SHA"], kx: "ECDHE", auth: "ECDSA", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA", openssl: ["ECDHE-ECDSA-AES256-SHA"], kx: "ECDHE", auth: "ECDSA", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDH_RSA_WITH_NULL_SHA", openssl: ["ECDH-RSA-NULL-SHA"], kx: "ECDHr", auth: "ECDH", enc: "NULL", mac: "SHA1", protocol: "TLSv1", level: "NONE", bits: 0 }
+      - { name: "TLS_ECDH_RSA_WITH_RC4_128_SHA", openssl: ["ECDH-RSA-RC4-SHA"], kx: "ECDHr", auth: "ECDH", enc: "RC4", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA", openssl: ["ECDH-RSA-DES-CBC3-SHA"], kx: "ECDHr", auth: "ECDH", enc: "3DES", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 168 }
+      - { name: "TLS_ECDH_RSA_WITH_AES_128_CBC_SHA", openssl: ["ECDH-RSA-AES128-SHA"], kx: "ECDHr", auth: "ECDH", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDH_RSA_WITH_AES_256_CBC_SHA", openssl: ["ECDH-RSA-AES256-SHA"], kx: "ECDHr", auth: "ECDH", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDHE_RSA_WITH_NULL_SHA", openssl: ["ECDHE-RSA-NULL-SHA"], kx: "ECDHE", auth: "RSA", enc: "NULL", mac: "SHA1", protocol: "TLSv1", level: "NONE", bits: 0 }
+      - { name: "TLS_ECDHE_RSA_WITH_RC4_128_SHA", openssl: ["ECDHE-RSA-RC4-SHA"], kx: "ECDHE", auth: "RSA", enc: "RC4", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA", openssl: ["ECDHE-RSA-DES-CBC3-SHA"], kx: "ECDHE", auth: "RSA", enc: "3DES", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 168 }
+      - { name: "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", openssl: ["ECDHE-RSA-AES128-SHA"], kx: "ECDHE", auth: "RSA", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA", openssl: ["ECDHE-RSA-AES256-SHA"], kx: "ECDHE", auth: "RSA", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_ECDH_anon_WITH_NULL_SHA", openssl: ["AECDH-NULL-SHA"], kx: "ECDHE", auth: "NULL", enc: "NULL", mac: "SHA1", protocol: "TLSv1", level: "NONE", bits: 0 }
+      - { name: "TLS_ECDH_anon_WITH_RC4_128_SHA", openssl: ["AECDH-RC4-SHA"], kx: "ECDHE", auth: "NULL", enc: "RC4", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA", openssl: ["AECDH-DES-CBC3-SHA"], kx: "ECDHE", auth: "NULL", enc: "3DES", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 168 }
+      - { name: "TLS_ECDH_anon_WITH_AES_128_CBC_SHA", openssl: ["AECDH-AES128-SHA"], kx: "ECDHE", auth: "NULL", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_ECDH_anon_WITH_AES_256_CBC_SHA", openssl: ["AECDH-AES256-SHA"], kx: "ECDHE", auth: "NULL", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_PSK_WITH_RC4_128_SHA", openssl: ["PSK-RC4-SHA"], kx: "PSK", auth: "PSK", enc: "RC4", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_PSK_WITH_3DES_EDE_CBC_SHA", openssl: ["PSK-3DES-EDE-CBC-SHA"], kx: "PSK", auth: "PSK", enc: "3DES", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 168 }
+      - { name: "TLS_PSK_WITH_AES_128_CBC_SHA", openssl: ["PSK-AES128-CBC-SHA"], kx: "PSK", auth: "PSK", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_PSK_WITH_AES_256_CBC_SHA", openssl: ["PSK-AES256-CBC-SHA"], kx: "PSK", auth: "PSK", enc: "AES256", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_DHE_PSK_WITH_RC4_128_SHA", openssl: ["DHE-PSK-RC4-SHA"], kx: "DHEPSK", auth: "PSK", enc: "RC4", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_DHE_PSK_WITH_3DES_EDE_CBC_SHA", openssl: ["DHE-PSK-3DES-EDE-SHA"], kx: "DHEPSK", auth: "PSK", enc: "3DES", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 168 }
+      - { name: "TLS_DHE_PSK_WITH_AES_128_CBC_SHA", openssl: ["DHE-PSK-AES128-CBC-SHA"], kx: "DHEPSK", auth: "PSK", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_DHE_PSK_WITH_AES_256_CBC_SHA", openssl: ["DHE-PSK-AES256-CBC-SHA"], kx: "DHEPSK", auth: "PSK", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_RSA_PSK_WITH_RC4_128_SHA", openssl: ["RSA-PSK-RC4-SHA"], kx: "RSAPSK", auth: "PSK", enc: "RC4", mac: "SHA1", protocol: "TLSv1", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_RSA_PSK_WITH_3DES_EDE_CBC_SHA", openssl: ["RSA-PSK-3DES-EDE-SHA"], kx: "RSAPSK", auth: "PSK", enc: "3DES", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 168 }
+      - { name: "TLS_RSA_PSK_WITH_AES_128_CBC_SHA", openssl: ["RSA-PSK-AES128-CBC-SHA"], kx: "RSAPSK", auth: "PSK", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 128 }
+      - { name: "TLS_RSA_PSK_WITH_AES_256_CBC_SHA", openssl: ["RSA-PSK-AES256-CBC-SHA"], kx: "RSAPSK", auth: "PSK", enc: "AES128", mac: "SHA1", protocol: "TLSv1", level: "HIGH", bits: 256 }
+      - { name: "TLS_PSK_WITH_NULL_SHA", openssl: ["PSK-NULL-SHA"], kx: "PSK", auth: "PSK", enc: "NULL", mac: "SHA1", protocol: "TLSv1", level: "NONE", bits: 0 }
+      - { name: "TLS_DHE_PSK_WITH_NULL_SHA", openssl: ["DHE-PSK-NULL-SHA"], kx: "DHEPSK", auth: "PSK", enc: "NULL", mac: "SHA1", protocol: "TLSv1", level: "NONE", bits: 0 }
+      - { name: "TLS_RSA_PSK_WITH_NULL_SHA", openssl: ["RSA-PSK-NULL-SHA"], kx: "RSAPSK", auth: "PSK", enc: "NULL", mac: "SHA1", protocol: "TLSv1", level: "NONE", bits: 0 }
+      - { name: "TLS_KRB5_WITH_DES_CBC_SHA", openssl: ["KRB5-DES-CBC-SHA"], kx: "KRB5", auth: "KRB5", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "LOW", bits: 56 }
+      - { name: "TLS_KRB5_WITH_3DES_EDE_CBC_SHA", openssl: ["KRB5-DES-CBC3-SHA"], kx: "KRB5", auth: "KRB5", enc: "3DES", mac: "SHA1", protocol: "SSLv3", level: "HIGH", bits: 168 }
+      - { name: "TLS_KRB5_WITH_RC4_128_SHA", openssl: ["KRB5-RC4-SHA"], kx: "KRB5", auth: "KRB5", enc: "RC4", mac: "SHA1", protocol: "SSLv3", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_KRB5_WITH_IDEA_CBC_SHA", openssl: ["KRB5-IDEA-CBC-SHA"], kx: "KRB5", auth: "KRB5", enc: "IDEA", mac: "SHA1", protocol: "SSLv3", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_KRB5_WITH_DES_CBC_MD5", openssl: ["KRB5-DES-CBC-MD5"], kx: "KRB5", auth: "KRB5", enc: "DES", mac: "MD5", protocol: "SSLv3", level: "LOW", bits: 56 }
+      - { name: "TLS_KRB5_WITH_3DES_EDE_CBC_MD5", openssl: ["KRB5-DES-CBC3-MD5"], kx: "KRB5", auth: "KRB5", enc: "3DES", mac: "MD5", protocol: "SSLv3", level: "HIGH", bits: 168 }
+      - { name: "TLS_KRB5_WITH_RC4_128_MD5", openssl: ["KRB5-RC4-MD5"], kx: "KRB5", auth: "KRB5", enc: "RC4", mac: "MD5", protocol: "SSLv3", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_KRB5_WITH_IDEA_CBC_MD5", openssl: ["KRB5-IDEA-CBC-MD5"], kx: "KRB5", auth: "KRB5", enc: "IDEA", mac: "MD5", protocol: "SSLv3", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA", openssl: ["EXP-KRB5-DES-CBC-SHA"], kx: "KRB5", auth: "KRB5", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "EXP40", export: true, bits: 56 }
+      - { name: "TLS_KRB5_EXPORT_WITH_RC2_CBC_40_SHA", openssl: ["EXP-KRB5-RC2-CBC-SHA"], kx: "KRB5", auth: "KRB5", enc: "RC2", mac: "SHA1", protocol: "SSLv3", level: "EXP40", export: true, bits: 128 }
+      - { name: "TLS_KRB5_EXPORT_WITH_RC4_40_SHA", openssl: ["EXP-KRB5-RC4-SHA"], kx: "KRB5", auth: "KRB5", enc: "RC4", mac: "SHA1", protocol: "SSLv3", level: "EXP40", export: true, bits: 128 }
+      - { name: "TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5", openssl: ["EXP-KRB5-DES-CBC-MD5"], kx: "KRB5", auth: "KRB5", enc: "DES", mac: "MD5", protocol: "SSLv3", level: "EXP40", export: true, bits: 56 }
+      - { name: "TLS_KRB5_EXPORT_WITH_RC2_CBC_40_MD5", openssl: ["EXP-KRB5-RC2-CBC-MD5"], kx: "KRB5", auth: "KRB5", enc: "RC2", mac: "MD5", protocol: "SSLv3", level: "EXP40", export: true, bits: 128 }
+      - { name: "TLS_KRB5_EXPORT_WITH_RC4_40_MD5", openssl: ["EXP-KRB5-RC4-MD5"], kx: "KRB5", auth: "KRB5", enc: "RC4", mac: "MD5", protocol: "SSLv3", level: "EXP40", export: true, bits: 128 }
+      - { name: "TLS_RSA_WITH_NULL_MD5", openssl: ["NULL-MD5"], kx: "RSA", auth: "RSA", enc: "NULL", mac: "MD5", protocol: "SSLv3", level: "NONE", bits: 0 }
+      - { name: "TLS_RSA_WITH_NULL_SHA", openssl: ["NULL-SHA"], kx: "RSA", auth: "RSA", enc: "NULL", mac: "SHA1", protocol: "SSLv3", level: "NONE", bits: 0 }
+      - { name: "TLS_RSA_EXPORT_WITH_RC4_40_MD5", openssl: ["EXP-RC4-MD5"], kx: "RSA", auth: "RSA", enc: "RC4", mac: "MD5", protocol: "SSLv3", level: "EXP40", export: true, bits: 128 }
+      - { name: "TLS_RSA_WITH_RC4_128_MD5", openssl: ["RC4-MD5"], kx: "RSA", auth: "RSA", enc: "RC4", mac: "MD5", protocol: "SSLv3", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_RSA_WITH_RC4_128_SHA", openssl: ["RC4-SHA"], kx: "RSA", auth: "RSA", enc: "RC4", mac: "SHA1", protocol: "SSLv3", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5", openssl: ["EXP-RC2-CBC-MD5"], kx: "RSA", auth: "RSA", enc: "RC2", mac: "MD5", protocol: "SSLv3", level: "EXP40", export: true, bits: 128 }
+      - { name: "TLS_RSA_WITH_IDEA_CBC_SHA", openssl: ["IDEA-CBC-SHA"], kx: "RSA", auth: "RSA", enc: "IDEA", mac: "SHA1", protocol: "SSLv3", level: "MEDIUM", bits: 128 }
+      - { name: "TLS_RSA_EXPORT_WITH_DES40_CBC_SHA", openssl: ["EXP-DES-CBC-SHA"], kx: "RSA", auth: "RSA", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "EXP40", export: true, bits: 56 }
+      - { name: "TLS_RSA_WITH_DES_CBC_SHA", openssl: ["DES-CBC-SHA"], kx: "RSA", auth: "RSA", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "LOW", bits: 56 }
+      - { name: "TLS_RSA_WITH_3DES_EDE_CBC_SHA", openssl: ["DES-CBC3-SHA"], kx: "RSA", auth: "RSA", enc: "3DES", mac: "SHA1", protocol: "SSLv3", level: "HIGH", bits: 168 }
+      - { name: "TLS_DH_DSS_EXPORT_WITH_DES40_CBC_SHA", openssl: ["EXP-DH-DSS-DES-CBC-SHA"], kx: "DHd", auth: "DH", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "EXP40", export: true, bits: 56 }
+      - { name: "TLS_DH_DSS_WITH_DES_CBC_SHA", openssl: ["DH-DSS-DES-CBC-SHA"], kx: "DHd", auth: "DH", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "LOW", bits: 56 }
+      - { name: "TLS_DH_DSS_WITH_3DES_EDE_CBC_SHA", openssl: ["DH-DSS-DES-CBC3-SHA"], kx: "DHd", auth: "DH", enc: "3DES", mac: "SHA1", protocol: "SSLv3", level: "HIGH", bits: 168 }
+      - { name: "TLS_DH_RSA_EXPORT_WITH_DES40_CBC_SHA", openssl: ["EXP-DH-RSA-DES-CBC-SHA"], kx: "DHr", auth: "DH", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "EXP40", export: true, bits: 56 }
+      - { name: "TLS_DH_RSA_WITH_DES_CBC_SHA", openssl: ["DH-RSA-DES-CBC-SHA"], kx: "DHr", auth: "DH", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "LOW", bits: 56 }
+      - { name: "TLS_DH_RSA_WITH_3DES_EDE_CBC_SHA", openssl: ["DH-RSA-DES-CBC3-SHA"], kx: "DHr", auth: "DH", enc: "3DES", mac: "SHA1", protocol: "SSLv3", level: "HIGH", bits: 168 }
+      - { name: "TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA", openssl: ["EXP-EDH-DSS-DES-CBC-SHA"], kx: "DHE", auth: "DSS", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "EXP40", export: true, bits: 56 }
+      - { name: "TLS_DHE_DSS_WITH_DES_CBC_SHA", openssl: ["EDH-DSS-DES-CBC-SHA", "EDH-DSS-CBC-SHA"], kx: "DHE", auth: "DSS", enc: "DES", mac: "SHA1", protocol: "SSLv3", level: "LOW", bits: 56 }
+      - { name: "TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA", openssl: ["EDH-DSS-DES-CBC3-SHA"], kx: "DHE", auth: "DSS", enc: "3DES", mac: "SHA1", protocol: "SSLv3", level: "HIGH", bits: 168 }
+      - { name: "TLS_FORTEZZA_DMS_WITH_NULL_SHA", openssl: ["FZA-NULL-SHA"], kx: "FZA", auth: "FZA", enc: "NULL", mac: "SHA1", protocol: "SSLv3", level: "NONE", bits: 0 }
+      - { name: "TLS_FORTEZZA_DMS_WITH_FORTEZZA_CBC_SHA", openssl: ["FZA-FZA-CBC-SHA"], kx: "FZA", auth: "FZA", enc: "FZA", mac: "SHA1", protocol: "SSLv3", level: "NONE", bits: 0 }
+      - { name: "TLS_FORTEZZA_DMS_WITH_RC4_128_SHA", openssl: ["FZA-RC4-SHA"], kx: "FZA", auth: "FZA", enc: "RC4", mac: "SHA1", protocol: "SSLv3", level: "MEDIUM", bits: 128 }
+    tls13:
+      - { name: "TLS_AES_128_GCM_SHA256", openssl: ["TLS_AES_128_GCM_SHA256"], kx: "ANY", auth: "ANY", enc: "AES128GCM", mac: "AEAD", protocol: "TLSv1.3", level: "HIGH", bits: 128 }
+      - { name: "TLS_AES_256_GCM_SHA384", openssl: ["TLS_AES_256_GCM_SHA384"], kx: "ANY", auth: "ANY", enc: "AES256GCM", mac: "AEAD", protocol: "TLSv1.3", level: "HIGH", bits: 256 }
+      - { name: "TLS_CHACHA20_POLY1305_SHA256", openssl: ["TLS_CHACHA20_POLY1305_SHA256"], kx: "ANY", auth: "ANY", enc: "CHACHA20", mac: "AEAD", protocol: "TLSv1.3", level: "HIGH", bits: 256 }
+      - { name: "TLS_AES_128_CCM_SHA256", openssl: ["TLS_AES_128_CCM_SHA256"], kx: "ANY", auth: "ANY", enc: "AES128CCM", mac: "AEAD", protocol: "TLSv1.3", level: "HIGH", bits: 128 }
+      - { name: "TLS_AES_128_CCM_8_SHA256", openssl: ["TLS_AES_128_CCM_8_SHA256"], kx: "ANY", auth: "ANY", enc: "AES128CCM8", mac: "AEAD", protocol: "TLSv1.3", level: "HIGH", bits: 128 }
