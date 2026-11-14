@@ -58,9 +58,12 @@ type RuleSet struct {
 
 // Source は、ルールの内容を実物で確認した出典。
 type Source struct {
-	Image string `yaml:"image"` // ダイジェスト付きのコンテナイメージ
-	OS    string `yaml:"os"`
-	Note  string `yaml:"note"`
+	Image    string `yaml:"image"` // ダイジェスト付きのコンテナイメージ
+	OS       string `yaml:"os"`
+	Note     string `yaml:"note"`
+	Evidence `yaml:",inline"`
+	// 項目によって、調べた方法や裏付けの有無が違う場合の、その項目の分
+	Items map[string]Evidence `yaml:"items"`
 }
 
 // File はルールファイル1つ（書き出し用）。Path は `/` 区切りの相対パス。
