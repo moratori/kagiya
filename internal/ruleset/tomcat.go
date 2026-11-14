@@ -28,6 +28,10 @@ type TomcatTable struct {
 	// TLS 1.3 のスイートを別の属性（ciphersuites）で指定する版かどうかと、その既定
 	CipherSuitesAttribute bool     `yaml:"ciphersuites_attribute"`
 	DefaultCipherSuites   []string `yaml:"default_ciphersuites"`
+	// cipherSuites 属性で TLS 1.3 のスイートを絞っても、JDK の実装では変わらなかった（実際に起動して確かめた版にだけ付く）
+	CipherSuitesIgnoredByJDK bool `yaml:"ciphersuites_ignored_by_jdk"`
+	// TLS の設定を Connector に直接書く古い書き方で起動する（実際に起動して確かめた）
+	ConnectorTLSAttributes bool `yaml:"connector_tls_attributes"`
 	// 暗号指定の @STRENGTH の後ろに書かれた要素を読まない版かどうか
 	StrengthEnds bool `yaml:"strength_ends"`
 	// Tomcat Native に求める最小の版（系列ごと）
@@ -115,6 +119,9 @@ func (rs *RuleSet) addTomcatTable(t *TomcatTable, ids map[string]bool) error {
 	}
 	for w, idx := range t.Classes {
 		t.words[w] = idx
+	}
+	if !t.CipherSuitesAttribute && t.CipherSuitesIgnoredByJDK {
+		return fmt.Errorf("%s: ciphersuites_ignored_by_jdk without ciphersuites_attribute", where)
 	}
 	if !t.CipherSuitesAttribute && len(t.DefaultCipherSuites) > 0 {
 		return fmt.Errorf("%s: default_ciphersuites without ciphersuites_attribute", where)

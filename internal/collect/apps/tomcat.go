@@ -185,6 +185,9 @@ func (c *Collector) tomcat(app ruleset.AppRule, svc model.Service, config string
 		}
 		// どの実装で動くか
 		reason, why := common, ""
+		if reason == "" && len(conn.Hosts) == 0 && !tb.ConnectorTLSAttributes {
+			reason = "the Connector has no SSLHostConfig element; this Tomcat version does not take TLS settings written on the Connector itself (the server did not start with them when measured)"
+		}
 		if reason == "" {
 			why, reason = tomcatImplementation(conn, apr, sslOff, native)
 		}
@@ -473,7 +476,7 @@ func (c *Collector) tomcatHost(app ruleset.AppRule, svc model.Service, config, b
 		}
 		kinds[kind] = true
 	}
-	cipherSuites, hasCipherSuites := h.attr("cipherSuites")
+	_, hasCipherSuites := h.attr("cipherSuites")
 	groups, hasGroups := h.attr("groups")
 	if hasGroups {
 		rec("groups", strings.ReplaceAll(strings.ReplaceAll(groups.Value, " ", ""), ",", ":"), groups.Line)
@@ -497,7 +500,7 @@ func (c *Collector) tomcatHost(app ruleset.AppRule, svc model.Service, config, b
 		first = model.ResolutionStep{Layer: "app-config", Op: "override", Setting: c.settingAt(svc, paramCiphers, config, ciphers.Line)}
 	}
 	names := tomcatciphers.Expand(tb, spec)
-	tls13Reason := ""
+	tls13Reason, tls13Note := "", ""
 	if tb.CipherSuitesAttribute {
 		// TLS 1.3 のスイートは別の属性で決まり、ciphers の内容は関係しない（実測）
 		only12 := names[:0:0]
@@ -507,9 +510,12 @@ func (c *Collector) tomcatHost(app ruleset.AppRule, svc model.Service, config, b
 			}
 		}
 		names = append(only12, tb.DefaultCipherSuites...)
-		if hasCipherSuites {
-			_ = cipherSuites
-			tls13Reason = "the cipherSuites attribute is set; its effect has not been measured yet"
+		switch {
+		case !hasCipherSuites:
+		case tb.CipherSuitesIgnoredByJDK:
+			tls13Note = "the cipherSuites attribute is set, but with the JDK's TLS implementation it did not change the accepted TLS 1.3 suites on this Tomcat version (measured), so the default is listed"
+		default:
+			tls13Reason = "the cipherSuites attribute is set; its effect with the JDK's TLS implementation has not been measured on this Tomcat version"
 		}
 	}
 	var protos []string
@@ -569,7 +575,12 @@ func (c *Collector) tomcatHost(app ruleset.AppRule, svc model.Service, config, b
 	if len(h.certs) > 1 {
 		extra = append(extra, "with more than one certificate, Tomcat picks the certificate from the order of the suites the client offers; a client that offers suites for both kinds may be refused a suite that is listed here (measured)")
 	}
-	emit(paramCiphers, tls12, conf12, steps, extra...)
+	if hasGroups && (!kindsKnown || kinds["EC"]) {
+		// EC の証明書の曲線が groups に含まれないと、ECDSA で認証するスイートは成り立たない（実測）。曲線は読んでいない
+		unresolved(paramCiphers, "the groups attribute is set and the server has (or may have) an EC certificate; whether the ECDSA suites work depends on the curve of that certificate, which is not read")
+	} else {
+		emit(paramCiphers, tls12, conf12, steps, extra...)
+	}
 	if tls13Reason != "" {
 		unresolved(paramTLS13, tls13Reason)
 	} else {
@@ -577,7 +588,11 @@ func (c *Collector) tomcatHost(app ruleset.AppRule, svc model.Service, config, b
 		if tb.CipherSuitesAttribute {
 			st = []model.ResolutionStep{{Layer: "app-default", Op: "default", Source: tomcatProv}, steps[1], steps[2]}
 		}
-		emit(paramTLS13, tls13, confidence, st)
+		if tls13Note != "" {
+			emit(paramTLS13, tls13, confidence, st, tls13Note)
+		} else {
+			emit(paramTLS13, tls13, confidence, st)
+		}
 	}
 	switch {
 	case hasGroups:

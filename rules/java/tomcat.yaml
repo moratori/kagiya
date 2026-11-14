@@ -9,6 +9,10 @@
 #   ciphersuites_attribute : TLS 1.3 のスイートを別の属性（ciphersuites）で指定する版かどうか。
 #                            true の版では、ciphers に何を書いても TLS 1.3 のスイートは変わらない（実際に起動して確かめた）。
 #   default_ciphersuites   : ciphersuites を書かないときの TLS 1.3 のスイート。
+#   ciphersuites_ignored_by_jdk : cipherSuites 属性で TLS 1.3 のスイートを 1 つに絞っても、JDK の実装では絞らないときと同じものを
+#                            受け入れた（実際に起動して確かめた）。false は「効く」ではなく、その版では JDK の実装で確かめていないという意味。
+#   connector_tls_attributes : TLS の設定を Connector に直接書く古い書き方（keystoreFile、sslEnabledProtocols など）で起動するか
+#                            （実際に起動して確かめた。false の版は、その書き方では起動しない）。
 #   strength_ends          : 暗号指定の @STRENGTH の後ろに書かれた要素を読まない版かどうか（版によって違う）。
 #   native_required        : Tomcat Native（OpenSSL の実装で動かすためのライブラリ）に求める最小の版。系列（1.x / 2.x）ごと。
 #                            これより古いものは読み込まれず、JDK の実装で動く。
@@ -28,10 +32,11 @@ tomcat_tables:
         source:
           image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
           os: "Ubuntu 20.04.6 LTS"
-          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser) without starting the server"
+          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser); ciphersuites_ignored_by_jdk and connector_tls_attributes from starting the server in the container and enumerating what it accepts by handshake"
     default_ciphers: "HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!kRSA"
     protocols_all: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3]
     ciphersuites_attribute: false
+    connector_tls_attributes: true
     strength_ends: true
     native_required: ["1.2.14"]
     suites:
@@ -399,10 +404,11 @@ tomcat_tables:
         source:
           image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
           os: "Ubuntu 22.04.5 LTS"
-          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser) without starting the server"
+          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser); ciphersuites_ignored_by_jdk and connector_tls_attributes from starting the server in the container and enumerating what it accepts by handshake"
     default_ciphers: "HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!kRSA"
     protocols_all: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3]
     ciphersuites_attribute: false
+    connector_tls_attributes: true
     strength_ends: true
     native_required: ["1.2.14"]
     suites:
@@ -769,17 +775,19 @@ tomcat_tables:
         source:
           image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
           os: "AlmaLinux 8.10 (Cerulean Leopard)"
-          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser) without starting the server"
+          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser); ciphersuites_ignored_by_jdk and connector_tls_attributes from starting the server in the container and enumerating what it accepts by handshake"
       - package: tomcat
         version: "9.0.121-1.el9_8"
         source:
           image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
           os: "AlmaLinux 9.8 (Olive Jaguar)"
-          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser) without starting the server"
+          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser); ciphersuites_ignored_by_jdk and connector_tls_attributes from starting the server in the container and enumerating what it accepts by handshake"
     default_ciphers: "HIGH:!aNULL:!eNULL:!DES:!RC4:!MD5:!kRSA"
     protocols_all: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3]
     ciphersuites_attribute: true
     default_ciphersuites: [TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256, TLS_AES_128_GCM_SHA256]
+    ciphersuites_ignored_by_jdk: true
+    connector_tls_attributes: true
     strength_ends: false
     native_required: ["1.3.8"]
     suites:
@@ -1129,10 +1137,11 @@ tomcat_tables:
         source:
           image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
           os: "AlmaLinux 10.2 (Lavender Lion)"
-          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser) without starting the server"
+          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser); ciphersuites_ignored_by_jdk and connector_tls_attributes from starting the server in the container and enumerating what it accepts by handshake"
     default_ciphers: "HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!kRSA"
     protocols_all: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3]
     ciphersuites_attribute: false
+    connector_tls_attributes: false
     strength_ends: true
     native_required: ["1.2.34"]
     suites:
@@ -1499,11 +1508,13 @@ tomcat_tables:
         source:
           image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
           os: "Ubuntu 24.04.5 LTS"
-          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser) without starting the server"
+          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser); ciphersuites_ignored_by_jdk and connector_tls_attributes from starting the server in the container and enumerating what it accepts by handshake"
     default_ciphers: "HIGH:!aNULL:!eNULL:!DES:!RC4:!MD5:!kRSA"
     protocols_all: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3]
     ciphersuites_attribute: true
     default_ciphersuites: [TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256, TLS_AES_128_GCM_SHA256]
+    ciphersuites_ignored_by_jdk: false
+    connector_tls_attributes: false
     strength_ends: true
     native_required: ["1.3.4", "2.0.12"]
     suites:
@@ -1861,11 +1872,13 @@ tomcat_tables:
         source:
           image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
           os: "Debian GNU/Linux 13 (trixie)"
-          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser) without starting the server"
+          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser); ciphersuites_ignored_by_jdk and connector_tls_attributes from starting the server in the container and enumerating what it accepts by handshake"
     default_ciphers: "HIGH:!aNULL:!eNULL:!DES:!RC4:!MD5:!kRSA"
     protocols_all: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3]
     ciphersuites_attribute: true
     default_ciphersuites: [TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256, TLS_AES_128_GCM_SHA256]
+    ciphersuites_ignored_by_jdk: true
+    connector_tls_attributes: false
     strength_ends: false
     native_required: ["1.3.9", "2.0.16"]
     suites:
@@ -2215,11 +2228,13 @@ tomcat_tables:
         source:
           image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
           os: "Debian GNU/Linux 13 (trixie)"
-          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser) without starting the server"
+          note: "package installed from the distribution repository in the image; defaults, the cipher table and the meaning of each word reported by Tomcat's own classes (SSLHostConfig, OpenSSLCipherConfigurationParser); ciphersuites_ignored_by_jdk and connector_tls_attributes from starting the server in the container and enumerating what it accepts by handshake"
     default_ciphers: "HIGH:!aNULL:!eNULL:!DES:!RC4:!MD5:!kRSA"
     protocols_all: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3]
     ciphersuites_attribute: true
     default_ciphersuites: [TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256, TLS_AES_128_GCM_SHA256]
+    ciphersuites_ignored_by_jdk: true
+    connector_tls_attributes: false
     strength_ends: true
     native_required: ["1.3.4", "2.0.12"]
     suites:
