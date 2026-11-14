@@ -316,3 +316,43 @@ func TestTomcatAbsent(t *testing.T) {
 		}
 	}
 }
+
+// groups を書いていて、EC の証明書がある（または証明書の種類が分からない）場合は、TLS 1.2 以下のスイートを求めない。
+// EC の証明書の曲線が groups に含まれないと、ECDSA で認証するスイートは成り立たない（実測: 21 のうち 14 だけになった）。
+func TestTomcatGroupsWithECCertificate(t *testing.T) {
+	_, inv := collect(t, "", tcDebian(t, tcServer(tcAPR, tcNIO, `groups="secp384r1,x25519"`, tcCertRSA+tcCertEC), nil, tcDebPackages...))
+	if e := tcEff(t, inv, "tls.ciphers"); e.Status != "unresolved" || !strings.Contains(e.Reason, "groups") {
+		t.Errorf("ciphers = %+v", e)
+	}
+	// プロトコルと TLS 1.3 のスイートは求める
+	if p := tcEff(t, inv, "tls.protocols"); p.Status != "resolved" || len(p.Values) != 2 {
+		t.Errorf("protocols = %+v", p)
+	}
+	checkSuites(t, tcEff(t, inv, "tls.ciphersuites-tls13"), 3, jdkTLS13, "high")
+}
+
+// Tomcat 10.1 以降は、TLS の設定を Connector に直接書く古い書き方では起動しない（実測）。その版では値を求めない。
+func TestTomcatLegacyAttributesOnNewTomcat(t *testing.T) {
+	old := "<Server><Service><Connector port=\"8443\" SSLEnabled=\"true\" " + tcNIO + " keystoreFile=\"/etc/lab/rsa.p12\" keystoreType=\"PKCS12\" sslEnabledProtocols=\"TLSv1.2\"/></Service></Server>"
+	_, inv := collect(t, "", tcDebian(t, old, nil, tcDebPackages...))
+	tcUnresolved(t, inv, "SSLHostConfig")
+}
+
+// cipherSuites 属性（TLS 1.3 のスイートの指定）は、JDK の実装では効かなかった（実測: 指定しても 3 つとも受け入れた）。
+// それを確かめた版では既定のまま求めて注記し、確かめていない版では TLS 1.3 のスイートを求めない。
+func TestTomcatCipherSuitesAttribute(t *testing.T) {
+	host := `cipherSuites="TLS_AES_128_GCM_SHA256"`
+	_, inv := collect(t, "", tcDebian(t, tcServer(tcAPR, tcNIO, host, tcCertRSA), nil, tcDebPackages...))
+	e := tcEff(t, inv, "tls.ciphersuites-tls13")
+	checkSuites(t, e, 3, jdkTLS13, "high")
+	if !strings.Contains(strings.Join(e.Notes, " "), "cipherSuites") {
+		t.Errorf("notes = %v", e.Notes)
+	}
+	checkSuites(t, tcEff(t, inv, "tls.ciphers"), 14, tcRSA12, "high")
+	// Ubuntu 24.04 の版（10.1.55）は、JDK の実装でこの属性を測っていない
+	_, inv = collect(t, "", tcDebian(t, tcServer(tcAPR, tcNIO+" "+tcJSSEImpl, host, tcCertRSA), nil, pkgTomcatUbu, pkgNativeUbu, pkgJava21Ubu))
+	if e := tcEff(t, inv, "tls.ciphersuites-tls13"); e.Status != "unresolved" || !strings.Contains(e.Reason, "cipherSuites") {
+		t.Errorf("TLS 1.3 suites = %+v", e)
+	}
+	checkSuites(t, tcEff(t, inv, "tls.ciphers"), 14, tcRSA12, "high")
+}

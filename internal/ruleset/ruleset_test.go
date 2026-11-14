@@ -1284,3 +1284,36 @@ func TestBuiltinTomcatTables(t *testing.T) {
 		}
 	}
 }
+
+// Tomcat の表の、実際に起動して確かめた事実: 古い書き方（Connector に直接書く TLS 設定）で起動するか、cipherSuites 属性が JDK の実装で効くか。
+func TestBuiltinTomcatMeasuredFacts(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		pkg, version    string
+		legacy, ignored bool
+	}{
+		{"tomcat9", "9.0.31-1ubuntu0.9", true, false},
+		{"tomcat9", "9.0.58-1ubuntu0.2", true, false},
+		{"tomcat", "9.0.121-1.el9_8", true, true},
+		{"tomcat", "10.1.49-5.el10_2.alma.1", false, false},
+		{"tomcat10", "10.1.55-1ubuntu2~24.04.1", false, false},
+		{"tomcat10", "10.1.60-1~deb13u1", false, true},
+		{"tomcat11", "11.0.22-1~deb13u1", false, true},
+	} {
+		tb, _, _, ok := rs.TomcatTableFor("tomcat", c.pkg, c.version)
+		if !ok || tb.ConnectorTLSAttributes != c.legacy || tb.CipherSuitesIgnoredByJDK != c.ignored {
+			t.Errorf("%s %s: ok=%v legacy=%v ignored=%v", c.pkg, c.version, ok, tb != nil && tb.ConnectorTLSAttributes, tb != nil && tb.CipherSuitesIgnoredByJDK)
+		}
+	}
+	// cipherSuites 属性を持たない版に、その属性の事実は付けられない
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	base["java/t.yaml"] = "tomcat_tables:\n  - server: mycat\n    upstream: \"10.1.5\"\n    builds:\n      - package: mycat10\n        version: \"10.1.5-1~deb13u1\"\n        source:\n          image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n          os: \"X\"\n" +
+		"    default_ciphers: \"HIGH\"\n    protocols_all: [TLSv1.2]\n    ciphersuites_attribute: false\n    ciphersuites_ignored_by_jdk: true\n    strength_ends: true\n" +
+		"    suites:\n      - {name: TLS_X, id: \"0x00,0x2F\", jsse: [TLS_X], words: []}\n    classes:\n      \"HIGH\": [0]\n"
+	if _, err := Load(mapFS(base)); err == nil {
+		t.Error("ciphersuites_ignored_by_jdk without ciphersuites_attribute must be rejected")
+	}
+}
