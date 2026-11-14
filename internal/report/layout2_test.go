@@ -29,7 +29,7 @@ func TestReportSummaryHasStoreCard(t *testing.T) {
 	for _, m := range regexp.MustCompile(`<div class="card">\s*<h3>([^<（]*)`).FindAllStringSubmatch(sum, -1) {
 		titles = append(titles, strings.TrimSpace(m[1]))
 	}
-	if strings.Join(titles, " | ") != "サーバアプリで用いる暗号の状況 | ファイルとして見つかった証明書・鍵 | 証明書ストア | 探索した範囲" {
+	if strings.Join(titles, " | ") != "ソフトウェアが用いる暗号の状況 | ファイルとして見つかった証明書・鍵 | 証明書ストア | 探索した範囲" {
 		t.Errorf("cards = %v", titles)
 	}
 	if strings.Contains(html, "証明書ストアを除く") {
@@ -135,7 +135,7 @@ func TestReportStoreBodyHasSideMargins(t *testing.T) {
 	}
 }
 
-// 要点の見出しが長くても、数の部分（「（3 アプリ）」）は途中で折り返さない。
+// 要点の見出しが長くても、数の部分（「（計 3 ソフト）」）は途中で折り返さない。
 func TestReportCardTitleCountDoesNotBreak(t *testing.T) {
 	html := render(t, sample())
 	if !regexp.MustCompile(`\.nowrap \{[^}]*white-space: nowrap`).MatchString(html) {
@@ -143,5 +143,20 @@ func TestReportCardTitleCountDoesNotBreak(t *testing.T) {
 	}
 	if strings.Contains(html, "サービスの設定（") {
 		t.Error("the old card title remains")
+	}
+}
+
+// 見出しと説明の文言（2026-11-14、利用者の指定）: 節の名前は「各ソフトでの暗号利用状況」。証明書ストアの説明に、畳んでいる理由は書かない。
+func TestReportSoftwareWording(t *testing.T) {
+	html := render(t, sample())
+	for _, want := range []string{">各ソフトでの暗号利用状況</h2>", ">各ソフトでの暗号利用状況</a>"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	for _, bad := range []string{"サービスの設定</h2>", "サービスの設定</a>", "サーバアプリで用いる暗号の状況", "件数が多いので畳んでいます"} {
+		if strings.Contains(html, bad) {
+			t.Errorf("old wording remains: %q", bad)
+		}
 	}
 }

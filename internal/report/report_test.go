@@ -227,7 +227,7 @@ func TestReportSummary(t *testing.T) {
 		t.Fatal("no summary section")
 	}
 	sum := html[a:b]
-	mustContain(t, sum, `<h3>サーバアプリで用いる暗号の状況<span class="nowrap">（3 アプリ）</span></h3>`, "量子計算機に弱い方式", "鍵交換", "署名・認証", "量子計算機で強度が下がる方式",
+	mustContain(t, sum, `<h3>ソフトウェアが用いる暗号の状況<span class="nowrap">（計 3 ソフト）</span></h3>`, "量子計算機に弱い方式", "鍵交換", "署名・認証", "量子計算機で強度が下がる方式",
 		"危殆化している方式", "非推奨の方式", "設定からの参照を確認できなかった秘密鍵", "権限がなく読めなかった")
 	for _, bad := range []string{"起動するよう設定されたサービスの設定", "参照されていない", "調べられなかった箇所"} {
 		if strings.Contains(html, bad) {
