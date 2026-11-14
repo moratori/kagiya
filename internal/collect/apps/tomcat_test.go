@@ -396,7 +396,7 @@ func TestTomcatOpenSSLSingleCertificate(t *testing.T) {
 	_, inv := collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, "", tcFileRSA), tcUbuntu24...))
 	e := tcEff(t, inv, "tls.ciphers")
 	tcOpenSSLSuites(t, e, 28, []string{"ECDHE-RSA-AES256-GCM-SHA384", "DHE-RSA-AES256-GCM-SHA384", "ECDHE-RSA-CHACHA20-POLY1305"},
-		[]string{"AES256-GCM-SHA384", "ECDHE-ECDSA-AES256-GCM-SHA384", "DHE-RSA-AES256-CCM8"})
+		[]string{"AES256-GCM-SHA384", "ECDHE-ECDSA-AES256-GCM-SHA384", "ECDHE-ECDSA-AES256-CCM8"})
 	if !strings.Contains(strings.Join(e.Notes, " "), "OpenSSL") || !strings.Contains(strings.Join(e.Notes, " "), "libtcnative-2") {
 		t.Errorf("the notes must say that Tomcat runs on OpenSSL through Tomcat Native: %v", e.Notes)
 	}
@@ -464,4 +464,22 @@ func TestTomcatOpenSSLMultipleCertificates(t *testing.T) {
 	// JDK が分からなくても、OpenSSL の実装で動く範囲は求められる
 	tcOpenSSLSuites(t, tcEff(t, inv, "tls.ciphers"), 43, []string{"ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-ECDSA-AES256-GCM-SHA384", "ECDHE-ECDSA-AES256-CCM8"}, []string{"AES256-GCM-SHA384"})
 	tcOpenSSLSuites(t, tcEff(t, inv, "tls.ciphersuites-tls13"), 3, nil, nil)
+}
+
+// 鍵交換のグループは、それを使うスイートが残っているときだけ受け入れる（実測: TLS 1.3 のスイートが 1 つも残らない設定では、
+// TLS 1.3 でだけ使うグループ（ffdhe）を受け入れなかった）。
+func TestTomcatGroupsFollowSuites(t *testing.T) {
+	// TLS 1.2 だけで、ECDHE のスイートがない: 楕円曲線のグループを使う場面がない
+	_, inv := collect(t, "", tcDebian(t, tcServer(tcAPR, tcNIO, `protocols="TLSv1.2" ciphers="DHE+AESGCM"`, tcCertRSA), nil, tcDebPackages...))
+	if e := tcEff(t, inv, "tls.ciphers"); e.Status != "resolved" || len(e.Values) != 2 {
+		t.Errorf("ciphers = %+v", e)
+	}
+	if g := tcEff(t, inv, "tls.groups"); g.Status != "resolved" || len(g.Values) != 0 {
+		t.Errorf("groups = %+v", g)
+	}
+	// TLS 1.2 だけで、ECDHE のスイートがある: TLS 1.2 以下で使うグループだけ（ffdhe は入らない）
+	_, inv = collect(t, "", tcDebian(t, tcServer(tcAPR, tcNIO, `protocols="TLSv1.2"`, tcCertRSA), nil, tcDebPackages...))
+	if g := tcEff(t, inv, "tls.groups"); g.Status != "resolved" || sortedJoin(g.Values) != "P-256,P-384,P-521,X25519,X448" {
+		t.Errorf("groups = %+v", g)
+	}
 }
