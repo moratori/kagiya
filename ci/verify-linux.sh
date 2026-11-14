@@ -47,15 +47,38 @@ check "結果に未完了と記録される" "grep -q '\"completed\": false' \"$
 
 # 3. システムコールの確認
 if [ "$MODE" = strace ] && command -v strace >/dev/null; then
-  strace -f -o "$W/strace.txt" -e trace=network,execve,execveat,ptrace \
-    "$K" scan --roots "$ROOTS" --output-dir "$W/out3" --log-dir "$W/logs3" --cpu-limit 100 --io-limit 0
+  # 通信・プロセス起動に加えて、ファイルシステムを変更しうる呼び出しも記録する（? は、このアーキテクチャにない名前を無視する指定）
+  CHANGING='open|openat|openat2|creat|unlink|unlinkat|rename|renameat|renameat2|mkdir|mkdirat|rmdir|chmod|fchmodat|fchmodat2|chown|lchown|fchownat|utime|utimes|futimesat|utimensat|truncate|link|linkat|symlink|symlinkat|mknod|mknodat|setxattr|lsetxattr|removexattr|lremovexattr'
+  FDCHANGING='ftruncate|fchown|fsetxattr|fremovexattr|fallocate'
+  strace -f -o "$W/strace.txt" -e "trace=network,execve,execveat,ptrace,?$(echo "$CHANGING|$FDCHANGING" | sed 's/|/,?/g')" \
+    "$K" scan --roots "$ROOTS,$W/tree" --output-dir "$W/out3" --log-dir "$W/logs3" --cpu-limit 100 --io-limit 0
   check "strace 下でも正常終了する" "[ $? -eq 0 ]"
   NET=$(grep -cE '(socket|connect|bind|listen|accept4?|sendto|sendmsg|recvfrom|recvmsg|socketpair)\(' "$W/strace.txt")
   EXE=$(grep -c 'execve' "$W/strace.txt")
   echo "network syscalls: $NET, execve: $EXE"
   check "通信系システムコールが 0 回"        "[ \"$NET\" = 0 ]"
   check "プロセス起動は自身の起動時の 1 回のみ" "[ \"$EXE\" = 1 ]"
+  # 「出力先以外に書き込まない」の確認。kagiya はコアダンプを止めるために自分のメモリを外から読めなくしているので、strace には
+  # パスの文字列が見えない（番地だけが出る）。そこで、次の 2 つで確かめる:
+  #  (a) 出力に要らない種類の変更（権限・所有者・時刻の変更、切り詰め、リンクの作成、削除したディレクトリなど）が 1 回もないこと
+  #  (b) 探索した場所に、スキャンの前後で変わったファイルやディレクトリがないこと（下の 3b）
+  NEVER='chmod|fchmodat|fchmodat2|chown|lchown|fchownat|utime|utimes|futimesat|utimensat|truncate|symlink|symlinkat|mknod|mknodat|setxattr|lsetxattr|removexattr|lremovexattr|rmdir|rename|renameat'
+  BAD=$(grep -cE "^[0-9]+ +($NEVER|$FDCHANGING)\\(" "$W/strace.txt")
+  WR=$(grep -E '^[0-9]+ +open(at|at2)?\(' "$W/strace.txt" | grep -cE 'O_WRONLY|O_RDWR|O_CREAT|O_TRUNC|O_APPEND')
+  MK=$(grep -cE '^[0-9]+ +mkdir(at)?\(' "$W/strace.txt")
+  echo "syscalls that change the filesystem: never-needed kinds: $BAD, opens for writing: $WR, mkdir: $MK"
+  [ "$BAD" = 0 ] || grep -E "^[0-9]+ +($NEVER|$FDCHANGING)\\(" "$W/strace.txt" | head -5
+  check "出力に要らない種類の変更（権限・所有者・時刻の変更、切り詰めなど）が 0 回" "[ \"$BAD\" = 0 ]"
+  check "ディレクトリの作成は、出力先とログ先の 2 回だけ"                         "[ \"$MK\" = 2 ]"
+  check "書き込み用に開くのは、結果・ログ・確認用の小さなファイルだけ（6 回以下）"   "[ \"$WR\" -ge 2 ] && [ \"$WR\" -le 6 ]"
 fi
+
+# 3b. 探索した場所に、スキャンの前後で変わったもの（内容、権限、所有者、名前）がない
+touch "$W/marker"; sleep 1
+"$K" scan --roots "$ROOTS,$W/tree" --output-dir "$W/out3b" --log-dir "$W/logs3b" --cpu-limit 100 --io-limit 0 >/dev/null 2>&1
+CHANGED=$(find $(echo "$ROOTS" | tr ',' ' ') "$W/tree" \( -newer "$W/marker" -o -cnewer "$W/marker" \) 2>/dev/null | head -5)
+[ -z "$CHANGED" ] || echo "changed: $CHANGED"
+check "探索した場所に、スキャンで変わったファイルやディレクトリがない" "[ -z \"$CHANGED\" ]"
 
 # 4. 探索の後のフェーズ（JAR を開く処理）でも、中断と時間制限が効く
 # 末尾に zip の終わりの記録だけを持つ、中身のない JAR を多数置く。探索では中身を読まないのですぐ終わり、その後、1 つずつ開く処理が
