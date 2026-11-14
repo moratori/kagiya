@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"kagiya/internal/model"
 )
@@ -97,7 +99,15 @@ func WriteCSV(inv *model.Inventory, w io.Writer, bom bool) error {
 // neutralise は、表計算ソフトが数式として解釈する文字で始まるセルの先頭にアポストロフィを付ける。
 // ファイルパスや証明書の Subject はスキャン対象側が自由に決められるため。
 func neutralise(s string) string {
-	if s != "" && strings.ContainsRune("=+-@\t\r", rune(s[0])) {
+	if s == "" {
+		return s
+	}
+	if s[0] == '\t' || s[0] == '\r' {
+		return "'" + s
+	}
+	// 先頭の空白類を飛ばした最初の文字で判定する。全角の ＝ ＋ － ＠ も、日本語環境の表計算ソフトでは数式の先頭になりうる
+	first, _ := utf8.DecodeRuneInString(strings.TrimLeftFunc(s, unicode.IsSpace))
+	if first != utf8.RuneError && strings.ContainsRune("=+-@＝＋－＠", first) {
 		return "'" + s
 	}
 	return s

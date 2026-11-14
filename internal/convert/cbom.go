@@ -155,6 +155,10 @@ type cbomBuilder struct {
 	occs   map[string][]model.Occurrence
 	deps   map[string][]string
 	depOrd []string
+	// 記録済みの依存関係（from, on）。重複の確認を、並びの線形探索で行わない
+	depSeen map[string]map[string]bool
+	// 記録済みの「プロトコル → アルゴリズム」の参照
+	cryptoSeen map[[2]string]bool
 }
 
 // WriteCBOM は、結果を CBOM（CycloneDX 1.6 の JSON）として書き出す。
@@ -282,13 +286,16 @@ func (b *cbomBuilder) depend(from string, on ...string) {
 		if r == "" || !b.refs[r] || r == from {
 			continue
 		}
-		dup := false
-		for _, have := range b.deps[from] {
-			dup = dup || have == r
+		if b.depSeen == nil {
+			b.depSeen = map[string]map[string]bool{}
 		}
-		if dup {
+		if b.depSeen[from][r] {
 			continue
 		}
+		if b.depSeen[from] == nil {
+			b.depSeen[from] = map[string]bool{}
+		}
+		b.depSeen[from][r] = true
 		if _, ok := b.deps[from]; !ok {
 			b.depOrd = append(b.depOrd, from)
 		}
@@ -608,11 +615,11 @@ func (b *cbomBuilder) protocols() {
 						Crypto:     &cdxCrypto{AssetType: "algorithm", Algorithm: &cdxAlgorithm{Primitive: namedPrimitive(scheme, n, v), NistQuantumLevel: quantumLevel(v, ok)}},
 						Properties: append(props("kagiya:scheme", scheme), verdictProps(v, ok)...)})
 				}
-				dup := false
-				for _, have := range p.CryptoRefs {
-					dup = dup || have == ref
+				if b.cryptoSeen == nil {
+					b.cryptoSeen = map[[2]string]bool{}
 				}
-				if !dup {
+				if key := [2]string{g.ref, ref}; !b.cryptoSeen[key] {
+					b.cryptoSeen[key] = true
 					p.CryptoRefs = append(p.CryptoRefs, ref)
 				}
 			}
@@ -685,6 +692,7 @@ func (b *cbomBuilder) software(hostRef string) {
 		protocols := b.deps[s.ID]
 		if _, ok := b.deps[s.ID]; ok {
 			b.deps[s.ID] = nil
+			delete(b.depSeen, s.ID) // 並べ直すので、記録済みの印も消す
 		}
 		b.depend(s.ID, deps...)
 		b.depend(s.ID, protocols...)

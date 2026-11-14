@@ -30,6 +30,32 @@ type htmlWriter struct{ buf bytes.Buffer }
 // escaper は、要素の内容と、引用符で囲んだ属性値のどちらでも安全になるように置き換える。
 var escaper = strings.NewReplacer("\x00", "�", `"`, "&#34;", "&", "&amp;", "'", "&#39;", "+", "&#43;", "<", "&lt;", ">", "&gt;")
 
+// plain は、表示を偽る材料になる文字を取り除く: 制御文字（タブと改行を除く）、書字方向を変える文字、幅のない文字。
+// パスや証明書の Subject は、スキャン対象の側が自由に決められるので、見た目を別の文字列に見せかけられないようにする。
+func plain(s string) string {
+	clean := true
+	for _, r := range s {
+		if tricky(r) {
+			clean = false
+			break
+		}
+	}
+	if clean {
+		return s
+	}
+	return strings.Map(func(r rune) rune {
+		if tricky(r) {
+			return -1
+		}
+		return r
+	}, s)
+}
+
+func tricky(r rune) bool {
+	return (r < 0x20 && r != '\t' && r != '\n' && r != 0) || (r >= 0x7f && r <= 0x9f) || (r >= 0x200b && r <= 0x200f) ||
+		(r >= 0x202a && r <= 0x202e) || (r >= 0x2066 && r <= 0x2069) || r == 0xfeff
+}
+
 // w は、引数を順に書き出す。raw はそのまま、文字列はエスケープして、整数は数字として書く。
 func (h *htmlWriter) w(parts ...any) {
 	for _, p := range parts {
@@ -37,7 +63,7 @@ func (h *htmlWriter) w(parts ...any) {
 		case raw:
 			h.buf.WriteString(string(v))
 		case string:
-			escaper.WriteString(&h.buf, v)
+			escaper.WriteString(&h.buf, plain(v))
 		case int:
 			h.buf.WriteString(strconv.Itoa(v))
 		default:
@@ -109,7 +135,7 @@ func renderPage(out io.Writer, pg *page) error {
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title>クリプトインベントリ`))
@@ -337,7 +363,11 @@ func (h *htmlWriter) host(v *view, multi bool) {
 	h.w(raw(`
 <dl class="meta">
 <dt>ホスト</dt><dd>`), v.Host, raw(`</dd>
-<dt>OS</dt><dd>`))
+`))
+	if v.ScanID != "" {
+		h.w(raw(`<dt>スキャン ID</dt><dd class="mono">`), v.ScanID, raw("</dd>\n"))
+	}
+	h.w(raw(`<dt>OS</dt><dd>`))
 	if v.Distribution != "" {
 		h.w(v.Distribution, "（", v.OSArch, "）")
 	} else {

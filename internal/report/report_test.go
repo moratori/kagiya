@@ -124,7 +124,7 @@ func TestReportIsSelfContained(t *testing.T) {
 	if !strings.HasPrefix(html, "<!DOCTYPE html>") || !strings.Contains(html, `<html lang="ja">`) || !strings.Contains(html, `<meta charset="utf-8">`) {
 		t.Error("not a complete HTML document")
 	}
-	if !strings.Contains(html, `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">`) {
+	if !strings.Contains(html, `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'">`) {
 		t.Error("the content security policy is missing")
 	}
 	for _, bad := range []string{"<script", "<link", "<img", "<iframe", "<object", "<embed", "<form", " src=", "@import", "url(", "javascript:", " on"} {

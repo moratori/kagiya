@@ -109,5 +109,59 @@ func readInventory(path string) (*model.Inventory, error) {
 	if inv.Schema != model.Schema {
 		return nil, errors.New(path + ": unsupported schema (expected " + model.Schema + ")")
 	}
+	if err := checkInventory(&inv); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
 	return &inv, nil
+}
+
+// 結果ファイルの、項目ごとの件数の上限。結果ファイルは、侵害されたホストが作った「形式は正しいが中身に悪意のあるもの」でありうる。
+// 小さな要素を大量に並べたファイルで、メモリと処理時間を使い切らされないようにする（スキャンの側の上限より、少し広く取る）。
+const (
+	maxResultAssets      = 1_000_000
+	maxResultOccurrences = 4_000_000
+	maxResultServices    = 100_000
+	maxResultSettings    = 1_000_000
+	maxResultEffective   = 500_000
+	maxResultValues      = 50_000 // 1 つの設定・実効値が持つ値の数
+	maxResultOther       = 200_000
+)
+
+// checkInventory は、読み込んだ結果の件数と数値を確かめる。
+func checkInventory(inv *model.Inventory) error {
+	for _, c := range []struct {
+		what   string
+		n, max int
+	}{
+		{"assets", len(inv.Assets), maxResultAssets}, {"occurrences", len(inv.Occurrences), maxResultOccurrences},
+		{"services", len(inv.Services), maxResultServices}, {"settings", len(inv.Settings), maxResultSettings},
+		{"effective values", len(inv.EffectiveValues), maxResultEffective}, {"packages", len(inv.Packages), maxResultOther},
+		{"components", len(inv.Components), maxResultOther}, {"OS settings", len(inv.OSSettings), maxResultOther},
+		{"skipped entries", len(inv.Skipped), maxResultOther}, {"skip reasons", len(inv.Coverage.SkippedByReason), 1000},
+	} {
+		if c.n > c.max {
+			return fmt.Errorf("too many %s (%d; the limit is %d)", c.what, c.n, c.max)
+		}
+	}
+	for _, e := range inv.EffectiveValues {
+		if len(e.Values) > maxResultValues || len(e.Steps) > 1000 || len(e.Notes) > 1000 {
+			return fmt.Errorf("an effective value has too many entries (the limit is %d values)", maxResultValues)
+		}
+	}
+	for _, s := range inv.Settings {
+		if len(s.Values) > maxResultValues {
+			return fmt.Errorf("a setting has too many values (the limit is %d)", maxResultValues)
+		}
+	}
+	// 件数は、負にならない（複数のホストを合計するときに、ほかのホストの分を打ち消せてしまう）
+	cov := inv.Coverage
+	if cov.FilesExamined < 0 || cov.DirsExamined < 0 || cov.SymlinksIgnored < 0 || cov.SpecialIgnored < 0 || cov.BytesRead < 0 || cov.AtimeNotPreserved < 0 {
+		return errors.New("the coverage has a negative count")
+	}
+	for _, n := range cov.SkippedByReason {
+		if n < 0 {
+			return errors.New("the coverage has a negative count")
+		}
+	}
+	return nil
 }

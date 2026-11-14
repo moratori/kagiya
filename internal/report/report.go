@@ -33,6 +33,9 @@ const expiringDays = 30
 // レポートに埋め込む CBOM の合計の上限（これを超える分のホストには、保存用のリンクを付けない）。
 const maxEmbeddedCBOM = 48 << 20
 
+// maxEmbeddedCBOMPerHost は、1 ホスト分の CBOM の上限（1 つのホストが、埋め込みの枠を使い切らないように）。
+const maxEmbeddedCBOMPerHost = 8 << 20
+
 // fileSafe は、ファイル名に使える文字（英数字と . _ -）以外を「_」に置き換える。
 func fileSafe(s string) string {
 	b := []byte(s)
@@ -117,7 +120,10 @@ func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy
 		v.Tips = pg.Tips
 		// CBOM を作って埋め込む（保存用のリンクにする）。ホストが多いときは、ファイルが大きくなりすぎないところまで
 		var cb bytes.Buffer
-		if err := convert.WriteCBOMCompact(inv, &cb); err == nil && embedded+cb.Len() <= maxEmbeddedCBOM {
+		// 判定は、このレポートを作る時点のルールでやり直したものを使う（入力の結果ファイルに書かれた判定は使わない）
+		fresh := *inv
+		fresh.Assessment = b.a
+		if err := convert.WriteCBOMCompact(&fresh, &cb); err == nil && cb.Len() <= maxEmbeddedCBOMPerHost && embedded+cb.Len() <= maxEmbeddedCBOM {
 			embedded += cb.Len()
 			v.CBOM = cb.Bytes()
 		}
@@ -168,7 +174,7 @@ func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy
 func (b *builder) build(n int) *view {
 	m := b.inv.Meta
 	v := &view{N: n, H: "h" + strconv.Itoa(n), ViewID: "host-" + strconv.Itoa(n),
-		Host: m.Host.Hostname, OSArch: m.Host.OS + " / " + m.Host.Arch, Started: m.StartedAt, Finished: m.FinishedAt,
+		Host: m.Host.Hostname, ScanID: shortID(m.ScanID), OSArch: m.Host.OS + " / " + m.Host.Arch, Started: m.StartedAt, Finished: m.FinishedAt,
 		ToolVersion: m.Tool.Version, RulesVersion: m.Rules.Version, RulesSource: m.Rules.Source,
 		Incomplete: !m.Completed, IncompleteReason: m.Incomplete, Elevated: m.Privilege.Elevated, Warnings: m.Warnings,
 		ExpiringDays: expiringDays, Coverage: b.inv.Coverage, Roots: strings.Join(m.Invocation.Roots, "、"),
@@ -192,4 +198,15 @@ func (b *builder) rule(r ruleset.PolicyRule, titles map[string]string) ruleView 
 		rv.Refs = append(rv.Refs, titles[id])
 	}
 	return rv
+}
+
+// shortID は、スキャン ID の先頭 8 文字（英数字だけ）を返す。ホスト名は自己申告で重なりうるので、見分ける手掛かりとして出す。
+func shortID(id string) string {
+	out := make([]byte, 0, 8)
+	for i := 0; i < len(id) && len(out) < 8; i++ {
+		if c := id[i]; (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
+			out = append(out, c)
+		}
+	}
+	return string(out)
 }

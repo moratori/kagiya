@@ -173,6 +173,7 @@ type view struct {
 	ViewID string // このホストの表示のまとまりの ID（host-1 …）
 
 	Host, OSArch, Distribution, Started, Finished string
+	ScanID                                        string // スキャン ID の先頭 8 文字
 	ToolVersion, RulesVersion                     string
 	RulesSource                                   string
 	Labels                                        []string

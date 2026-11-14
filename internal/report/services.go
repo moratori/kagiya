@@ -74,6 +74,15 @@ func (b *builder) services(v *view) {
 	for _, c := range b.inv.Components {
 		components[c.ID] = c
 	}
+	// サービスごとの実効値と設定（サービスのたびに全件をなめない）
+	effBySvc := map[string][]model.EffectiveValue{}
+	for _, e := range b.inv.EffectiveValues {
+		effBySvc[e.Service] = append(effBySvc[e.Service], e)
+	}
+	setBySvc := map[string][]model.Setting{}
+	for _, set := range b.inv.Settings {
+		setBySvc[set.Service] = append(setBySvc[set.Service], set)
+	}
 	for _, s := range svcs {
 		sv := serviceView{Name: s.App, Activity: activityLabel[s.Activity.Level], ActivityTip: activityTip[s.Activity.Level], Configs: s.ConfigFiles, Notes: s.Notes,
 			Active: model.IsActive(s.Activity.Level)}
@@ -103,7 +112,7 @@ func (b *builder) services(v *view) {
 			}
 			return scopes[name]
 		}
-		for _, e := range b.inv.EffectiveValues {
+		for _, e := range effBySvc[s.ID] {
 			if e.Service != s.ID {
 				continue
 			}
@@ -128,7 +137,7 @@ func (b *builder) services(v *view) {
 			sc := scope(e.Scope)
 			sc.Effective = append(sc.Effective, ef)
 		}
-		for _, set := range b.inv.Settings {
+		for _, set := range setBySvc[s.ID] {
 			if set.Service != s.ID {
 				continue
 			}
