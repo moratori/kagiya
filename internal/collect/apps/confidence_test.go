@@ -23,23 +23,32 @@ func hasQualifier(e model.EffectiveValue, q string) bool {
 	return false
 }
 
-// sshd の既定値のルールは、sshd -T の出力だけで作っており、数え上げで裏付けていない（verified-by-handshake: false）。
+// sshd の既定値のルールは、項目によって裏付けが違う。鍵交換・暗号・MAC は、SSH の接続での数え上げで裏付けてある。
+// ホスト鍵のアルゴリズムは、sshd -T の出力だけで、裏付けていない（サーバーが持つ鍵の種類で決まり、報告の一覧とは一致しない）。
 func TestConfidenceUnverifiedRule(t *testing.T) {
-	// 完全一致でも、裏付けがないので中
 	_, inv := collect(t, "ubuntu2404", withPackage(ubuntu2404Version, func(p string, b *inventory.Builder) {
 		os.WriteFile(p+"/etc/ssh/sshd_config", []byte("Ciphers aes256-ctr\n"), 0o644)
 	}))
-	if e := effectiveValue(t, inv, "ssh.kex-algorithms"); e.Status != "resolved" || e.Confidence != "medium" {
-		t.Errorf("kex (exact, not verified) = %s %s", e.Status, e.Confidence)
+	// 完全一致で、裏付けがあるので高
+	if e := effectiveValue(t, inv, "ssh.kex-algorithms"); e.Status != "resolved" || e.Confidence != "high" {
+		t.Errorf("kex (exact, verified) = %s %s", e.Status, e.Confidence)
+	}
+	// 完全一致でも、裏付けがないので中
+	if e := effectiveValue(t, inv, "ssh.host-key-algorithms"); e.Status != "resolved" || e.Confidence != "medium" {
+		t.Errorf("host key algorithms (exact, not verified) = %s %s", e.Status, e.Confidence)
 	}
 	// 設定に一覧がそのまま書かれている項目は、ルールを使わないので高
 	if e := effectiveValue(t, inv, "ssh.ciphers"); strings.Join(e.Values, ",") != "aes256-ctr" || e.Confidence != "high" {
 		t.Errorf("ciphers (written in the configuration) = %v %s", e.Values, e.Confidence)
 	}
-	// 近い版のルールで補い、かつ裏付けがないので低
 	_, inv = collect(t, "ubuntu2404", withPackage("1:9.6p1-3ubuntu13.99", nil))
-	if e := effectiveValue(t, inv, "ssh.kex-algorithms"); e.Status != "resolved" || e.Confidence != "low" {
-		t.Errorf("kex (filled, not verified) = %s %s", e.Status, e.Confidence)
+	// 近い版のルールで補ったが、裏付けはあるので中
+	if e := effectiveValue(t, inv, "ssh.kex-algorithms"); e.Status != "resolved" || e.Confidence != "medium" {
+		t.Errorf("kex (filled, verified) = %s %s", e.Status, e.Confidence)
+	}
+	// 近い版のルールで補い、かつ裏付けがないので低
+	if e := effectiveValue(t, inv, "ssh.host-key-algorithms"); e.Status != "resolved" || e.Confidence != "low" {
+		t.Errorf("host key algorithms (filled, not verified) = %s %s", e.Status, e.Confidence)
 	}
 }
 

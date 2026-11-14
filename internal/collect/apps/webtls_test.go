@@ -374,7 +374,7 @@ func TestEffectiveInterpolatedDefaults(t *testing.T) {
 	}))
 	// 記載のない項目: 実測した版（13.20）の既定値
 	e := effectiveValue(t, inv, "ssh.kex-algorithms")
-	if e.Status != "resolved" || strings.Join(e.Values, ",") != ubuntu2404DefaultKex || e.Confidence != "low" {
+	if e.Status != "resolved" || strings.Join(e.Values, ",") != ubuntu2404DefaultKex || e.Confidence != "medium" {
 		t.Errorf("kex = %+v", e)
 	}
 	if len(e.Notes) != 1 || !strings.Contains(e.Notes[0], ubuntu2404Version) || !strings.Contains(e.Notes[0], "1:9.6p1-3ubuntu13.99") {
@@ -384,7 +384,7 @@ func TestEffectiveInterpolatedDefaults(t *testing.T) {
 		t.Errorf("the source must be the measured version: %+v", e.Steps[0].Source)
 	}
 	// 既定の一覧を加工する項目も、補間した既定値を使うので確度が下がる
-	if m := effectiveValue(t, inv, "ssh.macs"); m.Status != "resolved" || strings.Join(m.Values, ",") != ubuntu2404ModifiedMACs || m.Confidence != "low" || len(m.Notes) != 1 {
+	if m := effectiveValue(t, inv, "ssh.macs"); m.Status != "resolved" || strings.Join(m.Values, ",") != ubuntu2404ModifiedMACs || m.Confidence != "medium" || len(m.Notes) != 1 {
 		t.Errorf("macs = %+v", m)
 	}
 	// 一覧が明記されている項目は、既定値を使わないので確度は下がらない

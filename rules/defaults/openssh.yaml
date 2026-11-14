@@ -14,6 +14,10 @@ defaults:
       os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
       method: reported-by-software
       verified-by-handshake: false
+      items:
+        ssh.ciphers: { method: reported-by-software, verified-by-handshake: true }
+        ssh.kex-algorithms: { method: reported-by-software, verified-by-handshake: true }
+        ssh.macs: { method: reported-by-software, verified-by-handshake: true }
       note: "sshd -T -f <empty file>"
     values:
       ssh.ciphers: "chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com"
@@ -32,6 +36,10 @@ defaults:
       os: "Red Hat Enterprise Linux 9.9 (Plow)"
       method: reported-by-software
       verified-by-handshake: false
+      items:
+        ssh.ciphers: { method: reported-by-software, verified-by-handshake: true }
+        ssh.kex-algorithms: { method: reported-by-software, verified-by-handshake: true }
+        ssh.macs: { method: reported-by-software, verified-by-handshake: true }
       note: "sshd -T -f <empty file>"
     values:
       ssh.ciphers: "chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com"
@@ -51,6 +59,10 @@ defaults:
       os: "Red Hat Enterprise Linux 10.3 (Coughlan)"
       method: reported-by-software
       verified-by-handshake: false
+      items:
+        ssh.ciphers: { method: reported-by-software, verified-by-handshake: true }
+        ssh.kex-algorithms: { method: reported-by-software, verified-by-handshake: true }
+        ssh.macs: { method: reported-by-software, verified-by-handshake: true }
       note: "sshd -T -f <empty file>"
     values:
       ssh.ciphers: "chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com"
@@ -70,6 +82,10 @@ defaults:
       os: "Ubuntu 16.04.7 LTS"
       method: reported-by-software
       verified-by-handshake: false
+      items:
+        ssh.ciphers: { method: reported-by-software, verified-by-handshake: true }
+        ssh.kex-algorithms: { method: reported-by-software, verified-by-handshake: true }
+        ssh.macs: { method: reported-by-software, verified-by-handshake: true }
       note: "sshd -T -f <empty file>"
     values:
       ssh.ciphers: "chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com"
@@ -86,6 +102,10 @@ defaults:
       os: "Ubuntu 20.04.6 LTS"
       method: reported-by-software
       verified-by-handshake: false
+      items:
+        ssh.ciphers: { method: reported-by-software, verified-by-handshake: true }
+        ssh.kex-algorithms: { method: reported-by-software, verified-by-handshake: true }
+        ssh.macs: { method: reported-by-software, verified-by-handshake: true }
       note: "sshd -T -f <empty file>"
     values:
       ssh.ciphers: "chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com"
@@ -104,6 +124,10 @@ defaults:
       os: "Ubuntu 22.04.5 LTS"
       method: reported-by-software
       verified-by-handshake: false
+      items:
+        ssh.ciphers: { method: reported-by-software, verified-by-handshake: true }
+        ssh.kex-algorithms: { method: reported-by-software, verified-by-handshake: true }
+        ssh.macs: { method: reported-by-software, verified-by-handshake: true }
       note: "sshd -T -f <empty file>"
     values:
       ssh.ciphers: "chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com"
@@ -122,6 +146,10 @@ defaults:
       os: "Ubuntu 24.04.5 LTS"
       method: reported-by-software
       verified-by-handshake: false
+      items:
+        ssh.ciphers: { method: reported-by-software, verified-by-handshake: true }
+        ssh.kex-algorithms: { method: reported-by-software, verified-by-handshake: true }
+        ssh.macs: { method: reported-by-software, verified-by-handshake: true }
       note: "sshd -T -f <empty file>"
     values:
       ssh.ciphers: "chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com"
@@ -141,6 +169,10 @@ defaults:
       os: "Debian GNU/Linux 13 (trixie)"
       method: reported-by-software
       verified-by-handshake: false
+      items:
+        ssh.ciphers: { method: reported-by-software, verified-by-handshake: true }
+        ssh.kex-algorithms: { method: reported-by-software, verified-by-handshake: true }
+        ssh.macs: { method: reported-by-software, verified-by-handshake: true }
       note: "sshd -T -f <empty file>"
     values:
       ssh.ciphers: "chacha20-poly1305@openssh.com,aes128-gcm@openssh.com,aes256-gcm@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr"
