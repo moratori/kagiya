@@ -13,6 +13,7 @@ package javasecurity
 
 import (
 	"path"
+	"sort"
 	"strings"
 )
 
@@ -39,6 +40,16 @@ type File struct {
 }
 
 // Get は、名前に対して効いている記載を返す。
+// Names は、読めた設定の名前を、名前の順で返す。
+func (f *File) Names() []string {
+	out := make([]string, 0, len(f.entries))
+	for n := range f.entries {
+		out = append(out, n)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func (f *File) Get(name string) (Entry, bool) {
 	e, ok := f.entries[name]
 	return e, ok

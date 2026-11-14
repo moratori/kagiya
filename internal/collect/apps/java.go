@@ -109,6 +109,57 @@ func (c *Collector) jdkReleaseVersion(home string) string {
 	return ""
 }
 
+// JDK に含まれるセキュリティプロバイダの名前（java.security の security.provider.N に書かれる形）。
+// 検証ラボで導入した 35 の JDK（OpenJDK 8 / 11 / 17 / 21 / 25。ディストリのパッケージ、Temurin、Corretto）の java.security に現れたもの。
+var jdkOwnProviders = map[string]bool{
+	"SUN": true, "SunRsaSign": true, "SunEC": true, "SunJSSE": true, "SunJCE": true, "SunJGSS": true, "SunSASL": true, "XMLDSig": true,
+	"SunPCSC": true, "JdkLDAP": true, "JdkSASL": true, "SunPKCS11": true,
+	// Java 8 はクラス名で書く
+	"sun.security.provider.Sun": true, "sun.security.rsa.SunRsaSign": true, "sun.security.ec.SunEC": true, "com.sun.net.ssl.internal.ssl.Provider": true,
+	"com.sun.crypto.provider.SunJCE": true, "sun.security.jgss.SunProvider": true, "com.sun.security.sasl.Provider": true,
+	"org.jcp.xml.dsig.internal.dom.XMLDSigRI": true, "sun.security.smartcardio.SunPCSC": true,
+}
+
+var (
+	jdkProviderKey  = regexp.MustCompile(`^security\.provider\.[0-9]{1,3}$`)
+	jdkProviderName = regexp.MustCompile(`^[A-Za-z0-9_.$-]{1,128}$`)
+)
+
+// jdkForeignProvider は、java.security に、JDK に含まれないセキュリティプロバイダや、TLS の実装を差し替える設定がないかを調べる。
+// あれば、その理由を返す（JDK の表は、JDK 自身の実装が TLS を担当する場合のもの）。
+// FIPS モード用の一覧（fips.provider.N）は、FIPS モードのときだけ使われ、その場合は別に理由を付けるので、ここでは見ない。
+func jdkForeignProvider(f *javasecurity.File) string {
+	for _, name := range f.Names() {
+		e, _ := f.Get(name)
+		v := strings.TrimSpace(e.Value)
+		switch {
+		case jdkProviderKey.MatchString(name):
+			fields := strings.Fields(v)
+			if len(fields) == 0 {
+				continue
+			}
+			if len(fields) > 1 || !jdkProviderName.MatchString(fields[0]) {
+				if len(fields) > 1 && fields[0] == "SunPKCS11" {
+					return "java.security registers SunPKCS11 with a configuration (" + name + "); cryptography may be delegated to another library, which has not been measured"
+				}
+				return "the value of " + name + " in java.security is not interpreted"
+			}
+			if !jdkOwnProviders[fields[0]] {
+				return "java.security registers a security provider that is not part of the JDK (" + fields[0] + "); which implementation handles TLS has not been measured"
+			}
+		case name == "ssl.SocketFactory.provider" || name == "ssl.ServerSocketFactory.provider":
+			if v != "" {
+				return name + " is set in java.security; the TLS implementation is replaced, which has not been measured"
+			}
+		case name == "ssl.KeyManagerFactory.algorithm":
+			if v != "" && v != "SunX509" && v != "NewSunX509" && v != "PKIX" {
+				return name + " is set to a value that has not been measured"
+			}
+		}
+	}
+	return ""
+}
+
 // jdkContext は、ある JDK について、対応表と、無効にする方式の設定を読んだ結果。
 type jdkContext struct {
 	table      *ruleset.JDKTable
@@ -170,6 +221,11 @@ func (c *Collector) jdkRead(app ruleset.AppRule, svc model.Service, home, sec st
 				return f.Get(name)
 			}
 		}
+	}
+
+	// JDK に含まれないプロバイダが登録されていると、TLS をどの実装が担当するかが変わりうる
+	if reason == "" {
+		reason = jdkForeignProvider(f)
 	}
 
 	// 根拠になる記載を記録する（表がなくても、読めたものは残す）
