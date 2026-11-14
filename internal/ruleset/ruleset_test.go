@@ -1317,3 +1317,77 @@ func TestBuiltinTomcatMeasuredFacts(t *testing.T) {
 		t.Error("ciphersuites_ignored_by_jdk without ciphersuites_attribute must be rejected")
 	}
 }
+
+// Java の暗号ライブラリの定義（JAR のファイル名から、ライブラリと版を特定する）を読み込める。
+func TestLoadJavaLibraries(t *testing.T) {
+	base := map[string]string{"manifest.yaml": okManifest, "catalog/algorithms.yaml": okCatalog}
+	with := func(y string) map[string]string {
+		m := map[string]string{"libraries/mylib.yaml": y}
+		for k, v := range base {
+			m[k] = v
+		}
+		return m
+	}
+	src := "  sources:\n    - image: \"u@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6\"\n      os: \"X\"\n"
+	ok := "java_library:\n  id: mylib\n  artifacts: [\"myprov-*\", \"my-fips\"]\n" + src
+	rs, err := Load(mapFS(with(ok)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ file, artifact, version string }{
+		{"myprov-jdk18on-1.78.1.jar", "myprov-jdk18on", "1.78.1"},
+		{"my-fips-2.1.0.jar", "my-fips", "2.1.0"},
+		{"myprov-ext-jdk18on-1.78.jar", "myprov-ext-jdk18on", "1.78"},
+		{"my-fips.jar", "my-fips", ""}, // 版のない名前（リンクなど）
+		{"myprov-jdk18on-2.0.85.Final-linux-x86_64.jar", "myprov-jdk18on", "2.0.85.Final-linux-x86_64"},
+	} {
+		rule, artifact, version, found := rs.JavaLibraryForFile(c.file)
+		if !found || rule.ID != "mylib" || artifact != c.artifact || version != c.version {
+			t.Errorf("%s: found=%v id=%s artifact=%q version=%q", c.file, found, rule.ID, artifact, version)
+		}
+	}
+	for _, f := range []string{"other-1.0.jar", "my-fips-extra-1.0.jar", "myprov-jdk18on-1.78.1.txt", "my-fips-.jar", "my-fips-1.0\n.jar", "", "myprov-.jar"} {
+		if _, _, _, found := rs.JavaLibraryForFile(f); found {
+			t.Errorf("%q must not match", f)
+		}
+	}
+	for name, y := range map[string]string{
+		"no artifacts":  "java_library:\n  id: mylib\n" + src,
+		"no sources":    "java_library:\n  id: mylib\n  artifacts: [\"my-fips\"]\n",
+		"bad artifact":  "java_library:\n  id: mylib\n  artifacts: [\"*\"]\n" + src,
+		"bad artifact2": "java_library:\n  id: mylib\n  artifacts: [\"my fips\"]\n" + src,
+		"both kinds":    ok + "library:\n  id: other\n  sonames: [\"libx.so*\"]\n  version_pattern: 'X (\\d+)'\n" + src,
+		"unknown key":   "java_library:\n  id: mylib\n  artifacts: [\"my-fips\"]\n  surprise: 1\n" + src,
+	} {
+		if _, err := Load(mapFS(with(y))); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+}
+
+// 内蔵の定義: JAR のファイル名は、Maven Central の成果物の一覧で確かめたもの。
+func TestBuiltinJavaLibraries(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ file, id, artifact, version string }{
+		{"bcprov-jdk18on-1.78.1.jar", "bouncycastle", "bcprov-jdk18on", "1.78.1"},
+		{"bcpkix-jdk15on-1.70.jar", "bouncycastle", "bcpkix-jdk15on", "1.70"},
+		{"bctls-fips-2.1.25.jar", "bouncycastle", "bctls-fips", "2.1.25"},
+		{"bc-fips-2.1.3.jar", "bouncycastle", "bc-fips", "2.1.3"},
+		{"conscrypt-openjdk-uber-2.9.0.jar", "conscrypt", "conscrypt-openjdk-uber", "2.9.0"},
+		{"netty-tcnative-boringssl-static-2.0.85.Final-linux-x86_64.jar", "netty-tcnative", "netty-tcnative-boringssl-static", "2.0.85.Final-linux-x86_64"},
+		{"tomcat-embed-core-10.1.55.jar", "tomcat-embed", "tomcat-embed-core", "10.1.55"},
+	} {
+		rule, artifact, version, found := rs.JavaLibraryForFile(c.file)
+		if !found || rule.ID != c.id || artifact != c.artifact || version != c.version {
+			t.Errorf("%s: found=%v id=%s artifact=%q version=%q", c.file, found, rule.ID, artifact, version)
+		}
+	}
+	for _, f := range []string{"spring-core-6.2.1.jar", "jackson-databind-2.21.4.jar", "tomcat-embed-el-10.1.55.jar"} {
+		if _, _, _, found := rs.JavaLibraryForFile(f); found {
+			t.Errorf("%q is not a cryptographic library", f)
+		}
+	}
+}
