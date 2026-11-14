@@ -819,7 +819,7 @@ CSV と CBOM には常に全件を出す。
 |---|---|---|
 | 済 | 基盤、証明書・鍵・キーストア、OS とライブラリ、sshd、nginx、Apache httpd、HAProxy、stunnel、Postfix、PostgreSQL、Dovecot、MariaDB / MySQL、レポート、CBOM | 済（records.md） |
 | 済 | Java の 1 段目（JDK の既定）、2 段目（パッケージの Tomcat。JDK の実装と OpenSSL の実装） | 済 |
-| 1 | Spring Boot（組み込みの Tomcat、JAR の中の設定）。2.7 以降の全パッチ版を測る。起動の定義は systemd と supervisord から読み、読めない JAR は「すべての JDK で同じ結果のときだけ確定」 | 進行中 |
+| 1 | Spring Boot（組み込みの Tomcat、JAR の中の設定）。2.7 以降の全パッチ版（117 版）を測った。起動の定義は systemd のユニットから読み、読めない JAR は「すべての JDK で同じ結果のときだけ確定」 | 実装済み（差分テストで不一致 0）。残り: supervisord の定義、`<名前>.conf`、管理用の待ち受け |
 | 1 | JAR に同梱された暗号ライブラリの棚卸し、Bouncy Castle 形式のキーストアの識別 | 実装済み。各ライブラリの PQC 対応の版（出典つき）は未着手 |
 | 2 | WildFly | 未着手 |
 | 3 | ASP.NET Core（Kestrel） | 未着手 |
