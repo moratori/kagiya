@@ -71,9 +71,17 @@ type sbHost struct {
 	jdks    []model.Package   // 導入されている JDK（既定は Ubuntu の 21）
 	// supervisord のサービスを「起動するよう設定された」状態にする
 	enableSupervisor bool
+	// JAR の先頭に起動スクリプトを付ける（Spring Boot の「そのまま実行できる JAR」）
+	script bool
 }
 
 func sbCollect(t *testing.T, h sbHost) (string, *model.Inventory) {
+	t.Helper()
+	return sbCollectWith(t, h, nil)
+}
+
+// sbCollectWith は、調べる前に、prepare でホストの状態に手を加える。
+func sbCollectWith(t *testing.T, h sbHost, prepare func(prefix string)) (string, *model.Inventory) {
 	t.Helper()
 	prefix, _ := filepath.EvalSymlinks(t.TempDir())
 	if h.boot == "" {
@@ -93,7 +101,11 @@ func sbCollect(t *testing.T, h sbHost) (string, *model.Inventory) {
 			t.Fatal(err)
 		}
 	}
-	write(sbJar, sbArchive(t, h.boot, h.libs, h.config))
+	jar := sbArchive(t, h.boot, h.libs, h.config)
+	if h.script {
+		jar = append([]byte("#!/bin/bash\n# the launch script of Spring Boot would be here\nexit 0\n"), jar...)
+	}
+	write(sbJar, jar)
 	rs, err := ruleset.Builtin()
 	if err != nil {
 		t.Fatal(err)
@@ -118,6 +130,9 @@ func sbCollect(t *testing.T, h sbHost) (string, *model.Inventory) {
 	}
 	if h.enableSupervisor {
 		link(t, prefix, "/usr/lib/systemd/system/supervisor.service", "/etc/systemd/system/multi-user.target.wants/supervisor.service")
+	}
+	if prepare != nil {
+		prepare(prefix)
 	}
 	c := &Collector{Prefix: prefix, Opener: &safefs.Opener{OnSkip: b.Skip}, Builder: b, Rules: rs}
 	c.CollectJavaApps([]string{prefix + sbJar})
@@ -395,5 +410,163 @@ func TestSpringBootFromSupervisor(t *testing.T) {
 	checkSuites(t, e, 3, jdkTLS13, "medium")
 	if !strings.Contains(strings.Join(e.Notes, " "), "every JDK") {
 		t.Errorf("notes = %v", e.Notes)
+	}
+}
+
+// 以下は、Spring Boot の「そのまま実行できる JAR」（JAR の先頭に起動スクリプトを付けたもの。ビルドの設定で executable を有効にすると作られる）。
+// 検証ラボで、Spring Boot 2.7.18 と 3.5.16 でビルドした JAR から起動スクリプトを取り出して読んだ（どちらも同じ内容。4.1.2 では、
+// 同じ設定でもスクリプトは付かなかった）。スクリプトは、JAR の隣の <JAR の名前>.conf を取り込み、JAVA_HOME の Java（なければ PATH の java）で、
+// 「java $JAVA_OPTS -jar <JAR> $RUN_ARGS <引数>」を起動する。
+
+const (
+	sbConf     = "/opt/portal/app.conf"
+	sbConfJava = "JAVA_HOME=" + sbJava21 + "\n"
+)
+
+// ユニットが JAR そのものを起動する場合: Java は、.conf の JAVA_HOME から決まる。
+func TestSpringBootExecutableJar(t *testing.T) {
+	conf := map[string]string{"application.properties": sbBase + sbKS, "application-prod.properties": "server.ssl.enabled-protocols=TLSv1.3\n"}
+	_, inv := sbCollect(t, sbHost{config: conf, script: true, unit: sbJar,
+		files: map[string]string{sbConf: "# portal\n" + sbConfJava + "JAVA_OPTS=\"-Xmx512m -Dfile.encoding=UTF-8\"\nLOG_FOLDER=/var/log/portal\nKEY_PASSWORD=s3cret-conf\n"}})
+	e := sbEff(t, inv, "tls.ciphersuites-tls13")
+	checkSuites(t, e, 3, jdkTLS13, "high")
+	notes := strings.Join(e.Notes, " ")
+	for _, want := range []string{"portal.service", "JAVA_HOME", sbConf, sbJava21} {
+		if !strings.Contains(notes, want) {
+			t.Errorf("the notes must mention %q: %v", want, e.Notes)
+		}
+	}
+	for _, s := range inv.Services {
+		if s.ID == sbSvc && s.Activity.Level != "enabled" {
+			t.Errorf("activity = %+v", s.Activity)
+		}
+	}
+	out, _ := json.Marshal(inv)
+	if strings.Contains(string(out), "s3cret") {
+		t.Error("a value from the .conf file appears in the result")
+	}
+
+	// JAVA_HOME は、ユニットの環境変数からも決まる（.conf があれば、.conf の値が後から代入されるので優先）
+	_, inv = sbCollect(t, sbHost{config: conf, script: true, unit: sbJar, unitEnv: "Environment=JAVA_HOME=" + sbJava21 + "\n"})
+	e = sbEff(t, inv, "tls.ciphersuites-tls13")
+	checkSuites(t, e, 3, jdkTLS13, "high")
+	if n := strings.Join(e.Notes, " "); !strings.Contains(n, "JAVA_HOME") || !strings.Contains(n, "portal.service") {
+		t.Errorf("notes = %v", e.Notes)
+	}
+	_, inv = sbCollect(t, sbHost{config: conf, script: true, unit: sbJar, unitEnv: "Environment=JAVA_HOME=" + jdkDeb25Home + "\n",
+		jdks: []model.Package{pkgJava21Ubu, pkgDeb25}, files: map[string]string{sbConf: sbConfJava}})
+	if g := sbEff(t, inv, "tls.groups"); g.Status != "resolved" || sortedJoin(g.Values) != jdkGroups {
+		t.Errorf("the JAVA_HOME in the .conf file must win over the unit's: %+v", g)
+	}
+
+	// JAVA_HOME がどこにもない（または、その下に java がない）場合は、PATH の java が使われる。JAVA_HOME の値を読み切れない場合も含めて、どの JDK かは決めず、
+	// 起動の定義がない場合と同じく、すべての JDK で同じになる値だけを確定とする
+	for name, h := range map[string]sbHost{
+		"no JAVA_HOME":             {config: conf, script: true, unit: sbJar},
+		"JAVA_HOME without a java": {config: conf, script: true, unit: sbJar, files: map[string]string{sbConf: "JAVA_HOME=/opt/missing-jdk\n"}},
+		"JAVA_HOME not plain":      {config: conf, script: true, unit: sbJar, files: map[string]string{sbConf: "JAVA_HOME=$(dirname /usr/bin)\n"}},
+	} {
+		_, inv := sbCollect(t, h)
+		e := sbEff(t, inv, "tls.ciphersuites-tls13")
+		checkSuites(t, e, 3, jdkTLS13, "medium")
+		if n := strings.Join(e.Notes, " "); !strings.Contains(n, "PATH") || !strings.Contains(n, "every JDK") {
+			t.Errorf("%s: notes = %v", name, e.Notes)
+		}
+		for _, s := range inv.Services {
+			if s.ID == sbSvc && s.Activity.Level != "enabled" {
+				t.Errorf("%s: activity = %+v", name, s.Activity)
+			}
+		}
+	}
+
+	// RUN_ARGS と、ユニットの引数は、アプリの引数になる（プロファイルの指定を読む）。JAVA_OPTS の -D も同じ
+	for name, h := range map[string]sbHost{
+		"RUN_ARGS":  {config: conf, script: true, unit: sbJar, files: map[string]string{sbConf: sbConfJava + "RUN_ARGS='--spring.profiles.active=prod'\n"}},
+		"unit args": {config: conf, script: true, unit: sbJar + " --spring.profiles.active=prod", files: map[string]string{sbConf: sbConfJava}},
+		"JAVA_OPTS": {config: conf, script: true, unit: sbJar, files: map[string]string{sbConf: sbConfJava + "JAVA_OPTS=-Dspring.profiles.active=prod\n"}},
+		"unit env":  {config: conf, script: true, unit: sbJar, unitEnv: "Environment=RUN_ARGS=--spring.profiles.active=prod\n", files: map[string]string{sbConf: sbConfJava}},
+	} {
+		_, inv := sbCollect(t, h)
+		if p := sbEff(t, inv, "tls.protocols"); p.Status != "resolved" || strings.Join(p.Values, ",") != "TLSv1.3" {
+			t.Errorf("%s: protocols = %+v", name, p)
+		}
+	}
+
+	// supervisord のプログラムが JAR そのものを起動する場合も同じ
+	_, inv = sbCollect(t, sbHost{config: conf, script: true, enableSupervisor: true, files: map[string]string{
+		"/etc/supervisor/conf.d/portal.conf": "[program:portal]\ncommand=" + sbJar + "\nenvironment=JAVA_HOME=\"" + sbJava21 + "\"\n"}})
+	e = sbEff(t, inv, "tls.ciphersuites-tls13")
+	checkSuites(t, e, 3, jdkTLS13, "high")
+	if n := strings.Join(e.Notes, " "); !strings.Contains(n, "supervisord") || !strings.Contains(n, "JAVA_HOME") {
+		t.Errorf("notes = %v", e.Notes)
+	}
+}
+
+// .conf や環境変数で、結果が変わりうる指定がある場合、内容を読み切れない場合は、値を求めない。
+func TestSpringBootExecutableJarUnresolved(t *testing.T) {
+	conf := map[string]string{"application.properties": sbBase + sbKS}
+	for name, tc := range map[string]struct {
+		h    sbHost
+		want string
+	}{
+		"RUN_ARGS overrides TLS settings": {sbHost{unit: sbJar, files: map[string]string{sbConf: sbConfJava + "RUN_ARGS=--server.ssl.ciphers=TLS_AES_128_GCM_SHA256\n"}}, "override"},
+		"JAVA_OPTS changes Java's TLS":    {sbHost{unit: sbJar, files: map[string]string{sbConf: sbConfJava + "JAVA_OPTS=-Djava.security.properties=/etc/portal/sec\n"}}, "-Djava.security"},
+		"JAVA_OPTS is not a plain value":  {sbHost{unit: sbJar, files: map[string]string{sbConf: sbConfJava + "JAVA_OPTS=\"$JAVA_OPTS -Xmx1g\"\n"}}, "JAVA_OPTS"},
+		"shell commands in the .conf":     {sbHost{unit: sbJar, files: map[string]string{sbConf: sbConfJava + "source /etc/default/portal\n"}}, "line 2"},
+		"TLS settings in the .conf":       {sbHost{unit: sbJar, files: map[string]string{sbConf: sbConfJava + "export SERVER_SSL_ENABLED_PROTOCOLS=TLSv1.3\n"}}, "SERVER_SSL_ENABLED_PROTOCOLS"},
+		"JAVA_OPTS in the unit":           {sbHost{unit: sbJar, unitEnv: "Environment=JAVA_OPTS=-Djdk.tls.disabledAlgorithms=TLSv1.3\n", files: map[string]string{sbConf: sbConfJava}}, "-Djdk.tls"},
+		"the .conf is somewhere else":     {sbHost{unit: sbJar, unitEnv: "Environment=CONF_FOLDER=/etc/portal\n", files: map[string]string{"/etc/portal/app.conf": "RUN_ARGS=--spring.config.location=/etc/portal/\n"}}, "/etc/portal/app.conf"},
+		"another JAR is named":            {sbHost{unit: sbJar, unitEnv: "Environment=JARFILE=/opt/other/other.jar\n"}, "JARFILE"},
+		"JAVA_OPTS is not java options":   {sbHost{unit: sbJar, files: map[string]string{sbConf: sbConfJava + "JAVA_OPTS=\"-cp /opt/x.jar\"\n"}}, "JAVA_OPTS"},
+	} {
+		tc.h.config, tc.h.script = conf, true
+		_, inv := sbCollect(t, tc.h)
+		for _, p := range []string{"tls.protocols", "tls.ciphers", "tls.ciphersuites-tls13"} {
+			if e := sbEff(t, inv, p); e.Status != "unresolved" || !strings.Contains(e.Reason, tc.want) {
+				t.Errorf("%s: %s: status=%s reason=%q, want unresolved with %q", name, p, e.Status, e.Reason, tc.want)
+			}
+		}
+		// 引数や起動オプションの値は、結果に出さない（パスワードを引数で渡す運用がありうるため）
+		out, _ := json.Marshal(inv)
+		for _, v := range []string{"--server.ssl.ciphers=", "/etc/portal/sec", "disabledAlgorithms=TLSv1.3"} {
+			if strings.Contains(string(out), v) {
+				t.Errorf("%s: the value of an option (%s) appears in the result", name, v)
+			}
+		}
+	}
+}
+
+// 起動の定義がない（または java -jar で起動する）場合の、実行できる JAR と .conf の扱い。
+func TestSpringBootExecutableJarWithoutDirectLaunch(t *testing.T) {
+	conf := map[string]string{"application.properties": sbBase + sbKS}
+	risky := sbConfJava + "RUN_ARGS=--server.ssl.ciphers=TLS_AES_128_GCM_SHA256\n"
+	// 起動の定義がない: スクリプトとして起動されているかは分からない。.conf に結果を変える指定がなければ、ない場合と同じ（JAVA_HOME は使わない）
+	_, inv := sbCollect(t, sbHost{config: conf, script: true, files: map[string]string{sbConf: sbConfJava + "JAVA_OPTS=-Xmx1g\n"}})
+	e := sbEff(t, inv, "tls.ciphersuites-tls13")
+	checkSuites(t, e, 3, jdkTLS13, "medium")
+	if !strings.Contains(strings.Join(e.Notes, " "), "every JDK") {
+		t.Errorf("notes = %v", e.Notes)
+	}
+	// 結果を変える指定があれば、求めない
+	_, inv = sbCollect(t, sbHost{config: conf, script: true, files: map[string]string{sbConf: risky}})
+	sbUnresolved(t, inv, sbConf)
+	_, inv = sbCollect(t, sbHost{config: conf, script: true, files: map[string]string{sbConf: "if true; then\n"}})
+	sbUnresolved(t, inv, sbConf)
+	// java -jar で起動する定義がある場合、スクリプトも .conf も使われない
+	_, inv = sbCollect(t, sbHost{config: conf, script: true, unit: sbStart, files: map[string]string{sbConf: risky}})
+	checkSuites(t, sbEff(t, inv, "tls.ciphersuites-tls13"), 3, jdkTLS13, "high")
+	// 先頭にスクリプトのない JAR は、そのままでは起動できない。JAR そのものを起動する定義は使わず、.conf も読まない
+	_, inv = sbCollect(t, sbHost{config: conf, unit: sbJar, files: map[string]string{sbConf: risky}})
+	e = sbEff(t, inv, "tls.ciphersuites-tls13")
+	checkSuites(t, e, 3, jdkTLS13, "medium")
+	if !strings.Contains(strings.Join(e.Notes, " "), "every JDK") {
+		t.Errorf("notes = %v", e.Notes)
+	}
+	// リンクを通して起動する場合は、リンクの隣の .conf も取り込まれる。そこまでは追わず、求めない
+	prefixed := sbHost{config: conf, script: true, unit: "/opt/links/portal.jar"}
+	_, inv = sbCollectWith(t, prefixed, func(prefix string) { link(t, prefix, "../portal/app.jar", "/opt/links/portal.jar") })
+	sbUnresolved(t, inv, "symbolic link")
+	if n := len(inv.Services); n != 1 {
+		t.Errorf("the JAR must be recorded once, under its real path: %d services", n)
 	}
 }
