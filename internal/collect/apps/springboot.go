@@ -64,21 +64,33 @@ type javaLaunch struct {
 	envOverride    string // 空でなければ、TLS の設定を上書きする環境変数の名前
 	envRisky       string // 空でなければ、Java の起動オプションを足す環境変数に、TLS の設定を変えうる指定がある
 	envUnknown     string // 空でなければ、値を確定できない環境変数（置き換えを含む）のうち、結果に関わるものの名前
+	// JAR そのものを起動する定義（Spring Boot の「そのまま実行できる JAR」。executable.go を参照）
+	selfExec    bool
+	args        []string          // JAR の後ろの引数
+	execEnv     map[string]string // 起動スクリプトが見る環境変数（execEnvNames のものだけ）
+	viaLink     string            // 空でなければ、起動の定義が指すパス（リンク。JAR の実体は別の場所）
+	javaFrom    string            // 空でなければ、Java の決まり方の説明（JAVA_HOME をどこから読んだか）
+	javaUnknown bool              // どの Java で動くかが、起動の定義から決まらない（PATH の java）
+}
+
+// springEnvRelevant は、環境変数が、結果（プロファイル、TLS の設定、Java の起動オプション）に関わるものかを返す。
+func springEnvRelevant(name string) bool {
+	if name == "SPRING_PROFILES_ACTIVE" || name == "JAVA_TOOL_OPTIONS" || name == "JDK_JAVA_OPTIONS" {
+		return true
+	}
+	for _, prefix := range springEnvOverrides {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // applyEnv は、起動の定義の環境変数を調べる（プロファイルの指定、TLS の設定の上書き、Java の起動オプションの追加）。
 // unknown は、値を確定できなかった環境変数の名前。
 func (l *javaLaunch) applyEnv(env map[string]string, unknown map[string]bool) {
 	relevant := func(name string) bool {
-		if name == "SPRING_PROFILES_ACTIVE" || name == "JAVA_TOOL_OPTIONS" || name == "JDK_JAVA_OPTIONS" {
-			return true
-		}
-		for _, prefix := range springEnvOverrides {
-			if strings.HasPrefix(name, prefix) {
-				return true
-			}
-		}
-		return false
+		return springEnvRelevant(name) || (l.selfExec && execEnvNames[name])
 	}
 	for name := range unknown {
 		if relevant(name) && (l.envUnknown == "" || name < l.envUnknown) {
@@ -87,6 +99,11 @@ func (l *javaLaunch) applyEnv(env map[string]string, unknown map[string]bool) {
 	}
 	for name, value := range env {
 		switch {
+		case l.selfExec && execEnvNames[name]:
+			if l.execEnv == nil {
+				l.execEnv = map[string]string{}
+			}
+			l.execEnv[name] = value
 		case name == "SPRING_PROFILES_ACTIVE":
 			l.envProfilesSet = true
 			for _, p := range strings.Split(value, ",") {
@@ -159,7 +176,7 @@ func (c *Collector) CollectJavaApps(archives []string) {
 	}
 }
 
-// javaLaunches は、systemd のユニットのうち「java ... -jar <JAR>」で起動するものを、JAR のパスごとに返す。
+// javaLaunches は、systemd のユニットのうち「java ... -jar <JAR>」で起動するもの（と、JAR そのものを起動するもの）を、JAR のパスごとに返す。
 // 同じ JAR を起動するユニットが複数ある場合は、名前の順で最初のものを使う。
 func (c *Collector) javaLaunches() map[string]*javaLaunch {
 	out := map[string]*javaLaunch{}
@@ -194,27 +211,21 @@ func (c *Collector) javaLaunches() map[string]*javaLaunch {
 			for _, a := range c.unitArgs(u) {
 				argv = append(argv, a.text)
 			}
-			cmd, ok := javacmd.Parse(argv)
+			l, ok := launchCommand(argv)
 			if !ok {
 				continue
 			}
 			tmp := ruleset.AppRule{Units: []string{u.name}}
-			l := &javaLaunch{name: u.name, cmd: cmd, activity: c.activity(tmp, []unitInfo{u}, false, model.Component{})}
+			l.name, l.activity = u.name, c.activity(tmp, []unitInfo{u}, false, model.Component{})
 			if wd := u.unit.Values("Service", "WorkingDirectory"); len(wd) > 0 && strings.HasPrefix(wd[len(wd)-1], "/") {
 				l.workDir = path.Clean(wd[len(wd)-1])
-			}
-			jar := l.jarPath()
-			if jar == "" {
-				continue // 相対パスの JAR は、作業ディレクトリが分からなければ決まらない
 			}
 			env := map[string]string{}
 			for name, v := range c.unitEnv(u) {
 				env[name] = v.value
 			}
 			l.applyEnv(env, nil)
-			if _, dup := out[jar]; !dup {
-				out[jar] = l
-			}
+			c.addLaunch(out, l)
 		}
 	}
 	c.supervisorLaunches(out)
@@ -247,23 +258,17 @@ func (c *Collector) supervisorLaunches(out map[string]*javaLaunch) {
 			if p.Unexpanded {
 				continue // 置き換え（%(...)s）があると、どの JAR を起動するのか決まらない
 			}
-			cmd, ok := javacmd.Parse(p.Argv)
+			l, ok := launchCommand(p.Argv)
 			if !ok {
 				continue
 			}
-			l := &javaLaunch{name: "the supervisord program " + p.Name + " (" + file + ")", cmd: cmd, workDir: p.Directory}
+			l.name, l.workDir = "the supervisord program "+p.Name+" ("+file+")", p.Directory
 			l.activity = model.Activity{Level: model.ActivityInstalled, Evidence: []model.Evidence{{Kind: "supervisor-program", Path: c.Prefix + file, Detail: p.Name}}}
 			if p.Autostart && enabled.Level == model.ActivityEnabled {
 				l.activity = model.Activity{Level: model.ActivityEnabled, Evidence: append(enabled.Evidence, l.activity.Evidence...)}
 			}
-			jar := l.jarPath()
-			if jar == "" {
-				continue
-			}
 			l.applyEnv(p.Env, p.EnvUnexpanded)
-			if _, dup := out[jar]; !dup {
-				out[jar] = l
-			}
+			c.addLaunch(out, l)
 		}
 	}
 }
@@ -289,6 +294,8 @@ func (c *Collector) springBoot(app ruleset.AppRule, jar string, launch *javaLaun
 	if boot == "" || len(boot) > 32 {
 		return false
 	}
+	// 先頭に起動スクリプトがある JAR（そのまま実行できる JAR）は、起動のしかたが .conf と環境変数で決まる
+	launch, execReason := c.executableJar(f, jar, launch)
 	classes, lib := mf["Spring-Boot-Classes"], mf["Spring-Boot-Lib"]
 	if classes == "" {
 		classes = springClassesEntry
@@ -363,6 +370,8 @@ func (c *Collector) springBoot(app ruleset.AppRule, jar string, launch *javaLaun
 		return fail("no embedded Tomcat (tomcat-embed-core) is bundled in the application; which server handles TLS is not determined")
 	case len(cfg.Problems) > 0:
 		return fail("the configuration in the JAR is not fully read: " + cfg.Problems[0])
+	case execReason != "":
+		return fail(execReason)
 	}
 	tb, src, ok := c.Rules.EmbeddedTomcatTableFor(springEmbedded, tomcatVersion)
 	if !ok {
@@ -655,7 +664,7 @@ func (sb *springBootApp) resolve(t springTLS) {
 	// どの JDK で動くか
 	var homes []string
 	why := ""
-	if l := sb.launch; l != nil {
+	if l := sb.launch; l != nil && !l.javaUnknown {
 		// 実行ファイルはリンクのことが多い（/usr/bin/java → /etc/alternatives/java → JDK の bin/java）。辿った先の JDK を使う
 		java := l.cmd.Java
 		if real, err := c.Opener.Resolve(c.Prefix + java); err == nil {
@@ -663,6 +672,13 @@ func (sb *springBootApp) resolve(t springTLS) {
 		}
 		homes = []string{path.Dir(path.Dir(java))}
 		why = "the JDK is the one named in " + l.name + " (" + l.cmd.Java + ", the JDK in " + homes[0] + ")"
+		if l.javaFrom != "" {
+			why = "the application is started by " + l.name + "; the JDK is the one that " + l.javaFrom + " names (the JDK in " + homes[0] + ")"
+		}
+	} else if l != nil {
+		homes = c.jdkHomes()
+		why = "the application is started by " + l.name + "; its launch script uses the Java that JAVA_HOME names, or else the java on PATH, and which JDK that is, is not determined. " +
+			"The values are those that are the same with every JDK found on this host (" + strings.Join(homes, ", ") + "). A JDK in a place that is not searched is not considered"
 	} else {
 		homes = c.jdkHomes()
 		why = "no launch definition was found for this JAR, so it is not known which JDK runs it; the values are those that are the same with every JDK found on this host (" +
@@ -670,7 +686,7 @@ func (sb *springBootApp) resolve(t springTLS) {
 	}
 	params := []string{model.ParamTLSProtocols, paramCiphers, paramTLS13, model.ParamTLSGroups}
 	if len(homes) == 0 {
-		c.unresolved(sb.svc, sb.app.Direction, sb.scope, "no launch definition was found for this JAR and no JDK is found on this host; which JDK runs the application is not determined", params...)
+		c.unresolved(sb.svc, sb.app.Direction, sb.scope, "no launch definition names the Java for this JAR and no JDK is found on this host; which JDK runs the application is not determined", params...)
 		return
 	}
 	var results []springResult
@@ -707,7 +723,7 @@ func (sb *springBootApp) resolve(t springTLS) {
 	}
 
 	confidence := model.ConfidenceHigh
-	if sb.launch == nil {
+	if sb.launch == nil || sb.launch.javaUnknown {
 		confidence = model.ConfidenceMedium
 	}
 	notes := []string{
