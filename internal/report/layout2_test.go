@@ -365,3 +365,38 @@ func TestReportIssueLink(t *testing.T) {
 		t.Error("the link is shown although nothing is unmeasured")
 	}
 }
+
+// 確度は 3 段階（高・中・低）。確度とは別に、値の読み方についての説明（qualifiers）を、利用者が読める文で出す（docs/confidence.md の 6.5〜6.7 節）。
+func TestReportConfidenceAndQualifiers(t *testing.T) {
+	inv := sample()
+	inv.EffectiveValues = append(inv.EffectiveValues,
+		model.EffectiveValue{ID: "eff:q1", Service: "svc:nginx", Parameter: "tls.groups", Direction: "inbound", Scope: "server www.example.jp", Status: "resolved",
+			Confidence: "low", Values: []string{"X25519"}, Qualifiers: []string{model.QualifierAnyCertificateKind, model.QualifierAnyJDKFound}},
+		model.EffectiveValue{ID: "eff:q2", Service: "svc:nginx", Parameter: "tls.protocols", Direction: "inbound", Scope: "server www.example.jp", Status: "resolved",
+			Confidence: "high", Values: []string{}, Qualifiers: []string{model.QualifierNothingAccepted}})
+	html := render(t, inv)
+	for _, want := range []string{"確度: 低", "確度: 中", "確度: 高",
+		"証明書の種類が分からない", "RSA の証明書の場合と EC の証明書の場合",
+		"どの JDK で動くかを 1 つに決められない",
+		"受け入れるものが 1 つもない設定"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	// 確度の説明は、決め方（版が合っているか、実際の通信で裏付けたか）を書く
+	for _, want := range []string{"導入されている版そのもの", "裏付け"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("the explanation of confidence does not mention %q", want)
+		}
+	}
+	// 説明のない値には、出さない
+	if strings.Contains(render(t, sample()), "証明書の種類が分からない") {
+		t.Error("a qualifier text is shown although no value has it")
+	}
+	// 決まった値でない説明は、出さない（結果のファイルは、手を加えられたものかもしれない）
+	inv = sample()
+	inv.EffectiveValues[0].Qualifiers = []string{"<script>alert(1)</script>"}
+	if strings.Contains(render(t, inv), "alert(1)") {
+		t.Error("an unknown qualifier is shown")
+	}
+}

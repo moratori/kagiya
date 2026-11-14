@@ -438,3 +438,20 @@ func TestCBOMManyValuesAndServicesIsFast(t *testing.T) {
 		t.Errorf("writing the CBOM took %v", d)
 	}
 }
+
+// 値の読み方についての説明（qualifiers）は、CBOM では kagiya: で始まるプロパティに入れる。確度は 3 段階。
+func TestCBOMQualifiers(t *testing.T) {
+	inv := cbomSample()
+	for i := range inv.EffectiveValues {
+		if inv.EffectiveValues[i].Parameter == "tls.ciphers" {
+			inv.EffectiveValues[i].Confidence = "low"
+			inv.EffectiveValues[i].Qualifiers = []string{model.QualifierAnyCertificateKind, model.QualifierAnyJDKFound}
+		}
+	}
+	_, _, out := cbom(t, inv)
+	for _, want := range []string{`"kagiya:confidence:tls.ciphers"`, `"low"`, `"kagiya:qualifiers:tls.ciphers"`, `"any-certificate-kind,any-jdk-found"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s", want)
+		}
+	}
+}
