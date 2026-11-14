@@ -707,7 +707,29 @@ Java の 3 段目として、Spring Boot のアプリ（組み込みの Tomcat �
   求めなかったもの 4（起動しなかった場面）、不一致 0。この比較は「起動の定義がない」経路（JDK が 1 つなので確定）で行った。
   ユニットから JDK を読む経路は、2 版（3.5.16、2.7.18）の 44 場面で、ユニットを置いた状態でも比べた（一致 37、TLS なし 7、不一致 0。
   `/usr/bin/java` からディストリのリンクを辿って JDK に行き着くこと、確度が「高」になること、「起動するよう設定されている」と記録されることも確かめた）。
-- **まだ対応していないもの:** supervisord の定義、Spring Boot の `<名前>.conf`（init.d から JAR を直接起動する形）、管理用の待ち受け（`management.server.ssl.*`）、
+- **supervisord の定義（2026-11-14）:** supervisord のプログラム（`/etc/supervisor/supervisord.conf`、`/etc/supervisor/conf.d/*.conf`）も起動の定義として読む
+  （`internal/parse/supervisorconf`）。読み方（引用符、`;` のコメント、`environment=`、`directory=`、`%(...)s` の置き換え）は、Ubuntu 24.04 の
+  supervisor 4.2.5-1ubuntu0.1 に実際にプログラムを起動させ、プロセスに渡った引数・環境変数・作業ディレクトリを見て確かめた（`lab/phase2/supervisor-explore.sh`）。
+  置き換えは解釈せず、コマンドに置き換えがあれば起動の定義なしとして扱い、結果に関わる環境変数に置き換えがあれば値を求めない。
+  「起動するよう設定されている」とするのは、`supervisor.service` が有効で、プログラムが `autostart=false` でない場合。
+- **そのまま実行できる JAR（2026-11-14）:** ビルドの設定で `executable` を有効にすると、JAR の先頭に起動スクリプトが付き、JAR そのものを起動できる。
+  Spring Boot 2.7.18 と 3.5.16 でビルドした JAR からスクリプトを取り出して読んだ（`lab/phase2/springboot-exec.sh`。どちらも同じ内容の 309 行。
+  4.1.2 では、同じ設定でもスクリプトは付かず、ビルドの道具にもスクリプトが含まれていなかった。4.0 系のどの版でなくなったかは調べていない）。
+  スクリプトは、JAR の隣（環境変数 `CONF_FOLDER` があればその場所）の `<JAR の名前>.conf` をシェルとして取り込み、`JAVA_HOME` の下に java があればそれを、
+  なければ PATH の java を使い、JAR のあるディレクトリで `java $JAVA_OPTS -jar <JAR> $RUN_ARGS <引数>` を起動する。
+  - kagiya は、起動の定義（systemd のユニット、supervisord のプログラム）が JAR そのものを起動している場合に、`.conf` と定義の環境変数から、Java と起動時の指定を読む
+    （`internal/collect/apps/executable.go`）。`.conf` はシェルとして実行せず、「名前=値」だけを読む（`internal/parse/shellconf`）。値を取り出すのは
+    `JAVA_HOME` / `JAVA_OPTS` / `RUN_ARGS` だけで、展開（`$...`）を含む値、代入でない行、TLS の設定に関わる環境変数の代入があれば、値を求めない。
+  - `JAVA_HOME` から Java が決まらない場合（PATH の java）は、どの JDK かを決めず、すべての JDK で同じになる項目だけ確定とする（確度は下げる）。
+  - 起動の定義がない場合は、スクリプトとして起動されているかが分からない。`.conf` に結果を変える指定（TLS の設定の上書き、プロファイル、Java の TLS に関わる起動オプション）
+    があれば値を求めず、なければ `.conf` がない場合と同じに扱う（`JAVA_HOME` は使わない）。
+  - 実測（`lab/phase2/springboot-execrun.sh`、Ubuntu 24.04、openjdk-17-jre-headless 17.0.21.0.3+1-1~24.04.1 と openjdk-21-jre-headless 21.0.13.0.3+1-1~24.04.1、
+    Spring Boot 3.5.16）: JAR をスクリプトとして起動し、`/proc` でプロセスの実行ファイル・引数・作業ディレクトリを見た。`.conf` の `JAVA_HOME` の Java で動くこと、
+    `.conf` の値がユニットの環境変数より優先されること、`CONF_FOLDER`、`JAVA_OPTS`、`RUN_ARGS`、JAR の後ろの引数が上の通りに効くこと、
+    `JAVA_HOME` がない（または、その下に java がない）場合は PATH の java（このコンテナでは 21）で動くことを確かめた。
+    同じ状態で kagiya に求めさせた結果との突き合わせは、9 場面すべて一致（`JAVA_HOME` から決まる 7 場面は確度「高」、PATH の java になる 2 場面は確度「中」）。
+    ビルドしたままの JAR（先頭にスクリプトがある）を、kagiya が Spring Boot のアプリとして読めることも確かめた。
+- **まだ対応していないもの:** init.d から JAR を起動する形（リンクを置く形）、管理用の待ち受け（`management.server.ssl.*`）、
   クラスパスの `config/` の設定ファイル、Tomcat 以外の同梱サーバー（Jetty、Undertow、Netty）。
 
 ### 段階 2（クラスファイルから暗号 API の参照を拾う）の試算（2026-11-14、検証ラボ）

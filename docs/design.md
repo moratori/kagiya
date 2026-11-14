@@ -819,7 +819,7 @@ CSV と CBOM には常に全件を出す。
 |---|---|---|
 | 済 | 基盤、証明書・鍵・キーストア、OS とライブラリ、sshd、nginx、Apache httpd、HAProxy、stunnel、Postfix、PostgreSQL、Dovecot、MariaDB / MySQL、レポート、CBOM | 済（records.md） |
 | 済 | Java の 1 段目（JDK の既定）、2 段目（パッケージの Tomcat。JDK の実装と OpenSSL の実装） | 済 |
-| 1 | Spring Boot（組み込みの Tomcat、JAR の中の設定）。2.7 以降の全パッチ版（117 版）を測った。起動の定義は systemd のユニットから読み、読めない JAR は「すべての JDK で同じ結果のときだけ確定」 | 実装済み（差分テストで不一致 0）。残り: supervisord の定義、`<名前>.conf`、管理用の待ち受け |
+| 1 | Spring Boot（組み込みの Tomcat、JAR の中の設定）。2.7 以降の全パッチ版（117 版）を測った。起動の定義は systemd のユニットと supervisord のプログラムから読み（そのまま実行できる JAR の `<名前>.conf` を含む）、読めない JAR は「すべての JDK で同じ結果のときだけ確定」 | 実装済み（差分テストで不一致 0）。残り: 管理用の待ち受け、クラスパスの `config/` |
 | 1 | JAR に同梱された暗号ライブラリの棚卸し、Bouncy Castle 形式のキーストアの識別 | 実装済み。各ライブラリの PQC 対応の版（出典つき）は未着手 |
 | 2 | WildFly | 未着手 |
 | 3 | ASP.NET Core（Kestrel） | 未着手 |
@@ -852,7 +852,7 @@ CSV と CBOM には常に全件を出す。
 対象外にしたもの（2026-11-14、利用者が決定）: アプリ層の暗号の設定（Laravel / Rails / CakePHP の設定ファイルにある暗号化やハッシュの方式など）。
 これらの設定ファイルは PHP や Ruby のコードで、ソースコードを見ないという原則に反する。開発環境の CI/CD に組み込む別種のツールに任せる。
 Spring Framework、Struts、Next.js は TLS を自分で受けないので単独では扱わず、前段の Web サーバーやアプリケーションサーバーの対応と、ライブラリの棚卸しで拾う。
-Java アプリの起動のしかたは、systemd と supervisord の定義から読む。init.d のスクリプト（SysVinit）、自作の起動スクリプト、ジョブ管理ツールの定義は解釈せず、
+Java アプリの起動のしかたは、systemd と supervisord の定義から読む（Spring Boot のそのまま実行できる JAR は、標準の起動スクリプトが取り込む `<名前>.conf` の「名前=値」だけを読む。シェルとしては実行しない）。init.d のスクリプト（SysVinit）、自作の起動スクリプト、ジョブ管理ツールの定義は解釈せず、
 実行中のプロセスも見ない。起動の定義が読めない JAR は、導入されているすべての JDK で結果が同じ場合だけ確定とし、違えば JDK ごとの結果を候補として並べる。
 
 ---
