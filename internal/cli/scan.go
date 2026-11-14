@@ -14,6 +14,7 @@ import (
 	"kagiya/internal/collect/jars"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
@@ -67,7 +68,7 @@ func parseScanOptions(args []string, stderr io.Writer) (*scanOptions, error) {
 	var roots, excludes, labels listFlag
 	fs := newFlagSet("scan", stderr)
 	fs.StringVar(&o.outputDir, "output-dir", ".", "directory for the result file")
-	fs.StringVar(&o.logDir, "log-dir", "logs", "directory for the log file")
+	fs.StringVar(&o.logDir, "log-dir", "", "directory for the log file (default: logs under the output directory)")
 	fs.StringVar(&o.rulesDir, "rules", "", "external rule directory (the built-in rules are used when omitted)")
 	fs.Var(&roots, "roots", "directories to search for certificates (comma-separated, repeatable)")
 	fs.Var(&excludes, "exclude", "glob patterns to exclude (comma-separated, repeatable; ** crosses directories)")
@@ -90,6 +91,10 @@ func parseScanOptions(args []string, stderr io.Writer) (*scanOptions, error) {
 	if o.outputDir, err = absClean(o.outputDir); err != nil {
 		return nil, fmt.Errorf("--output-dir: %w", err)
 	}
+	if o.logDir == "" {
+		// 既定は、出力先の下（kagiya が書く場所を、指定した 1 か所にまとめる）
+		o.logDir = filepath.Join(o.outputDir, "logs")
+	}
 	if o.logDir, err = absClean(o.logDir); err != nil {
 		return nil, fmt.Errorf("--log-dir: %w", err)
 	}
@@ -110,6 +115,16 @@ func parseScanOptions(args []string, stderr io.Writer) (*scanOptions, error) {
 			return nil, err
 		}
 		o.roots = append(o.roots, c)
+	}
+	// 出力先・ログ先が、探索の起点と同じか、起点の上位にあると、その起点が丸ごと探索から外れる（出力先は探索しないため）。
+	// 何も読まずに断る
+	for _, d := range []struct{ what, dir string }{{"output directory", o.outputDir}, {"log directory", o.logDir}} {
+		for _, root := range o.roots {
+			if d.dir == "/" || root == d.dir || strings.HasPrefix(root, d.dir+"/") {
+				return nil, fmt.Errorf("the %s %s is, or contains, the scan root %s, which would then not be scanned; "+
+					"choose another place with --output-dir (and --log-dir)", d.what, d.dir, root)
+			}
+		}
 	}
 	if _, err := safefs.NewExcludes(excludes); err != nil {
 		return nil, err

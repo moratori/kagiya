@@ -21,3 +21,6 @@ func CheckTrustedDir(dir string) error {
 
 // OwnedBySelfOrRoot は Windows では未実装。
 func OwnedBySelfOrRoot(fi fs.FileInfo) bool { return true }
+
+// CheckAncestors は Windows では確かめない（出力の書き込みそのものを、まだ行わない）。
+func CheckAncestors(dir string) error { return nil }

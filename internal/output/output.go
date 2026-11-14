@@ -20,12 +20,28 @@ func EnsureDir(dir string) error {
 	if err := supported(); err != nil {
 		return err
 	}
+	// 上位に、他の利用者が書き込めるディレクトリがあれば、出力先そのものを差し替えられる
+	if abs, err := filepath.Abs(dir); err == nil {
+		if err := platform.CheckAncestors(abs); err != nil {
+			return fmt.Errorf("%w; the output directory could be replaced by another user. Use a directory whose parents are not writable by others", err)
+		}
+	}
 	fi, err := os.Lstat(dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		if err := os.Mkdir(dir, 0o700); err != nil {
 			return fmt.Errorf("create directory: %w", err)
 		}
-		return os.Chmod(dir, 0o700)
+		// 権限は、作ったディレクトリを開いて、その開いたものに対して付ける（パスで指定すると、その間にリンクへ差し替えられた場合に、
+		// リンクの先の権限を変えてしまう）
+		d, err := os.OpenFile(dir, os.O_RDONLY|platform.ReadOpenFlags|platform.DirectoryFlag, 0)
+		if err != nil {
+			return fmt.Errorf("open the new directory: %w", err)
+		}
+		defer d.Close()
+		if st, err := d.Stat(); err != nil || !st.IsDir() {
+			return fmt.Errorf("%s is not the directory that was just created", dir)
+		}
+		return d.Chmod(0o700)
 	}
 	if err != nil {
 		return err

@@ -19,30 +19,49 @@ func TerminationSignals() []os.Signal {
 	return []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGHUP}
 }
 
-// CheckTrustedDir は外部ルールディレクトリが信頼できる状態かを検査する。
-// ルールは「何を読み、何を出力するか」を決めるためバイナリと同等の信頼が要る。
-// 他ユーザーが書き換えられる、またはシンボリックリンクを含む場合は拒否する。
-func CheckTrustedDir(dir string) error {
+// CheckAncestors は、dir の上位のディレクトリに、他の利用者が書き込めるもの（スティッキービットなし）がないことを確かめる。
+// そういう場所では、dir そのものを、リンクや別のディレクトリに差し替えられる。dir は、まだなくてもよい。
+// 途中のシンボリックリンクは、そのリンクを置いてあるディレクトリの権限で確かめたことになるので、辿った先は見ない。
+func CheckAncestors(dir string) error { return checkPath(dir, false) }
+
+// checkPath は、dir までの各要素を確かめる。strict なら、dir 自身があること、途中にシンボリックリンクがないことも確かめる。
+func checkPath(dir string, strict bool) error {
 	if !filepath.IsAbs(dir) || filepath.Clean(dir) != dir {
 		return fmt.Errorf("%s: not a clean absolute path", dir)
 	}
-	// 親ディレクトリ: 他ユーザーが書き込めると、ディレクトリごと差し替えられる（スティッキービット付きは除く）。
 	prefix := ""
 	for _, seg := range strings.Split(strings.TrimPrefix(dir, "/"), "/") {
 		prefix += "/" + seg
+		if prefix == dir && !strict {
+			break // dir 自身は、呼び出す側が確かめる
+		}
 		fi, err := os.Lstat(prefix)
 		if err != nil {
 			return err
 		}
 		if fi.Mode()&fs.ModeSymlink != 0 {
-			return fmt.Errorf("%s is a symbolic link", prefix)
+			if strict {
+				return fmt.Errorf("%s is a symbolic link", prefix)
+			}
+			continue
 		}
 		if !fi.IsDir() {
 			return fmt.Errorf("%s is not a directory", prefix)
 		}
+		// 上位のディレクトリ: 他ユーザーが書き込めると、ディレクトリごと差し替えられる（スティッキービット付きは除く）。
 		if prefix != dir && fi.Mode().Perm()&0o022 != 0 && fi.Mode()&fs.ModeSticky == 0 {
 			return fmt.Errorf("%s is writable by other users", prefix)
 		}
+	}
+	return nil
+}
+
+// CheckTrustedDir は外部ルールディレクトリが信頼できる状態かを検査する。
+// ルールは「何を読み、何を出力するか」を決めるためバイナリと同等の信頼が要る。
+// 他ユーザーが書き換えられる、またはシンボリックリンクを含む場合は拒否する。
+func CheckTrustedDir(dir string) error {
+	if err := checkPath(dir, true); err != nil {
+		return err
 	}
 	euid := uint32(os.Geteuid())
 	return filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
