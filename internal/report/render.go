@@ -424,6 +424,9 @@ func (h *htmlWriter) host(v *view, multi bool) {
 	if len(v.Components) > 0 {
 		h.w(raw("<h3>アプリケーションと暗号ライブラリ</h3>\n"))
 		h.kvTable([3]string{"名前", "場所と版", "リンクしている暗号ライブラリ"}, v.Components, [3]bool{false, true, true})
+		if v.ComponentsPQC {
+			h.w(raw("<p class=\"note\">「耐量子」は、ライブラリがその方式を持っているかどうかです（版から判断）。実際に使う設定になっているかは、各ソフトの欄の値で確かめてください。</p>\n"))
+		}
 	}
 	if len(v.Packages) > 0 {
 		h.w(raw("<h3>暗号に関係するパッケージ</h3>\n"))

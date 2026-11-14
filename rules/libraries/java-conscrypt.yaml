@@ -6,3 +6,18 @@ java_library:
     - image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
       os: "Ubuntu 26.04.1 LTS"
       note: "Maven Central の org/conscrypt の成果物の一覧で名前を確かめた（2026-11-14）。conscrypt-openjdk、conscrypt-openjdk-uber、conscrypt-android（いずれも最新 2.9.0）"
+  # 耐量子のアルゴリズムに対応している版（「対応」は、ライブラリがその方式を持っていること。使う設定になっているかは別）。
+  pqc:
+    features:
+      - { name: ML-KEM, artifacts: ["conscrypt-openjdk", "conscrypt-openjdk-uber"], since: "2.6.0", checked: { from: "2.6.0", to: "2.9.0" } }
+      - { name: ML-DSA, artifacts: ["conscrypt-openjdk", "conscrypt-openjdk-uber"], since: "2.6.0", checked: { from: "2.6.0", to: "2.9.0" } }
+      - { name: SLH-DSA, artifacts: ["conscrypt-openjdk", "conscrypt-openjdk-uber"], since: "2.6.0", checked: { from: "2.6.0", to: "2.9.0" } }
+      # TLS のハイブリッドの鍵交換は、開発元の資料だけが根拠（実物では確かめていない）
+      - { name: TLS-MLKEM-hybrid, artifacts: ["conscrypt-openjdk", "conscrypt-openjdk-uber"], since: "2.6.0", checked: { from: "2.6.0", to: "2.9.0" }, evidence: documented }
+    sources:
+      - image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
+        os: "Ubuntu 26.04.1 LTS"
+        note: "2026-11-14、OpenJDK 21.0.13（arm64）で、Maven Central の conscrypt-openjdk-uber の各版を読み込み、プロバイダが登録しているアルゴリズムの名前を調べた。2.6.0〜2.9.0 の全 7 版に ML-KEM / ML-DSA / SLH-DSA の名前がある（2.6.0 の sha256 は 3d8c254ec95e4e864abdba01bc8bcd44b46ccba966f57dc0467a3d9bb0ce7ca1）。2.5.2 以前は arm64 向けのライブラリを含まず、この環境では読み込めなかったので、測っていない。conscrypt-openjdk（uber でないもの）も測っていない"
+      - image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
+        os: "Ubuntu 26.04.1 LTS"
+        note: "開発元のリリースノート（2026-11-14 に参照）。2.6.0: 「It include many new algorithms, such as X25519, Ed25519, ML-DSA, SLH-DSA, ML-KEM, X-Wing.」「For TLS, it supports X25519MLKEM768 and MLKEM1024.」 https://github.com/google/conscrypt/releases/tag/2.6.0 。2.7.0: 「TLS uses X25519MLKEM768 by default.」 https://github.com/google/conscrypt/releases/tag/2.7.0"

@@ -104,6 +104,9 @@ func (c *Collector) library(location, file, bundledIn string) {
 	if version != "" {
 		comp.Version = &model.ComponentVersion{Value: version, Source: versionSource}
 	}
+	if r, ok := rule.PQC.For(artifact, version); ok {
+		comp.PQC = &model.ComponentPQC{Supported: r.Supported, NotSupported: r.NotSupported, Unknown: r.Unknown, Basis: r.Basis}
+	}
 	notes := []string{"artifact " + artifact + " (identified from the file name; the contents of the file are not read)"}
 	if bundledIn != "" {
 		notes = append(notes, "bundled in "+bundledIn)

@@ -7,3 +7,26 @@ java_library:
     - image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
       os: "Ubuntu 26.04.1 LTS"
       note: "Maven Central の org/bouncycastle の成果物の一覧（101 個）で名前を確かめた（2026-11-14）。例: bcprov-jdk18on（最新 1.87）、bcprov-jdk15on（最新 1.70）、bcprov-jdk15to18、bcpkix-jdk18on、bctls-jdk18on、bcutil-jdk18on、bcpg-jdk18on、bcmail-jdk18on、bcjmail-jdk18on、bc-fips（最新 2.1.3）、bcpkix-fips、bctls-fips"
+  # 耐量子のアルゴリズムに対応している版。検証ラボで、各版の実物に尋ねた結果（プロバイダが登録しているアルゴリズムの名前、TLS のグループの定義）。
+  # 「対応」は、ライブラリがその方式を持っていること（使う設定になっているかは別）。
+  pqc:
+    features:
+      - { name: ML-KEM, artifacts: ["bcprov-*"], since: "1.79", checked: { from: "1.71", to: "1.87" } }
+      - { name: ML-DSA, artifacts: ["bcprov-*"], since: "1.79", checked: { from: "1.71", to: "1.87" } }
+      - { name: SLH-DSA, artifacts: ["bcprov-*"], since: "1.79", checked: { from: "1.71", to: "1.87" } }
+      - { name: TLS-MLKEM, artifacts: ["bctls-*"], since: "1.80", checked: { from: "1.71", to: "1.87" } }
+      - { name: TLS-MLKEM-hybrid, artifacts: ["bctls-*"], since: "1.81", checked: { from: "1.71", to: "1.87" } }
+      # FIPS 版（bc-fips）は、確かめた範囲では対応していない
+      - { name: ML-KEM, artifacts: ["bc-fips"], checked: { from: "1.0.0", to: "2.1.3" } }
+      - { name: ML-DSA, artifacts: ["bc-fips"], checked: { from: "1.0.0", to: "2.1.3" } }
+      - { name: SLH-DSA, artifacts: ["bc-fips"], checked: { from: "1.0.0", to: "2.1.3" } }
+    sources:
+      - image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
+        os: "Ubuntu 26.04.1 LTS"
+        note: "2026-11-14、OpenJDK 21.0.13（arm64）で、Maven Central の bcprov-jdk18on の全 22 版（1.71〜1.87）を読み込み、BC と BCPQC のプロバイダが登録しているアルゴリズムの名前を数えた。ML-KEM / ML-DSA / SLH-DSA の名前があるのは 1.79 から（1.72〜1.84 には標準化前の Kyber / Dilithium がある。1.71 以前は SPHINCS だけ）。bcprov-jdk18on-1.79.jar の sha256 は 0d81ecc3124536b539bce9aa3fe9621b7f84c9cee371b635a5b31c78b79ab1da。開発元の発表（1.79、2024-10-31）: https://www.bouncycastle.org/resources/latest-nist-pqc-standards-and-more-bouncy-castle-java-1-79/ 。jdk18on 以外（jdk15on、jdk15to18 など）は測っておらず、同じ版なら同じと見なしている"
+      - image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
+        os: "Ubuntu 26.04.1 LTS"
+        note: "2026-11-14、同じ環境で、bctls-jdk18on の各版の org.bouncycastle.tls.NamedGroup にあるグループの定義を調べた。MLKEM512 / MLKEM768 / MLKEM1024 は 1.80 から、SecP256r1MLKEM768 / X25519MLKEM768 / SecP384r1MLKEM1024 は 1.81 から（1.78〜1.79 にあるのは、標準化前の番号の定義だけ）。定義があることを確かめたもので、既定で有効かどうかは確かめていない。bctls-jdk18on-1.80.jar の sha256 は 6f856ca13f8bf3d81e3951c0446f1758e442cb152968e6da7faa9d16cc41a17a、1.81 は fe63be44877dc7d48cfaf9821103688f7fee695ee484c1f640de9350ceb7edf9"
+      - image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
+        os: "Ubuntu 26.04.1 LTS"
+        note: "2026-11-14、同じ環境で、Maven Central の bc-fips の全 16 版（1.0.0〜2.1.3）を読み込み、BCFIPS のプロバイダが登録しているアルゴリズムの名前を調べた。耐量子のアルゴリズムの名前は、どの版にもなかった。bc-fips-2.1.3.jar の sha256 は f55fc476ede820d5c03fe87e6ced5bb0095e1dc30b387445846a3ff0274f8c0e"

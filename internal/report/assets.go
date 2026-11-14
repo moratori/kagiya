@@ -201,6 +201,10 @@ func (b *builder) misc(v *view) {
 		if c.Version != nil {
 			val += "（版 " + c.Version.Value + "）"
 		}
+		if c.PQC != nil {
+			val += "。" + pqcSupport(c.PQC)
+			v.ComponentsPQC = true
+		}
 		var links []string
 		for _, l := range c.Links {
 			if l.Path != "" {
@@ -238,4 +242,58 @@ func (b *builder) misc(v *view) {
 	}
 	v.Summary.Files, v.Summary.Dirs = b.inv.Coverage.FilesExamined, b.inv.Coverage.DirsExamined
 	v.SkippedCut = b.inv.Coverage.SkippedTruncated
+}
+
+// 耐量子の方式の、表示用の名前（ここにないものは、そのまま出す）。
+var pqcFeatureLabel = map[string]string{
+	"TLS-MLKEM":        "ML-KEM 単独の鍵交換（TLS）",
+	"TLS-MLKEM-hybrid": "ハイブリッドの鍵交換（TLS）",
+}
+
+// pqcSupport は、暗号ライブラリが耐量子の方式を持っている版かどうかを、短い 1 文にする。
+func pqcSupport(p *model.ComponentPQC) string {
+	names := func(v []string) string {
+		out := make([]string, 0, len(v))
+		for _, n := range v {
+			if l, ok := pqcFeatureLabel[n]; ok {
+				n = l
+			}
+			out = append(out, n)
+		}
+		return strings.Join(out, "・")
+	}
+	// 英数字で終わる名前の後ろは、空白を 1 つ入れる（「ML-KEM に対応」「…（TLS）に対応」）
+	join := func(v []string, tail string) string {
+		n := names(v)
+		if n != "" && n[len(n)-1] < 0x80 {
+			n += " "
+		}
+		return n + tail
+	}
+	var parts []string
+	if len(p.Supported) > 0 {
+		parts = append(parts, join(p.Supported, "に対応"))
+	}
+	if len(p.NotSupported) > 0 {
+		if len(parts) == 0 {
+			parts = append(parts, "未対応（"+names(p.NotSupported)+"）")
+		} else {
+			parts = append(parts, join(p.NotSupported, "は未対応"))
+		}
+	}
+	if len(p.Unknown) > 0 {
+		if len(parts) == 0 {
+			parts = append(parts, "不明（"+names(p.Unknown)+"）")
+		} else {
+			parts = append(parts, join(p.Unknown, "は不明"))
+		}
+	}
+	s := "耐量子: " + strings.Join(parts, "、")
+	switch p.Basis {
+	case "extrapolated":
+		s += "（版からの推定）"
+	case "documented":
+		s += "（開発元の資料による）"
+	}
+	return s
 }

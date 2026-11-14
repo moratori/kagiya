@@ -253,6 +253,11 @@ func (rs *RuleSet) addLibrary(l LibraryRule, ids map[string]bool) error {
 		return fmt.Errorf("library %q: %w", l.ID, err)
 	}
 	l.re = re
+	if l.PQC != nil {
+		if err := checkPQC(l.PQC); err != nil {
+			return fmt.Errorf("library %q: %w", l.ID, err)
+		}
+	}
 	rs.Libraries = append(rs.Libraries, l)
 	return nil
 }

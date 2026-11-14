@@ -7,3 +7,12 @@ java_library:
     - image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
       os: "Ubuntu 26.04.1 LTS"
       note: "Maven Central の io/netty の成果物の一覧で名前を確かめた（2026-11-14）。netty-tcnative、netty-tcnative-boringssl-static、netty-tcnative-classes（いずれも最新 2.0.85.Final）"
+  # 耐量子のハイブリッドの鍵交換（X25519MLKEM768）に対応している版。BoringSSL を静的に含む成果物（boringssl-static）だけが対象
+  # （netty-tcnative は、ホストの OpenSSL を使うので、その版しだい）。「対応」は、ライブラリがその方式を持っていること（使う設定になっているかは別）。
+  pqc:
+    features:
+      - { name: TLS-MLKEM-hybrid, artifacts: ["netty-tcnative-boringssl-static"], since: "2.0.68.Final", checked: { from: "2.0.50.Final", to: "2.0.85.Final" }, unmeasured: ["2.0.67.Final", "2.0.76.Final"] }
+    sources:
+      - image: "maven@sha256:851ccd76d49d5646915645e5fb51e9b00ef53ad3dc68b0e9a2a9846b9c56bde3"
+        os: "Ubuntu 26.04.1 LTS"
+        note: "2026-11-14、OpenJDK 21.0.13（arm64）で、Maven Central の netty-tcnative-boringssl-static（linux-aarch_64）の 2.0.50.Final〜2.0.85.Final の 36 版を読み込み、組み込みの BoringSSL に鍵交換のグループを設定できるか（SSLContext.setCurvesList）を尋ねた。X25519MLKEM768 を設定できるのは 2.0.68.Final から（標準化前の X25519Kyber768Draft00 は 2.0.62.Final から、MLKEM1024 は 2.0.74.Final から）。2.0.67.Final は読み込めず（ライブラリの記号が解決できない）、2.0.76.Final は arm64 向けの成果物がなく、測れなかった。2.0.68.Final（linux-aarch_64）の sha256 は 65c3bd6575aac9597f14d513ba676b938e93e51b5277eb92bc814e354d342697。x86_64 向けは測っておらず、同じ版なら同じと見なしている"

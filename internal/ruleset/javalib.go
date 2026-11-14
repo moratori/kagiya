@@ -42,6 +42,11 @@ func (rs *RuleSet) addJavaLibrary(l JavaLibraryRule, ids map[string]bool) error 
 			return fmt.Errorf("library %s: invalid artifact %q", l.ID, a)
 		}
 	}
+	if l.PQC != nil {
+		if err := checkPQC(l.PQC); err != nil {
+			return fmt.Errorf("library %s: %w", l.ID, err)
+		}
+	}
 	rs.JavaLibraries = append(rs.JavaLibraries, l)
 	return nil
 }

@@ -915,7 +915,7 @@ CSV と CBOM には常に全件を出す。
 | 済 | 基盤、証明書・鍵・キーストア、OS とライブラリ、sshd、nginx、Apache httpd、HAProxy、stunnel、Postfix、PostgreSQL、Dovecot、MariaDB / MySQL、レポート、CBOM | 済（records.md） |
 | 済 | Java の 1 段目（JDK の既定）、2 段目（パッケージの Tomcat。JDK の実装と OpenSSL の実装） | 済 |
 | 1 | Spring Boot（組み込みの Tomcat、JAR の中の設定）。2.7 以降の全パッチ版（117 版）を測った。起動の定義は systemd のユニットと supervisord のプログラムから読み（そのまま実行できる JAR の `<名前>.conf` を含む）、読めない JAR は「すべての JDK で同じ結果のときだけ確定」 | 実装済み（差分テストで不一致 0）。残り: 管理用の待ち受けの値（いまは「不明」で記録）、クラスパスの `config/`（あれば「不明」） |
-| 1 | JAR に同梱された暗号ライブラリの棚卸し、Bouncy Castle 形式のキーストアの識別 | 実装済み。各ライブラリの PQC 対応の版（出典つき）は未着手 |
+| 1 | JAR に同梱された暗号ライブラリの棚卸し、Bouncy Castle 形式のキーストアの識別 | 実装済み。各ライブラリが耐量子のアルゴリズムに対応している版も、実物で確かめて出典つきで持つ（`rules/libraries/*.yaml` の `pqc`。結果は `components[].pqc`） |
 | 2 | WildFly | 未着手 |
 | 3 | ASP.NET Core（Kestrel） | 未着手 |
 | 4 | A ランクの残り: OpenSSH クライアント → rsyslog・Zabbix → OpenVPN・strongSwan・Libreswan → OpenLDAP・Samba・Kerberos・FreeIPA → 鍵ファイルの項目 | 未着手 |

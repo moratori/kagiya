@@ -115,6 +115,11 @@ func (c *Collector) library(rule ruleset.LibraryRule, real string) string {
 			comp.Version, comp.Notes = c.version(f, rule.MatchVersion, nil)
 			f.Close()
 		}
+		if comp.Version != nil {
+			if r, ok := rule.PQC.For("", comp.Version.Value); ok {
+				comp.PQC = &model.ComponentPQC{Supported: r.Supported, NotSupported: r.NotSupported, Unknown: r.Unknown, Basis: r.Basis}
+			}
+		}
 		return comp
 	})
 	return id

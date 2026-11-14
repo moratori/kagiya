@@ -186,20 +186,21 @@ type view struct {
 	CBOM                                          []byte   // このホストの CBOM（CycloneDX の JSON）。埋め込まない場合は空
 	CBOMName                                      string   // 保存するときのファイル名
 
-	Summary     summaryView
-	Services    []serviceView
-	Unconfirmed []assetRow
-	Files       []assetRow
-	Stores      []storeView
-	StoreCounts []storeCount // 証明書ストアごとの件数（要点に示す）
-	OSSettings  []kv
-	Packages    []kv
-	Components  []kv
-	Skipped     []kv
-	SkippedBy   []kv
-	SkippedCut  bool
-	Coverage    model.Coverage
-	Tips        map[string]string // 用語の説明（マウスを載せると出る）
+	Summary       summaryView
+	Services      []serviceView
+	Unconfirmed   []assetRow
+	Files         []assetRow
+	Stores        []storeView
+	StoreCounts   []storeCount // 証明書ストアごとの件数（要点に示す）
+	OSSettings    []kv
+	Packages      []kv
+	Components    []kv
+	ComponentsPQC bool // 耐量子の方式への対応を出したライブラリがある（説明を添える）
+	Skipped       []kv
+	SkippedBy     []kv
+	SkippedCut    bool
+	Coverage      model.Coverage
+	Tips          map[string]string // 用語の説明（マウスを載せると出る）
 }
 
 // page はレポート全体。

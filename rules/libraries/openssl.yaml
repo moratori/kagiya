@@ -41,3 +41,25 @@ library:
     - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
       os: "Ubuntu 24.04.5 LTS"
       note: "/usr/lib/<arch>-linux-gnu/libcrypto.so.3 に 'OpenSSL 3.0.13 30 Jan 2024'。パッケージは libssl3t64"
+  # 耐量子のアルゴリズムに対応している版（「対応」は、ライブラリがその方式を持っていること。TLS で使う設定になっているかは、実効値で見る）。
+  # 「3.5.0 から」は開発元の資料による。実物では、3.0.13 と 3.4.1 にないこと、3.5.7 と 3.5.8 にあることを確かめた。
+  pqc:
+    features:
+      - { name: ML-KEM, since: "3.5.0", checked: { from: "3.0.13", to: "3.5.8" }, evidence: documented }
+      - { name: ML-DSA, since: "3.5.0", checked: { from: "3.0.13", to: "3.5.8" }, evidence: documented }
+      - { name: SLH-DSA, since: "3.5.0", checked: { from: "3.0.13", to: "3.5.8" }, evidence: documented }
+      - { name: TLS-MLKEM, since: "3.5.0", checked: { from: "3.0.13", to: "3.5.8" }, evidence: documented }
+      - { name: TLS-MLKEM-hybrid, since: "3.5.0", checked: { from: "3.0.13", to: "3.5.8" }, evidence: documented }
+    sources:
+      - image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+        os: "Debian GNU/Linux 13 (trixie)"
+        note: "2026-11-14、openssl 3.5.7-1~deb13u3 の openssl list（-kem-algorithms、-signature-algorithms、-tls-groups）に、ML-KEM-512/768/1024、ML-DSA-44/65/87、SLH-DSA の各種、TLS のグループ MLKEM512/768/1024・X25519MLKEM768・SecP256r1MLKEM768・SecP384r1MLKEM1024 がある"
+      - image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+        os: "AlmaLinux 9.8 (Olive Jaguar)"
+        note: "2026-11-14、openssl 3.5.8-2.el9_8 でも同じ（既定のプロバイダに、上と同じアルゴリズムとグループがある）"
+      - image: "ubuntu@sha256:27771fb7b40a58237c98e8d3e6b9ecdd9289cec69a857fccfb85ff36294dac20"
+        os: "Ubuntu 25.04"
+        note: "2026-11-14、openssl 3.4.1-1ubuntu4 の同じ一覧には、ML-KEM、ML-DSA、SLH-DSA も、ML-KEM を含む TLS のグループもない"
+      - image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+        os: "Ubuntu 24.04.5 LTS"
+        note: "2026-11-14、openssl 3.0.13-0ubuntu3.16 の同じ一覧にも、ない。開発元の資料（NEWS.md、OpenSSL 3.5.0 [8 Apr 2025]）: 「Support for PQC algorithms (ML-KEM, ML-DSA and SLH-DSA)」「The default TLS keyshares have been changed to offer X25519MLKEM768 and X25519」 https://github.com/openssl/openssl/blob/openssl-3.5/NEWS.md"
