@@ -483,3 +483,17 @@ func TestTomcatGroupsFollowSuites(t *testing.T) {
 		t.Errorf("groups = %+v", g)
 	}
 }
+
+// OpenSSL の実装で TLS 1.3 を有効にしていなければ、TLS 1.3 でだけ使うグループ（ffdhe）は受け入れない（実測）。
+func TestTomcatOpenSSLGroupsWithoutTLS13(t *testing.T) {
+	_, inv := collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, `protocols="TLSv1.2"`, tcFileRSA), tcUbuntu24...))
+	g := tcEff(t, inv, "tls.groups")
+	if g.Status != "resolved" || contains(g.Values, "ffdhe2048") || !contains(g.Values, "X25519") {
+		t.Errorf("groups = %+v", g)
+	}
+	// TLS 1.3 が有効なら受け入れる
+	_, inv = collect(t, "", tcOpenSSL(t, tcServer(tcAPR, tcNIO, "", tcFileRSA), tcUbuntu24...))
+	if g := tcEff(t, inv, "tls.groups"); g.Status != "resolved" || !contains(g.Values, "ffdhe2048") {
+		t.Errorf("groups = %+v", g)
+	}
+}
