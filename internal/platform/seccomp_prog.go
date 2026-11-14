@@ -54,8 +54,9 @@ func buildFilter(arch uint32, denied []uint32, x32guard bool) []sockFilter {
 	return prog
 }
 
-// deniedSyscalls は拒否するシステムコール番号（通信、プロセス起動、他プロセス操作、io_uring、マウント操作、カーネルの鍵保管庫）。
-// 番号は、カーネルのヘッダ（Debian 13 の linux-libc-dev 6.12.116-1。amd64 と arm64）で確認した。
+// deniedSyscalls は拒否するシステムコール番号（通信、プロセス起動、他プロセス操作、io_uring、マウント操作、カーネルの鍵保管庫、
+// このツールが使わない変更系の呼び出し）。
+// 番号は、カーネルのヘッダ（Debian 13 の linux-libc-dev 6.12.116-1 / 6.12.117-1。amd64 と arm64）で確認した。
 // 未対応のアーキテクチャでは nil（フィルタを適用しない）。
 func deniedSyscalls(goarch string) []uint32 {
 	switch goarch {
@@ -99,6 +100,52 @@ func deniedSyscalls(goarch string) []uint32 {
 			248, // add_key
 			249, // request_key
 			250, // keyctl
+			// このツールが決して使わない、ファイルシステムやシステムの状態を変える呼び出し（出力に使うものは含めない:
+			// 書き込み用に開く、mkdirat、linkat、unlinkat、renameat2、fchmod）
+			90,  // chmod
+			268, // fchmodat
+			452, // fchmodat2
+			92,  // chown
+			93,  // fchown
+			94,  // lchown
+			260, // fchownat
+			188, // setxattr
+			189, // lsetxattr
+			190, // fsetxattr
+			197, // removexattr
+			198, // lremovexattr
+			199, // fremovexattr
+			133, // mknod
+			259, // mknodat
+			88,  // symlink
+			266, // symlinkat
+			76,  // truncate
+			77,  // ftruncate
+			132, // utime
+			235, // utimes
+			261, // futimesat
+			280, // utimensat
+			84,  // rmdir
+			82,  // rename
+			264, // renameat
+			161, // chroot
+			155, // pivot_root
+			167, // swapon
+			168, // swapoff
+			169, // reboot
+			175, // init_module
+			313, // finit_module
+			176, // delete_module
+			246, // kexec_load
+			320, // kexec_file_load
+			321, // bpf
+			164, // settimeofday
+			227, // clock_settime
+			159, // adjtimex
+			305, // clock_adjtime
+			170, // sethostname
+			171, // setdomainname
+			285, // fallocate
 		}
 	case "arm64":
 		return []uint32{
@@ -138,6 +185,42 @@ func deniedSyscalls(goarch string) []uint32 {
 			217, // add_key
 			218, // request_key
 			219, // keyctl
+			// このツールが決して使わない、ファイルシステムやシステムの状態を変える呼び出し（出力に使うものは含めない:
+			// 書き込み用に開く、mkdirat、linkat、unlinkat、renameat2、fchmod）
+			53,  // fchmodat
+			452, // fchmodat2
+			55,  // fchown
+			54,  // fchownat
+			5,   // setxattr
+			6,   // lsetxattr
+			7,   // fsetxattr
+			14,  // removexattr
+			15,  // lremovexattr
+			16,  // fremovexattr
+			33,  // mknodat
+			36,  // symlinkat
+			45,  // truncate
+			46,  // ftruncate
+			88,  // utimensat
+			38,  // renameat
+			51,  // chroot
+			41,  // pivot_root
+			224, // swapon
+			225, // swapoff
+			142, // reboot
+			105, // init_module
+			273, // finit_module
+			106, // delete_module
+			104, // kexec_load
+			294, // kexec_file_load
+			280, // bpf
+			170, // settimeofday
+			112, // clock_settime
+			171, // adjtimex
+			266, // clock_adjtime
+			161, // sethostname
+			162, // setdomainname
+			47,  // fallocate
 		}
 	}
 	return nil
