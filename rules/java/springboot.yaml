@@ -1,0 +1,48 @@
+# Spring Boot（組み込みの Tomcat で TLS を待ち受けるアプリ）の、版ごとの設定の効き方。
+# 受け入れるプロトコルと暗号スイートは、JAR の中の設定（server.ssl.*）と、同梱の Tomcat の表（tomcat-embedded.yaml）、
+# アプリを動かす JDK の表（openjdk.yaml）から求める。ここには、Spring Boot の版によって違うことだけを持つ。
+#
+#   ssl_bundles    : SSL バンドル（server.ssl.bundle と spring.ssl.bundle.*）の設定が効くか。
+#                    yes = 効く / no = その版にはこの設定がなく、書いても TLS を待ち受けない / unknown = 測った設定では起動しなかった
+#   pem_properties : 証明書と鍵を PEM のファイルで指定する設定（server.ssl.certificate、server.ssl.certificate-private-key）が効くか。値は同じ
+#
+# どの版にも共通で確かめたこと（測った全場面で、参照モデルと実測が一致）:
+#   - server.ssl.enabled-protocols と server.ssl.ciphers が効く。server.ssl.protocol は、受け入れるプロトコルの絞り込みには効かない
+#   - server.ssl.ciphers を書くと、TLS 1.3 のスイートもその指定に従う（パッケージの Tomcat の server.xml とは違う）
+#   - 同じ場所では application.properties が application.yml に勝つ。有効にしたプロファイルの設定が上書きし、有効でないプロファイルの設定は効かない
+#   - server.ssl.enabled=false、またはキーストアや証明書の指定がなければ、TLS を待ち受けない
+#
+# 採取方法: Docker 公式の maven イメージで、各版の最小のアプリ（spring-boot-starter-web）を Maven Central の成果物からビルドし、
+#           Ubuntu 24.04 の OpenJDK 21 で実際に起動して、JAR の中の設定を変えた場面ごとに、同じコンテナ内からのハンドシェイク
+#           （スイートを 1 つずつ示す）で受け入れるスイートを数え上げた。
+#
+# このファイルは検証ラボの生成スクリプト（lab/phase2/gen-springboot.py）で作った。手で編集しない。
+spring_boot_tables:
+  - versions: ["2.7.0", "2.7.1"]
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "applications built from Maven Central artifacts and started with openjdk-21-jre-headless in the image; accepted suites enumerated by handshakes (one suite offered at a time); embedded Tomcat versions 9.0.63 to 9.0.64"
+    ssl_bundles: "no"
+    pem_properties: "unknown"
+  - versions: ["2.7.2", "2.7.3", "2.7.4", "2.7.5", "2.7.6", "2.7.7", "2.7.8", "2.7.9", "2.7.10", "2.7.11", "2.7.12", "2.7.13", "2.7.14", "2.7.15", "2.7.16", "2.7.17", "2.7.18", "3.0.0", "3.0.1", "3.0.2", "3.0.3", "3.0.4", "3.0.5", "3.0.6", "3.0.7", "3.0.8", "3.0.9", "3.0.10", "3.0.11", "3.0.12", "3.0.13"]
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "applications built from Maven Central artifacts and started with openjdk-21-jre-headless in the image; accepted suites enumerated by handshakes (one suite offered at a time); embedded Tomcat versions 9.0.65 to 10.1.16"
+    ssl_bundles: "no"
+    pem_properties: "yes"
+  - versions: ["3.1.0", "3.1.1", "3.1.2", "3.1.3", "3.1.4", "3.1.5", "3.1.6", "3.1.7", "3.1.8", "3.1.9", "3.1.10", "3.1.11", "3.1.12", "3.2.0", "3.2.1", "3.2.2", "3.2.3", "3.2.4", "3.2.5", "3.2.6", "3.2.7", "3.2.8", "3.2.9", "3.2.10", "3.2.11", "3.2.12", "3.3.0", "3.3.1", "3.3.2", "3.3.3", "3.3.4", "3.3.5", "3.3.6", "3.3.7", "3.3.8", "3.3.9", "3.3.10", "3.3.11", "3.3.12", "3.3.13", "3.4.1", "3.4.2", "3.4.3", "3.4.4", "3.4.5", "3.4.6", "3.4.7", "3.4.8", "3.4.9", "3.4.10", "3.4.11", "3.4.12", "3.4.13", "3.5.0", "3.5.1", "3.5.2", "3.5.3", "3.5.4", "3.5.5", "3.5.6", "3.5.7", "3.5.8", "3.5.9", "3.5.10", "3.5.11", "3.5.12", "3.5.13", "3.5.14", "3.5.15", "3.5.16", "4.0.0", "4.0.1", "4.0.2", "4.0.3", "4.0.4", "4.0.5", "4.0.6", "4.0.7", "4.0.8", "4.0.9", "4.1.0", "4.1.1", "4.1.2"]
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "applications built from Maven Central artifacts and started with openjdk-21-jre-headless in the image; accepted suites enumerated by handshakes (one suite offered at a time); embedded Tomcat versions 10.1.8 to 11.0.27"
+    ssl_bundles: "yes"
+    pem_properties: "yes"
+  - versions: ["3.4.0"]
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      note: "applications built from Maven Central artifacts and started with openjdk-21-jre-headless in the image; accepted suites enumerated by handshakes (one suite offered at a time); embedded Tomcat versions 10.1.33 to 10.1.33"
+    ssl_bundles: "unknown"
+    pem_properties: "yes"

@@ -232,3 +232,54 @@ func (rs *RuleSet) TomcatTableFor(server, pkg, version string) (t *TomcatTable, 
 	}
 	return rs.TomcatTables[i], build, exact, true
 }
+
+// SpringBootTable は、Spring Boot の版ごとの、設定の効き方（実際に起動して確かめた事実）。出典が必須。
+type SpringBootTable struct {
+	Versions []string `yaml:"versions"`
+	Source   Source   `yaml:"source"`
+	// SSL バンドル（server.ssl.bundle、spring.ssl.bundle.*）の設定が効くか: yes / no（書いても TLS を待ち受けない）/ unknown（測った設定では起動しなかった）
+	SSLBundles string `yaml:"ssl_bundles"`
+	// 証明書と鍵を PEM のファイルで指定する設定（server.ssl.certificate など）が効くか。値は同じ
+	PEMProperties string `yaml:"pem_properties"`
+}
+
+var springBootVersionPattern = regexp.MustCompile(`^[0-9]{1,2}\.[0-9]{1,3}\.[0-9]{1,3}$`)
+
+func (rs *RuleSet) addSpringBootTable(t *SpringBootTable, ids map[string]bool) error {
+	if t == nil || len(t.Versions) == 0 || len(t.Versions) > 2000 {
+		return errors.New("Spring Boot table needs versions")
+	}
+	where := "Spring Boot table for " + t.Versions[0]
+	for _, v := range t.Versions {
+		if !springBootVersionPattern.MatchString(v) {
+			return fmt.Errorf("%s: invalid version %q", where, v)
+		}
+		key := "spring-boot\x00" + v
+		if ids[key] {
+			return fmt.Errorf("%s: duplicate version %s", where, v)
+		}
+		ids[key] = true
+	}
+	if err := checkSources([]Source{t.Source}); err != nil {
+		return fmt.Errorf("%s: %w", where, err)
+	}
+	for _, state := range []string{t.SSLBundles, t.PEMProperties} {
+		if state != "yes" && state != "no" && state != "unknown" {
+			return fmt.Errorf("%s: ssl_bundles and pem_properties must be yes, no or unknown", where)
+		}
+	}
+	rs.SpringBootTables = append(rs.SpringBootTables, t)
+	return nil
+}
+
+// SpringBootFor は、その版の Spring Boot の事実を返す。版は完全に一致するものだけ（補間しない）。
+func (rs *RuleSet) SpringBootFor(version string) (*SpringBootTable, bool) {
+	for _, t := range rs.SpringBootTables {
+		for _, v := range t.Versions {
+			if v == version {
+				return t, true
+			}
+		}
+	}
+	return nil, false
+}
