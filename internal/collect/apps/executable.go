@@ -27,36 +27,6 @@ import (
 // 起動スクリプトが見る環境変数のうち、どの Java で何を起動するかを決めるもの。
 var execEnvNames = map[string]bool{"JAVA_HOME": true, "JAVA_OPTS": true, "RUN_ARGS": true, "CONF_FOLDER": true, "JARFILE": true}
 
-// launchCommand は、起動の定義のコマンドを読む。「java ... -jar <JAR>」の形か、JAR そのものを起動する形（selfExec）。
-func launchCommand(argv []string) (l *javaLaunch, ok bool) {
-	if cmd, ok := javacmd.Parse(argv); ok {
-		return &javaLaunch{cmd: cmd}, true
-	}
-	if len(argv) == 0 || !strings.HasPrefix(argv[0], "/") || strings.ContainsAny(argv[0], "$%{}") {
-		return nil, false
-	}
-	if ext := path.Ext(argv[0]); ext != ".jar" && ext != ".war" {
-		return nil, false
-	}
-	return &javaLaunch{selfExec: true, cmd: javacmd.Command{Jar: path.Clean(argv[0])}, args: argv[1:]}, true
-}
-
-// addLaunch は、起動の定義を、JAR の実体のパスごとに記録する（同じ JAR の定義が複数ある場合は、先に見つかったものを使う）。
-func (c *Collector) addLaunch(out map[string]*javaLaunch, l *javaLaunch) {
-	jar := l.jarPath()
-	if jar == "" {
-		return // 相対パスの JAR は、作業ディレクトリが分からなければ決まらない
-	}
-	if real, err := c.Opener.Resolve(c.Prefix + jar); err == nil {
-		if real = strings.TrimPrefix(real, c.Prefix); real != jar {
-			l.viaLink, jar = jar, real
-		}
-	}
-	if _, dup := out[jar]; !dup {
-		out[jar] = l
-	}
-}
-
 // executableJar は、JAR の先頭に起動スクリプトがある場合に、起動のしかたを求める。
 // 返すのは、使う起動の定義（なければ nil）と、値を求められない理由（なければ空）。
 //
