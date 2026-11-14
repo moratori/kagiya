@@ -143,7 +143,7 @@ func renderPage(out io.Writer, pg *page) error {
 	} else {
 		for _, v := range pg.Hosts {
 			h.w(raw(`<div class="grp">`), v.Host, raw("</div>\n"))
-			for _, l := range [][2]string{{"overview", "スキャンの概要"}, {"summary", "要点"}, {"services", "サービスの設定"}, {"files", "ファイルとして見つかった証明書・鍵"},
+			for _, l := range [][2]string{{"overview", "スキャンの概要"}, {"summary", "要点"}, {"services", "各ソフトでの暗号利用状況"}, {"files", "ファイルとして見つかった証明書・鍵"},
 				{"stores", "証明書ストア"}, {"system", "OS とライブラリ"}, {"coverage", "読み飛ばしたもの"}} {
 				h.w(raw(`<a href="#`), v.H, "-", l[0], raw(`">`), l[1], raw("</a>\n"))
 			}
@@ -249,7 +249,7 @@ func (h *htmlWriter) cards(v *view) {
 	s, tips := v.Summary, v.Tips
 	h.w(raw(`<div class="cards">
 <div class="card">
-<h3>サーバアプリで用いる暗号の状況<span class="nowrap">（`), s.Services, raw(` アプリ）</span></h3>
+<h3>ソフトウェアが用いる暗号の状況<span class="nowrap">（計 `), s.Services, raw(` ソフト）</span></h3>
 <ul>
 <li>`))
 	h.row(tips["quantum"], "量子計算機に弱い方式", s.Quantum, "bad")
@@ -376,7 +376,7 @@ func (h *htmlWriter) host(v *view, multi bool) {
 <div class="block">
 <h2 id="`))
 	h.w(id("services")...)
-	h.w(raw("\">サービスの設定</h2>\n"))
+	h.w(raw("\">各ソフトでの暗号利用状況</h2>\n"))
 	if len(v.Services) == 0 {
 		h.w(raw(`<p>サービスは見つかりませんでした。</p>`))
 	} else {
@@ -405,7 +405,7 @@ func (h *htmlWriter) host(v *view, multi bool) {
 	h.w(id("stores")...)
 	h.w(raw("\">証明書ストア</h2>\n"))
 	if len(v.Stores) > 0 {
-		h.w(raw(`<p class="sub">OS や実行環境が信頼する CA 証明書の置き場です。件数が多いので畳んでいます。</p>
+		h.w(raw(`<p class="sub">OS や実行環境が信頼する CA 証明書の置き場です。</p>
 `))
 		for i := range v.Stores {
 			h.store(&v.Stores[i])
