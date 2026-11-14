@@ -260,13 +260,15 @@ type Skipped struct {
 }
 
 type Coverage struct {
-	FilesExamined    int            `json:"files_examined"`
-	DirsExamined     int            `json:"dirs_examined"`
-	SymlinksIgnored  int            `json:"symlinks_not_followed"`
-	SpecialIgnored   int            `json:"special_files_not_opened"`
-	BytesRead        int64          `json:"bytes_read"`
-	SkippedByReason  map[string]int `json:"skipped_by_reason"`
-	SkippedTruncated bool           `json:"skipped_list_truncated"`
+	FilesExamined   int   `json:"files_examined"`
+	DirsExamined    int   `json:"dirs_examined"`
+	SymlinksIgnored int   `json:"symlinks_not_followed"`
+	SpecialIgnored  int   `json:"special_files_not_opened"`
+	BytesRead       int64 `json:"bytes_read"`
+	// アクセス時刻（atime）を更新しない開き方ができず、読んだことで atime が変わりうるファイル・ディレクトリの数（所有者でも root でもない場合）
+	AtimeNotPreserved int            `json:"atime_not_preserved,omitempty"`
+	SkippedByReason   map[string]int `json:"skipped_by_reason"`
+	SkippedTruncated  bool           `json:"skipped_list_truncated"`
 }
 
 // OSSetting は OS 全体の暗号設定の1項目。値は種類ごとの検証を通ったものだけを記録する。

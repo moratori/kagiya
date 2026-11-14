@@ -24,6 +24,8 @@ type Opener struct {
 	Limiter     *throttle.Limiter
 	OnSkip      func(Skip)
 	BytesRead   int64
+	// アクセス時刻（atime）を更新しない開き方ができなかった数（所有者でも root でもない場合）
+	AtimeNotPreserved int
 }
 
 // File は読み取り専用で開いたファイル。必要な部分だけを読めるよう、位置を指定して読む。
@@ -74,7 +76,7 @@ func (o *Opener) Open(path string) (*File, error) {
 		}
 		last = fi
 	}
-	f, err := os.OpenFile(path, os.O_RDONLY|platform.ReadOpenFlags, 0)
+	f, err := openQuietly(func(flag int) (*os.File, error) { return os.OpenFile(path, flag, 0) }, os.O_RDONLY|platform.ReadOpenFlags, &o.AtimeNotPreserved)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 		return nil, fs.ErrNotExist
@@ -217,7 +219,7 @@ func (o *Opener) ReadDir(path string) ([]string, error) {
 			return nil, fmt.Errorf("%q: %w", path, errNotPlain)
 		}
 	}
-	d, err := os.Open(path)
+	d, err := openQuietly(func(flag int) (*os.File, error) { return os.OpenFile(path, flag, 0) }, os.O_RDONLY|platform.DirectoryFlag, &o.AtimeNotPreserved)
 	if errors.Is(err, fs.ErrPermission) {
 		return nil, o.skip(path, "permission-denied", "")
 	}
@@ -274,7 +276,7 @@ func (o *Opener) ListNames(path string) ([]DirEntry, error) {
 			return nil, fmt.Errorf("%q: %w", path, errNotPlain)
 		}
 	}
-	d, err := os.Open(path)
+	d, err := openQuietly(func(flag int) (*os.File, error) { return os.OpenFile(path, flag, 0) }, os.O_RDONLY|platform.DirectoryFlag, &o.AtimeNotPreserved)
 	if errors.Is(err, fs.ErrPermission) {
 		return nil, o.skip(path, "permission-denied", "")
 	}

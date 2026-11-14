@@ -348,6 +348,13 @@ func runScan(args []string, stderr io.Writer) int {
 	inv.Coverage.SymlinksIgnored = walker.Stats.Symlinks
 	inv.Coverage.SpecialIgnored = walker.Stats.Special
 	inv.Coverage.BytesRead = walker.Stats.BytesRead + opener.BytesRead
+	if n := walker.Stats.AtimeNotPreserved + opener.AtimeNotPreserved; n > 0 {
+		// 所有者でも root でもないファイルは、アクセス時刻を更新しない開き方ができない
+		inv.Coverage.AtimeNotPreserved = n
+		w := "the access time of " + strconv.Itoa(n) + " file(s) or directories could not be preserved (not the owner; run as root to avoid changing access times)"
+		inv.Meta.Warnings = append(inv.Meta.Warnings, w)
+		log.Warn("atime-not-preserved", "count", n)
+	}
 
 	// 評価（スキャン時点の評価ポリシーによる参考値）。指定されたルールに既定のポリシーがなければ付けない。
 	if ev, err := assess.New(rs, "default"); err == nil {

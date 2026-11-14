@@ -31,6 +31,8 @@ type MountChecker interface {
 type Stats struct {
 	Dirs, Files, Symlinks, Special int
 	BytesRead                      int64
+	// アクセス時刻（atime）を更新しない開き方ができなかった数（所有者でも root でもない場合）
+	AtimeNotPreserved int
 }
 
 const (
@@ -163,7 +165,7 @@ func join(dir, name string) string {
 
 func (w *Walker) walkDir(ctx context.Context, r *os.Root, path string, depth int, visit func(*Entry) error) error {
 	w.Stats.Dirs++
-	d, err := r.Open(".")
+	d, err := openQuietly(func(flag int) (*os.File, error) { return r.OpenFile(".", flag, 0) }, os.O_RDONLY|platform.DirectoryFlag, &w.Stats.AtimeNotPreserved)
 	if err != nil {
 		w.skipErr(path, err)
 		return nil
@@ -331,7 +333,7 @@ func (e *Entry) read(limit int64) ([]byte, error) {
 		w.skip(e.Path, "too-large", "")
 		return nil, ErrSkipped
 	}
-	f, err := e.dir.OpenFile(e.Name, os.O_RDONLY|platform.ReadOpenFlags, 0)
+	f, err := openQuietly(func(flag int) (*os.File, error) { return e.dir.OpenFile(e.Name, flag, 0) }, os.O_RDONLY|platform.ReadOpenFlags, &w.Stats.AtimeNotPreserved)
 	if err != nil {
 		if errors.Is(err, fs.ErrPermission) {
 			w.skip(e.Path, "permission-denied", "")

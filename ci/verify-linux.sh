@@ -87,5 +87,17 @@ sleep 3; kill -HUP $PID; wait $PID
 check "SIGHUP で終了コード 3（未完了）" "[ $? -eq 3 ]"
 check "SIGHUP でも結果が書かれる"       "grep -q '\"completed\": false' \"$W\"/out6/*.json"
 
+# 5. 読んだファイルとディレクトリのアクセス時刻（atime）を書き換えない
+# 既定のマウント（relatime）では、atime が更新時刻より古いファイルを読むと、atime が書き換わる。その状態を作ってから読ませる
+mkdir -p "$W/atime/d/e"
+cp "$W/tree/sub/f0.pem" "$W/atime/d/a.pem"; cp "$W/jar.body" "$W/atime/d/e/b.jar"; cp "$W/tree/sub/f1.pem" "$W/atime/d/e/c.key"
+find "$W/atime" -exec touch -a -d '2001-02-03 04:05:06' {} +
+BEFORE=$(find "$W/atime" -exec stat -c '%n %X' {} + | sort)
+"$K" scan --roots "$W/atime" --output-dir "$W/out7" --log-dir "$W/logs7" --cpu-limit 100 --io-limit 0 >/dev/null 2>&1
+AFTER=$(find "$W/atime" -exec stat -c '%n %X' {} + | sort)
+check "スキャンで 3 つのファイルを調べた" "grep -q '\"files_examined\": 3' \"$W\"/out7/*.json"
+if [ "$BEFORE" = "$AFTER" ]; then ok "読んだファイルとディレクトリの atime が変わらない"; else ng "読んだファイルとディレクトリの atime が変わらない"; echo "$BEFORE" >"$W/atime.before"; echo "$AFTER" >"$W/atime.after"; diff "$W/atime.before" "$W/atime.after" | head -8; fi
+grep -E 'noatime|relatime|strictatime' /proc/self/mountinfo | awk -v d="$W" '$5=="/" || index(d,$5)==1 {print "mount: " $5 " " $6}' | tail -2
+
 [ $fail -eq 0 ] && echo "ALL OK" || echo "SOME CHECKS FAILED"
 exit $fail
