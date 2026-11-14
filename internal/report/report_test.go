@@ -183,7 +183,7 @@ func TestReportHeaderAndSummary(t *testing.T) {
 	}
 }
 
-// サービスごとに、受け入れる方式の一覧と、その求め方・判定を示す。サービスは1つずつ畳んで（アコーディオンで）示す。
+// サービスごとに、受け入れる方式の一覧と、その判定を示す。サービスは1つずつ畳んで（アコーディオンで）示す。
 func TestReportServices(t *testing.T) {
 	html := render(t, sample())
 	mustContain(t, html,
@@ -192,7 +192,6 @@ func TestReportServices(t *testing.T) {
 		"量子計算機に弱い", "非推奨",
 		"RSA による鍵輸送",                 // 当たった規則の説明（AES256-SHA）
 		"確度: 中",                      // 補間
-		"openssl-libs 3.5.9-1.el9_9", // 対応表を実測した版（求め方）
 		"/etc/nginx/conf.d/tls.conf:6",
 		"mlkem768x25519-sha256", "ハイブリッド",
 		"diffie-hellman-group1-sha1", "危殆化",

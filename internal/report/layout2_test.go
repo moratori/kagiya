@@ -160,3 +160,24 @@ func TestReportSoftwareWording(t *testing.T) {
 		}
 	}
 }
+
+// 情報量を落とす（2026-11-14、利用者の指定）: 範囲ごとの値の下に、求め方の手順と、値ごとの注意書きは出さない。
+// 「設定の記載と既定値から算出」という説明も出さない（確度は出す）。これらは結果の JSON には残る。
+func TestReportEffectiveValuesAreTerse(t *testing.T) {
+	html := render(t, sample())
+	for _, bad := range []string{"求め方", "設定の記載と既定値から算出", "the cipher table measured on openssl-libs 3.5.9-1.el9_9", "暗号ライブラリでの展開"} {
+		if strings.Contains(html, bad) {
+			t.Errorf("must not be shown: %q", bad)
+		}
+	}
+	// 確度と、求められなかった理由、サービス全体についての注意は残す
+	for _, want := range []string{"確度: 中", "no default values are recorded for openssh-server 9.9p1-99.el9", "ssl_module is not loaded by the configuration"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("must still be shown: %q", want)
+		}
+	}
+	// 証明書ストアの説明は短くする
+	if !strings.Contains(html, "署名の方式ごとの件数と、その方式の判定です。</p>") || strings.Contains(html, "同じ行の証明書すべてに当てはまります") {
+		t.Error("the description of certificate stores must be the short one")
+	}
+}
