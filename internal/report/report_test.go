@@ -190,8 +190,8 @@ func TestReportServices(t *testing.T) {
 		"nginx", "server www.example.jp", "有効", // 起動するよう設定されている
 		"ECDHE-RSA-AES256-GCM-SHA384", "DES-CBC3-SHA",
 		"量子計算機に弱い", "非推奨",
-		"RSA による鍵輸送",                 // 当たった規則の説明（AES256-SHA）
-		"確度: 中",                      // 補間
+		"RSA による鍵輸送", // 当たった規則の説明（AES256-SHA）
+		"確度: 中",      // 補間
 		"/etc/nginx/conf.d/tls.conf:6",
 		"mlkem768x25519-sha256", "ハイブリッド",
 		"diffie-hellman-group1-sha1", "危殆化",

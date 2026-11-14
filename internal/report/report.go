@@ -56,7 +56,6 @@ type builder struct {
 	a        *model.Assessment
 	rs       *ruleset.RuleSet
 	scanTime time.Time
-	settings map[string]model.Setting
 	assets   map[string]model.Asset
 	used     map[string]bool
 	rules    map[string]ruleset.PolicyRule // 評価ポリシーの規則（ID から引く）
@@ -104,10 +103,7 @@ func RenderAll(w io.Writer, invs []*model.Inventory, rs *ruleset.RuleSet, policy
 		byID[r.ID] = r
 	}
 	for i, inv := range sorted {
-		b := &builder{inv: inv, ev: ev, a: ev.Assess(inv), rs: rs, settings: map[string]model.Setting{}, assets: map[string]model.Asset{}, used: used, rules: byID}
-		for _, s := range inv.Settings {
-			b.settings[s.ID] = s
-		}
+		b := &builder{inv: inv, ev: ev, a: ev.Assess(inv), rs: rs, assets: map[string]model.Asset{}, used: used, rules: byID}
 		for _, as := range inv.Assets {
 			b.assets[as.ID] = as
 		}

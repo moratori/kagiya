@@ -584,7 +584,7 @@ func (h *htmlWriter) service(s *serviceView) {
 func (h *htmlWriter) effective(e *effectiveView) {
 	h.w(raw(`<p><strong>`), e.Label, raw(`</strong>`))
 	if e.Resolved {
-		h.w(raw(` — このサービスが受け入れる設定になっている方式です（設定の記載と既定値から算出。<span class="tip" data-tip="確度「高」は、導入されている版そのもので実測した表から求めた値。「中」は、近い版の実測を当てはめたか、証明書などを読めずに絞り込みの一部をしていない値">`),
+		h.w(raw(` — このサービスが受け入れる設定になっている方式です（<span class="tip" data-tip="確度「高」は、導入されている版そのもので実測した表から求めた値。「中」は、近い版の実測を当てはめたか、証明書などを読めずに絞り込みの一部をしていない値">`),
 			e.Confidence, raw(`</span>）`))
 	} else {
 		h.w(raw(` <span class="badge unk">特定できませんでした</span>`))
@@ -593,16 +593,7 @@ func (h *htmlWriter) effective(e *effectiveView) {
 	if !e.Resolved {
 		h.w(raw(`<p class="note">理由: `), e.Reason, raw("</p>\n"))
 	}
-	for _, n := range e.Notes {
-		h.w(raw(`<p class="note">注意: `), n, raw("</p>\n"))
-	}
-	if len(e.Steps) > 0 {
-		h.w(raw(`<p class="sub">求め方:</p><ol class="steps">`))
-		for _, s := range e.Steps {
-			h.w(raw(`<li>`), s, raw(`</li>`))
-		}
-		h.w(raw("</ol>\n"))
-	}
+	// 値ごとの注意書きと、求め方の手順は出さない（情報量を落とす。結果の JSON には残っている）
 	if !e.Resolved {
 		return
 	}
@@ -689,7 +680,7 @@ func (h *htmlWriter) assets(rows []assetRow) {
 func (h *htmlWriter) store(s *storeView) {
 	h.w(raw(`<details class="store">
 <summary>`), s.Name, "（", s.Count, " 件）", raw(`</summary>
-<p class="sub">署名の方式ごとの件数と、その方式の判定です。判定は署名の方式に対するもので、同じ行の証明書すべてに当てはまります。</p>
+<p class="sub">署名の方式ごとの件数と、その方式の判定です。</p>
 <div class="tablewrap"><table>
 <tr><th>署名の方式</th><th>件数</th><th>量子計算機に対して</th><th>現在の計算機に対して</th></tr>
 `))

@@ -38,8 +38,6 @@ type effectiveView struct {
 	Resolved   bool
 	Confidence string
 	Reason     string
-	Notes      []string
-	Steps      []string
 	IsSuite    bool
 	Rows       []valueRow
 	Fold       bool

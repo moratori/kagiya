@@ -67,49 +67,6 @@ func (b *builder) reasonViews(ids []string) []ruleView {
 	return out
 }
 
-func (b *builder) step(s model.ResolutionStep) string {
-	src := ""
-	if s.Source != nil {
-		src = "（" + s.Source.Package + " " + s.Source.Version + " で実測）"
-	}
-	at := ""
-	if set, ok := b.settings[s.Setting]; ok {
-		at = "（" + location(set.Location.Path, set.Location.Line) + "）"
-	}
-	level := map[string]string{"app-config": "設定の記載による", "app-default": "アプリの既定による", "os-policy": "システムの設定による", "library": "暗号ライブラリの既定による"}[s.Layer]
-	switch s.Op {
-	case "override":
-		if s.Layer == "os-policy" {
-			return "システムの設定の値" + at
-		}
-		return "設定の記載" + at
-	case "default":
-		if s.Layer == "library" {
-			return "暗号ライブラリの既定" + src
-		}
-		return "アプリの既定値" + src
-	case "append":
-		return "既定の一覧に追加" + at
-	case "remove":
-		return "既定の一覧から削除" + at
-	case "prepend":
-		return "既定の一覧の先頭に追加" + at
-	case "profile":
-		return "システムの暗号ポリシーの内容に置き換え"
-	case "intersect":
-		return "実行環境（JDK）が対応しているものに限定" + src
-	case "expand":
-		return "暗号ライブラリでの展開" + src
-	case "security-level":
-		return "セキュリティレベルで絞り込み（" + level + "）"
-	case "filter-certificates":
-		return "証明書の種類で絞り込み"
-	case "filter-dh-parameters":
-		return "DH パラメータの有無で絞り込み（" + level + "）" + src
-	}
-	return s.Layer + " / " + s.Op
-}
-
 func (b *builder) services(v *view) {
 	svcs := append([]model.Service{}, b.inv.Services...)
 	sort.SliceStable(svcs, func(i, j int) bool { return svcs[i].ID < svcs[j].ID })
@@ -150,16 +107,13 @@ func (b *builder) services(v *view) {
 			if e.Service != s.ID {
 				continue
 			}
-			ef := effectiveView{Label: label(e.Parameter), Parameter: e.Parameter, Resolved: e.Status == model.StatusResolved, Reason: e.Reason, Notes: e.Notes,
+			ef := effectiveView{Label: label(e.Parameter), Parameter: e.Parameter, Resolved: e.Status == model.StatusResolved, Reason: e.Reason,
 				IsSuite: assess.SchemeFor(e.Parameter) == assess.SchemeTLSSuite}
 			switch e.Confidence {
 			case "high":
 				ef.Confidence = "確度: 高"
 			case "medium":
 				ef.Confidence = "確度: 中"
-			}
-			for _, st := range e.Steps {
-				ef.Steps = append(ef.Steps, b.step(st))
 			}
 			if ef.Resolved {
 				var reasons []string
