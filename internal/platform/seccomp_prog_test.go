@@ -122,6 +122,40 @@ func TestDeniedSyscallListsCoverEssentials(t *testing.T) {
 			}
 		}
 	}
+	// 独立したレビュー（2026-11-14）の指摘 A-8: このツールが決して使わない、ファイルシステムやシステムの状態を変える呼び出しも拒否する
+	// （権限・所有者・時刻・拡張属性の変更、切り詰め、リンクやデバイスの作成、ディレクトリの削除、上書きする改名、時計・ホスト名・
+	// カーネルモジュールなど）。出力に使う呼び出し（書き込み用に開く、mkdirat、linkat、unlinkat、renameat2、fchmod）は拒否しない。
+	// 番号は、カーネルのヘッダ（Debian 13 の linux-libc-dev 6.12.117-1 と linux-libc-dev-amd64-cross 6.12.38-1cross1）で確かめた。
+	never := map[string]map[string]uint32{
+		"amd64": {"chmod": 90, "fchmodat": 268, "fchmodat2": 452, "chown": 92, "fchown": 93, "lchown": 94, "fchownat": 260, "setxattr": 188, "lsetxattr": 189, "fsetxattr": 190, "removexattr": 197, "lremovexattr": 198, "fremovexattr": 199, "mknod": 133, "mknodat": 259, "symlink": 88, "symlinkat": 266, "truncate": 76, "ftruncate": 77, "utime": 132, "utimes": 235, "futimesat": 261, "utimensat": 280, "rmdir": 84, "rename": 82, "renameat": 264, "chroot": 161, "pivot_root": 155, "swapon": 167, "swapoff": 168, "reboot": 169, "init_module": 175, "finit_module": 313, "delete_module": 176, "kexec_load": 246, "kexec_file_load": 320, "bpf": 321, "settimeofday": 164, "clock_settime": 227, "adjtimex": 159, "clock_adjtime": 305, "sethostname": 170, "setdomainname": 171, "fallocate": 285},
+		"arm64": {"fchmodat": 53, "fchmodat2": 452, "fchown": 55, "fchownat": 54, "setxattr": 5, "lsetxattr": 6, "fsetxattr": 7, "removexattr": 14, "lremovexattr": 15, "fremovexattr": 16, "mknodat": 33, "symlinkat": 36, "truncate": 45, "ftruncate": 46, "utimensat": 88, "renameat": 38, "chroot": 51, "pivot_root": 41, "swapon": 224, "swapoff": 225, "reboot": 142, "init_module": 105, "finit_module": 273, "delete_module": 106, "kexec_load": 104, "kexec_file_load": 294, "bpf": 280, "settimeofday": 170, "clock_settime": 112, "adjtimex": 171, "clock_adjtime": 266, "sethostname": 161, "setdomainname": 162, "fallocate": 47},
+	}
+	needed := map[string][]uint32{"amd64": {257 /* openat */, 258 /* mkdirat */, 265 /* linkat */, 263 /* unlinkat */, 316 /* renameat2 */, 91 /* fchmod */},
+		"arm64": {56 /* openat */, 34 /* mkdirat */, 37 /* linkat */, 35 /* unlinkat */, 276 /* renameat2 */, 52 /* fchmod */}}
+	for arch, calls := range never {
+		list := deniedSyscalls(arch)
+		have := map[uint32]bool{}
+		for _, n := range list {
+			if have[n] {
+				t.Errorf("%s: %d is listed twice", arch, n)
+			}
+			have[n] = true
+		}
+		for name, nr := range calls {
+			if !have[nr] {
+				t.Errorf("%s: %s (%d) is not in the deny list", arch, name, nr)
+			}
+		}
+		for _, nr := range needed[arch] {
+			if have[nr] {
+				t.Errorf("%s: %d is needed to write the output and must not be denied", arch, nr)
+			}
+		}
+		// 分岐の飛び先は 8 ビット
+		if len(list) > 250 {
+			t.Errorf("%s: the deny list is too long for the filter (%d)", arch, len(list))
+		}
+	}
 	if deniedSyscalls("riscv64") != nil {
 		t.Error("unknown architecture must return nil (no filter)")
 	}
