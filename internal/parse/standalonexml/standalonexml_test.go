@@ -70,7 +70,7 @@ func TestParseElytronForm(t *testing.T) {
 		t.Fatalf("listeners = %+v (only the https-listener of the undertow subsystem is taken)", f.Listeners)
 	}
 	l := f.Listeners[0]
-	if l.Server != "default-server" || l.Attr["name"].Value != "https" || l.Attr["ssl-context"].Value != "applicationSSC" || l.Attr["socket-binding"].Value != "https" || l.Line != 40 {
+	if l.Server != "default-server" || l.Attr["name"].Value != "https" || l.Attr["ssl-context"].Value != "applicationSSC" || l.Attr["socket-binding"].Value != "https" || l.Line != 38 {
 		t.Errorf("listener = %+v", l)
 	}
 	if _, ok := l.Attr["enable-http2"]; ok {
@@ -81,7 +81,7 @@ func TestParseElytronForm(t *testing.T) {
 	}
 	c := f.SSLContexts[0].Attr
 	if c["name"].Value != "applicationSSC" || c["cipher-suite-filter"].Value != "ECDHE+AESGCM" || c["cipher-suite-names"].Value != "TLS_AES_128_GCM_SHA256" ||
-		c["protocols"].Value != "TLSv1.2 TLSv1.3" || c["key-manager"].Value != "applicationKM" || c["cipher-suite-filter"].Line != 27 {
+		c["protocols"].Value != "TLSv1.2 TLSv1.3" || c["key-manager"].Value != "applicationKM" || c["cipher-suite-filter"].Line != 26 {
 		t.Errorf("ssl context = %+v", c)
 	}
 	if o := f.SSLContexts[1].Attr; o["providers"].Value != "openssl" || o["use-cipher-suites-order"].Value != "false" {
@@ -96,7 +96,7 @@ func TestParseElytronForm(t *testing.T) {
 	if len(f.KeyStores) != 1 {
 		t.Fatalf("key stores = %+v", f.KeyStores)
 	}
-	if k := f.KeyStores[0]; k.Name != "applicationKS" || k.Type != "PKCS12" || k.Path.Value != "application.keystore" || k.RelativeTo != "jboss.server.config.dir" || k.Path.Line != 18 {
+	if k := f.KeyStores[0]; k.Name != "applicationKS" || k.Type != "PKCS12" || k.Path.Value != "application.keystore" || k.RelativeTo != "jboss.server.config.dir" || k.Path.Line != 17 {
 		t.Errorf("key store = %+v", k)
 	}
 	if len(f.SocketBindings) != 2 || f.SocketBindings[1].Name != "https" || f.SocketBindings[1].Port != "${jboss.https.port:8443}" {
