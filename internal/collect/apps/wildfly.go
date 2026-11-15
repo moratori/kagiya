@@ -640,16 +640,8 @@ func wildflyWith(in *wildflyInstall, plan wildflyPlan, jdk jdkContext) (res wild
 		protocols = plan.protocols
 	}
 	r := jsse.ResolveExplicit(jdk.table, jdk.input, protocols, want)
-	for _, s := range r.Suites {
-		if tomcatSuiteAuth(s) == "DSA" {
-			continue // キーストアの中は読まないので、RSA の証明書の場合と EC の証明書の場合を合わせた一覧にする（DSA の証明書の分は入れない）
-		}
-		if strings.Contains(s, "_WITH_") {
-			res.tls12 = append(res.tls12, s)
-		} else {
-			res.tls13 = append(res.tls13, s)
-		}
-	}
+	// キーストアの中は読まないので、RSA の証明書の場合と EC の証明書の場合を合わせた一覧にする
+	res.tls12, res.tls13 = jsse.SplitByCertificate(r.Suites, nil)
 	// 使える暗号スイートのないプロトコルは、受け入れない（実測: プロトコルを TLS 1.3 だけにして TLS 1.3 用の指定を書かないと、何も受け入れない）
 	for _, p := range r.Protocols {
 		if (p == "TLSv1.3" && len(res.tls13) > 0) || (p != "TLSv1.3" && len(res.tls12) > 0) {

@@ -229,24 +229,6 @@ func tomcatProtocols(tb *ruleset.TomcatTable, value string) []string {
 	return out
 }
 
-// tomcatSuiteAuth は、TLS 1.2 以下のスイートの名前から、サーバーの証明書に求める鍵の種類を返す（決められなければ空）。
-func tomcatSuiteAuth(suite string) string {
-	kx, _, ok := strings.Cut(suite, "_WITH_")
-	if !ok {
-		return ""
-	}
-	kx = strings.TrimPrefix(strings.TrimPrefix(kx, "TLS_"), "SSL_")
-	switch {
-	case strings.HasSuffix(kx, "ECDSA"):
-		return "EC"
-	case strings.HasSuffix(kx, "DSS") || strings.HasPrefix(kx, "DHE_DSS") || strings.HasPrefix(kx, "DH_DSS"):
-		return "DSA"
-	case strings.HasPrefix(kx, "RSA") || strings.HasSuffix(kx, "_RSA") || strings.Contains(kx, "_RSA_"):
-		return "RSA"
-	}
-	return ""
-}
-
 // tomcatSettings は、範囲 1 つについて、server.xml に書かれていた値（解釈できたもの）。
 type tomcatSettings struct {
 	ciphers, protocols       serverxml.Attr
@@ -412,23 +394,12 @@ func (c *Collector) tomcatHost(in *tomcatInstall, h tomcatHost, why, reason stri
 	emit(model.ParamTLSProtocols, r.Protocols, nil, protoFirst)
 
 	// 暗号スイート（TLS 1.2 以下と TLS 1.3）
-	var tls12, tls13 []string
-	for _, s := range r.Suites {
-		if !strings.Contains(s, "_WITH_") {
-			tls13 = append(tls13, s)
-			continue
-		}
-		// サーバーの証明書の種類で成り立たないスイートは除く
-		a := tomcatSuiteAuth(s)
-		if set.kindsKnown && a != "" && !set.kinds[a] {
-			continue
-		}
-		// 証明書の種類が分からない場合は、RSA の証明書の場合と EC の証明書の場合を合わせた一覧にする（DSA の証明書の分は入れない）
-		if !set.kindsKnown && a == "DSA" {
-			continue
-		}
-		tls12 = append(tls12, s)
+	// サーバーの証明書の種類で成り立たないスイートは除く。種類が分からない場合は、RSA の証明書の場合と EC の証明書の場合を合わせた一覧にする
+	kinds := set.kinds
+	if !set.kindsKnown {
+		kinds = nil
 	}
+	tls12, tls13 := jsse.SplitByCertificate(r.Suites, kinds)
 	var extra, qualifiers12 []string
 	if !set.kindsKnown {
 		qualifiers12 = []string{model.QualifierAnyCertificateKind}

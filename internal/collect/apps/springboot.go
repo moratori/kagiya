@@ -567,17 +567,12 @@ func (sb *springBootApp) resolve(t springTLS) {
 		}
 		if res.reason == "" {
 			res.r = jsse.ResolveExplicit(res.jdk.table, res.jdk.input, want, names)
-			for _, s := range res.r.Suites {
-				switch {
-				case !strings.Contains(s, "_WITH_"):
-					res.tls13 = append(res.tls13, s)
-				case kind != "" && tomcatSuiteAuth(s) != "" && tomcatSuiteAuth(s) != kind:
-				case kind == "" && tomcatSuiteAuth(s) == "DSA":
-					// 証明書の種類が分からない場合は、RSA の場合と EC の場合を合わせた一覧にする（DSA の証明書の分は入れない）
-				default:
-					res.tls12 = append(res.tls12, s)
-				}
+			// 証明書の種類が分からない場合（kind が空）は、RSA の場合と EC の場合を合わせた一覧にする
+			var kinds map[string]bool
+			if kind != "" {
+				kinds = map[string]bool{kind: true}
 			}
+			res.tls12, res.tls13 = jsse.SplitByCertificate(res.r.Suites, kinds)
 			used := jsse.Result{}
 			if len(res.tls13) > 0 {
 				used.Groups13 = res.r.Groups13

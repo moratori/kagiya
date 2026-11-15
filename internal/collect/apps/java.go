@@ -359,20 +359,14 @@ func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec st
 			Notes: append(append([]string{}, notes...), extra...)}, rule)
 	}
 	emit(model.ParamTLSProtocols, r.Protocols, nil, nil, ctx.suites)
-	var tls12, tls13, dheNote []string
-	for _, s := range r.Suites {
-		switch {
-		case s == "TLS_EMPTY_RENEGOTIATION_INFO_SCSV": // 再ネゴシエーションの印で、暗号スイートではない
-		case tomcatSuiteAuth(s) == "DSA":
-			// JDK の既定には、サーバーの証明書がない。証明書の種類が分からないサーバーと同じく、RSA の証明書の場合と EC の証明書の場合に
-			// 受け入れるものを合わせた一覧にする。DSA の証明書でしか使えないスイートは、JDK のルールの裏付け（数え上げ）で確かめていないので、入れない
-		case strings.Contains(s, "_WITH_"):
-			tls12 = append(tls12, s)
-			if strings.Contains(s, "_DHE_") && tb.DHEDefaultBits < 2048 && dheNote == nil {
-				dheNote = []string{"the DHE suites use " + strconv.Itoa(tb.DHEDefaultBits) + "-bit parameters when the client does not offer finite-field groups (measured on this JDK build)"}
-			}
-		default:
-			tls13 = append(tls13, s)
+	// JDK の既定には、サーバーの証明書がない。証明書の種類が分からないサーバーと同じく、RSA の証明書の場合と EC の証明書の場合に
+	// 受け入れるものを合わせた一覧にする（DSA の証明書でしか使えないスイートは、JDK のルールの裏付けで確かめていないので、入らない）
+	tls12, tls13 := jsse.SplitByCertificate(r.Suites, nil)
+	var dheNote []string
+	for _, s := range tls12 {
+		if strings.Contains(s, "_DHE_") && tb.DHEDefaultBits < 2048 {
+			dheNote = []string{"the DHE suites use " + strconv.Itoa(tb.DHEDefaultBits) + "-bit parameters when the client does not offer finite-field groups (measured on this JDK build)"}
+			break
 		}
 	}
 	emit(paramCiphers, tls12, dheNote, []string{model.QualifierJDKDefaultAnyCertificateKind}, ctx.suites)
