@@ -18,6 +18,9 @@ const (
 const (
 	// 証明書の種類が分からないので、RSA の証明書の場合と EC の証明書の場合に受け入れるものを、合わせて挙げた
 	QualifierAnyCertificateKind = "any-certificate-kind"
+	// JDK の既定の値（どのアプリがどの証明書で使うかによらない値）なので、RSA の証明書の場合と EC の証明書の場合に受け入れるものを、合わせて挙げた。
+	// DSA の証明書でしか使えないものは、含めていない
+	QualifierJDKDefaultAnyCertificateKind = "jdk-default-any-certificate-kind"
 	// 動かす JDK を 1 つに決められず、見つけた JDK のどれで動いていても同じ値だった
 	QualifierAnyJDKFound = "any-jdk-found"
 	// 受け入れるものが 1 つもない設定
@@ -27,7 +30,7 @@ const (
 // KnownQualifiers は、決まった説明だけを、決まった並びで返す（結果のファイルは手を加えられたものかもしれないので、表示や変換の前に通す）。
 func KnownQualifiers(in []string) []string {
 	var out []string
-	for _, q := range []string{QualifierAnyCertificateKind, QualifierAnyJDKFound, QualifierNothingAccepted} {
+	for _, q := range []string{QualifierAnyCertificateKind, QualifierJDKDefaultAnyCertificateKind, QualifierAnyJDKFound, QualifierNothingAccepted} {
 		for _, x := range in {
 			if x == q {
 				out = append(out, q)

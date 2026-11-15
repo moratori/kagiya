@@ -375,7 +375,7 @@ func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec st
 			tls13 = append(tls13, s)
 		}
 	}
-	emit(paramCiphers, tls12, dheNote, []string{model.QualifierAnyCertificateKind}, ctx.suites)
+	emit(paramCiphers, tls12, dheNote, []string{model.QualifierJDKDefaultAnyCertificateKind}, ctx.suites)
 	emit(paramTLS13, tls13, nil, nil, ctx.suites)
 	if r.GroupsBlocker != "" {
 		c.unresolved(svc, app.Direction, home, r.GroupsBlocker, model.ParamTLSGroups)

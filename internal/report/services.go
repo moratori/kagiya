@@ -185,7 +185,8 @@ func (b *builder) services(v *view) {
 
 // qualifierText は、値の読み方についての説明（EffectiveValue.Qualifiers）を、利用者が読む文にしたもの（docs/confidence.md の 6.5〜6.7 節）。
 var qualifierText = map[string]string{
-	model.QualifierAnyCertificateKind: "証明書の種類が分からない（キーストアの中は読まない、または証明書を読めなかった）ため、RSA の証明書の場合と EC の証明書の場合に受け入れるものを、合わせて表示しています。実際に受け入れるのは、このうち、サーバーの持つ証明書の種類に合うものだけです。",
-	model.QualifierAnyJDKFound:        "このサービスがどの JDK で動くかを 1 つに決められないため、このホストで見つかった JDK のどれで動いていても同じになる値を表示しています。",
-	model.QualifierNothingAccepted:    "受け入れるものが 1 つもない設定です。設定の誤りの可能性があります。",
+	model.QualifierAnyCertificateKind:           "証明書の種類が分からない（キーストアの中は読まない、または証明書を読めなかった）ため、RSA の証明書の場合と EC の証明書の場合に受け入れるものを、合わせて表示しています。実際に受け入れるのは、このうち、サーバーの持つ証明書の種類に合うものだけです。",
+	model.QualifierJDKDefaultAnyCertificateKind: "この JDK の既定の値です。どのアプリがどの証明書で使うかによらない値なので、RSA の証明書の場合と EC の証明書の場合に受け入れるものを、合わせて表示しています。DSA の証明書でしか使えないものは、含めていません。",
+	model.QualifierAnyJDKFound:                  "このサービスがどの JDK で動くかを 1 つに決められないため、このホストで見つかった JDK のどれで動いていても同じになる値を表示しています。",
+	model.QualifierNothingAccepted:              "受け入れるものが 1 つもない設定です。設定の誤りの可能性があります。",
 }
