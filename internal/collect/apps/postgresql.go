@@ -88,15 +88,60 @@ func (c *Collector) postgresql(app ruleset.AppRule, svc model.Service, config st
 		sc.certs = []string{cert}
 	}
 	sc.dhParam = last["ssl_dh_params_file"].Value != ""
-	if s, ok := last["ssl_ecdh_curve"]; ok && s.Value != "" {
-		sc.setGroups(s.Value, s.File, s.Line, "ssl_ecdh_curve")
-	}
-	// PostgreSQL 18 で加わった項目は、実物で測っていない
-	if s, ok := last["ssl_groups"]; ok && s.Value != "" {
-		sc.groups, sc.groupsBlocker = "", "ssl_groups (PostgreSQL 18 or later) is set; its effect is not measured yet"
-	}
-	if s, ok := last["ssl_tls13_ciphers"]; ok && s.Value != "" {
-		sc.tls13Blocker = "ssl_tls13_ciphers (PostgreSQL 18 or later) is set; its effect is not measured yet"
-	}
+	c.postgresqlGroups(app, &sc, settings)
+	c.postgresqlTLS13(app, &sc, last)
 	c.opensslServerEffective(app, svc, []tlsScope{sc})
+}
+
+// pgMeasuredSettings は、PostgreSQL 18 で加わった設定項目のうち、導入されている版で、効き方を測ってあるものを返す（ルールの tls.measured-settings）。
+func (c *Collector) pgMeasuredSettings(app ruleset.AppRule) map[string]bool {
+	defs, _, _, _, _ := c.appDefaults(app)
+	out := map[string]bool{}
+	for _, name := range defs[paramMeasuredSettings] {
+		out[name] = true
+	}
+	return out
+}
+
+// postgresqlGroups は、鍵交換のグループの指定を、範囲に入れる。
+// 指定する設定項目は、17 までは ssl_ecdh_curve（グループ 1 つ）、18 からは ssl_groups（グループの並び）で、ssl_ecdh_curve は、同じ項目の古い名前として残っている。
+// ssl_groups は、その版で効き方を測ってある場合だけ、解釈する。
+func (c *Collector) postgresqlGroups(app ruleset.AppRule, sc *tlsScope, settings []pgconf.Setting) {
+	var curve, groups *pgconf.Setting // それぞれの名前の、効いている記載（後に読まれたもの）
+	for i, s := range settings {
+		switch {
+		case s.Value == "":
+		case s.Name == "ssl_ecdh_curve":
+			curve = &settings[i]
+		case s.Name == "ssl_groups":
+			groups = &settings[i]
+		}
+	}
+	switch {
+	case groups != nil && !c.pgMeasuredSettings(app)["ssl_groups"]:
+		sc.groups, sc.groupsBlocker = "", "ssl_groups (PostgreSQL 18 or later) is set; its effect is not measured for this version"
+	case groups != nil && curve != nil:
+		sc.groups, sc.groupsBlocker = "", "both ssl_groups and its older name ssl_ecdh_curve are set; which one takes effect is not measured"
+	case groups != nil:
+		sc.setGroups(groups.Value, groups.File, groups.Line, "ssl_groups")
+		sc.usedDefaults = append(sc.usedDefaults, paramMeasuredSettings)
+	case curve != nil:
+		sc.setGroups(curve.Value, curve.File, curve.Line, "ssl_ecdh_curve")
+	}
+}
+
+// postgresqlTLS13 は、TLS 1.3 のスイートの指定（ssl_tls13_ciphers。PostgreSQL 18 で加わった）を、範囲に入れる。
+// その版で効き方を測ってある場合だけ、解釈する。
+func (c *Collector) postgresqlTLS13(app ruleset.AppRule, sc *tlsScope, last map[string]pgconf.Setting) {
+	s, ok := last["ssl_tls13_ciphers"]
+	switch {
+	case !ok || s.Value == "":
+	case !c.pgMeasuredSettings(app)["ssl_tls13_ciphers"]:
+		sc.tls13Blocker = "ssl_tls13_ciphers (PostgreSQL 18 or later) is set; its effect is not measured for this version"
+	case !cipherString.MatchString(s.Value):
+		sc.tls13Blocker = "the configured TLS 1.3 suites (ssl_tls13_ciphers) are not interpreted"
+	default:
+		sc.tls13, sc.tls13File, sc.tls13Line = s.Value, s.File, s.Line
+		sc.usedDefaults = append(sc.usedDefaults, paramMeasuredSettings)
+	}
 }

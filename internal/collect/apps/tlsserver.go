@@ -56,6 +56,8 @@ const (
 	paramDHE      = model.ParamTLSDHEWithout
 	paramAppLevel = "tls.security-level" // 既定の表: アプリが OpenSSL に設定するセキュリティレベル
 	paramCertSel  = model.ParamTLSCertSelection
+	// 既定の表: 後の版で加わった設定項目のうち、その版で、効き方を測ってあるもの（PostgreSQL の ssl_groups など）
+	paramMeasuredSettings = "tls.measured-settings"
 
 	// 既定の表での特別な値: アプリが暗号文字列を設定せず、OpenSSL のシステム既定のままになる
 	cipherSystemDefault = "@system"
