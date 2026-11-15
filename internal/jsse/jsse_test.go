@@ -213,3 +213,40 @@ func TestGroupsFollowOlderProtocols(t *testing.T) {
 		t.Errorf("Java 8 with only SSLv3 below TLS 1.3: %+v", r)
 	}
 }
+
+// サーバーの証明書の種類による、スイートの絞り込み。
+func TestSplitByCertificate(t *testing.T) {
+	suites := []string{
+		"TLS_AES_256_GCM_SHA384", "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+		"TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_DSS_WITH_AES_128_CBC_SHA", "SSL_RSA_WITH_3DES_EDE_CBC_SHA",
+		"TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA", "TLS_DH_anon_WITH_AES_128_CBC_SHA", "TLS_EMPTY_RENEGOTIATION_INFO_SCSV",
+	}
+	for kind, want := range map[string]string{
+		"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": "EC", "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA": "EC",
+		"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384": "RSA", "SSL_RSA_WITH_3DES_EDE_CBC_SHA": "RSA", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA": "RSA",
+		"TLS_DHE_DSS_WITH_AES_128_CBC_SHA": "DSA", "TLS_DH_anon_WITH_AES_128_CBC_SHA": "", "TLS_AES_256_GCM_SHA384": "",
+	} {
+		if got := CertificateKind(kind); got != want {
+			t.Errorf("CertificateKind(%s) = %q, want %q", kind, got, want)
+		}
+	}
+	// 種類が分からない（nil）: RSA の場合と EC の場合を合わせる。DSA の証明書でしか使えないものは入れない。証明書によらないものは残す
+	tls12, tls13 := SplitByCertificate(suites, nil)
+	if strings.Join(tls13, ",") != "TLS_AES_256_GCM_SHA384" {
+		t.Errorf("tls13 = %v", tls13)
+	}
+	if got := strings.Join(tls12, ","); got != "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_DHE_RSA_WITH_AES_128_CBC_SHA,"+
+		"SSL_RSA_WITH_3DES_EDE_CBC_SHA,TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA,TLS_DH_anon_WITH_AES_128_CBC_SHA" {
+		t.Errorf("unknown kind: %s", got)
+	}
+	// 種類が分かっている: その種類の証明書で使えるものと、証明書によらないものだけ
+	tls12, _ = SplitByCertificate(suites, map[string]bool{"EC": true})
+	if got := strings.Join(tls12, ","); got != "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA,TLS_DH_anon_WITH_AES_128_CBC_SHA" {
+		t.Errorf("EC only: %s", got)
+	}
+	tls12, _ = SplitByCertificate(suites, map[string]bool{"RSA": true, "DSA": true})
+	if got := strings.Join(tls12, ","); got != "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_DSS_WITH_AES_128_CBC_SHA,"+
+		"SSL_RSA_WITH_3DES_EDE_CBC_SHA,TLS_DH_anon_WITH_AES_128_CBC_SHA" {
+		t.Errorf("RSA and DSA: %s", got)
+	}
+}
