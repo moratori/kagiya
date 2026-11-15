@@ -266,3 +266,17 @@ func TestPostfixGroupsWithoutCertificate(t *testing.T) {
 		t.Errorf("groups without a certificate = %+v", g)
 	}
 }
+
+// Postfix は、鍵交換のグループを自分で決める（システムの設定やライブラリの既定には従わない）。
+// その版の既定のグループがルールにない場合は、ライブラリの既定で代用せず、「不明」にする。
+// （検証ラボの AlmaLinux 9.4 の postfix 3.5.9 で、ライブラリの既定で代用した結果が、数え上げと食い違った: 実物は楕円曲線の 5 つだけを受け入れ、
+// ライブラリの既定には有限体 DH のグループも入る。）
+// ここでは、既定のグループの記録がない版（Ubuntu 16.04 の 3.1.0）のルールを、グループの対応表がある OpenSSL と組み合わせて、その状態を作る。
+func TestPostfixGroupsUnknownWithoutRecordedDefault(t *testing.T) {
+	main := postfixBase + "smtpd_tls_eecdh_grade = auto\n"
+	_, inv := collect(t, "", postfixDeb(t, "3.1.0-3ubuntu0.4", "libssl3t64", "3.0.13-0ubuntu3.16", postfixFiles(main, postfixSMTP)))
+	e := eff(t, inv, "svc:postfix", "tls.groups", smtpScope)
+	if e.Status != "unresolved" || len(e.Values) != 0 || !strings.Contains(e.Reason, "default groups") {
+		t.Errorf("groups without a recorded default = %+v", e)
+	}
+}
