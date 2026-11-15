@@ -179,6 +179,40 @@ defaults:
       tls.dhe-without-params: "builtin"
   - app: postfix
     package: postfix
+    version: "3.4.10-1ubuntu1"
+    source:
+      image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
+      os: "Ubuntu 20.04.6 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.cipherlist.export: { method: reported-by-software, verified-by-handshake: false }
+        tls.cipherlist.low: { method: reported-by-software, verified-by-handshake: false }
+        tls.cipherlist.null: { method: reported-by-software, verified-by-handshake: false }
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+        tls.eecdh-grade: { method: enumerated-by-handshake, verified-by-handshake: true }
+        tls.eecdh-strong-curve: { method: reported-by-software, verified-by-handshake: false }
+        tls.security-level: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
+    values:
+      tls.security-level: "0"
+      tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipher-grade: "medium"
+      tls.mandatory-cipher-grade: "medium"
+      tls.cipherlist.high: "aNULL:-aNULL:HIGH:@STRENGTH"
+      tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipherlist.low: "aNULL:-aNULL:HIGH:MEDIUM:LOW:+RC4:@STRENGTH"
+      tls.cipherlist.export: "aNULL:-aNULL:HIGH:MEDIUM:LOW:EXPORT:+RC4:@STRENGTH"
+      tls.cipherlist.null: "eNULL:!aNULL"
+      tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.eecdh-grade-default: "auto"
+      tls.eecdh-grade: "honored"
+      tls.eecdh-strong-curve: "prime256v1"
+      tls.eecdh-ultra-curve: "secp384r1"
+      tls.dhe-without-params: "builtin"
+  - app: postfix
+    package: postfix
     version: "3.6.4-1ubuntu1.4"
     source:
       image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"

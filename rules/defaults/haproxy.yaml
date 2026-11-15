@@ -80,7 +80,46 @@ defaults:
       tls.certificate-selection: "all"
   - app: haproxy
     package: haproxy
+    version: "2.0.13-2"
+    source:
+      image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
+      os: "Ubuntu 20.04.6 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "builtin"
+      tls.certificate-selection: "all"
+  - app: haproxy
+    package: haproxy
+    version: "2.0.31-0ubuntu0.3"
+    source:
+      image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
+      os: "Ubuntu 20.04.6 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "builtin"
+      tls.certificate-selection: "all"
+  - app: haproxy
+    package: haproxy
     version: "2.4.30-0ubuntu0.22.04.4"
+    source:
+      image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+      os: "Ubuntu 22.04.5 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "builtin"
+      tls.certificate-selection: "all"
+  - app: haproxy
+    package: haproxy
+    version: "2.4.14-1ubuntu1"
     source:
       image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
       os: "Ubuntu 22.04.5 LTS"
@@ -106,6 +145,19 @@ defaults:
       tls.certificate-selection: "all"
   - app: haproxy
     package: haproxy
+    version: "2.8.5-1ubuntu3"
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "disabled"
+      tls.certificate-selection: "all"
+  - app: haproxy
+    package: haproxy
     version: "3.0.11-1+deb13u4"
     source:
       image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
@@ -116,6 +168,19 @@ defaults:
     values:
       tls.ciphers: "@system"
       tls.dhe-without-params: "disabled"
+      tls.certificate-selection: "all"
+  - app: haproxy
+    package: haproxy
+    version: "2.4.7-2.el9_0"
+    source:
+      image: "almalinux@sha256:a95a7766fd056b35f72f7b7f7301bcd46e40a6eecd9017e9c41cb4bf22ecb28b"
+      os: "AlmaLinux 9.0 (Emerald Puma)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "builtin"
       tls.certificate-selection: "all"
   - app: haproxy
     package: haproxy

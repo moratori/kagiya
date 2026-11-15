@@ -37,6 +37,24 @@ defaults:
       tls.profile-in-chroot: "library-default"
   - app: dovecot
     package: dovecot
+    version: "2.3.8-9.el8"
+    source:
+      image: "almalinux@sha256:455902ea5ea726b38d4914ea745d225d5635486adc12706760ce1ef7cf86db20"
+      os: "AlmaLinux 8.5 (Arctic Sphynx)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: reported-by-software, verified-by-handshake: false }
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+        tls.profile-in-chroot: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from doveconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client, imaps and pop3s)"
+    values:
+      tls.ciphers: "ALL:!kRSA:!SRP:!kDHd:!DSS:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK:!RC4:!ADH:!LOW@STRENGTH"
+      tls.dhe-without-params: "disabled"
+      tls.settings: "legacy"
+      tls.profile-in-chroot: "library-default"
+  - app: dovecot
+    package: dovecot
     version: "2.3.16-18.el9_8.8"
     source:
       image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"

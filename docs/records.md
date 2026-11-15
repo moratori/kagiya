@@ -1578,6 +1578,36 @@ kagiya の結果との突き合わせは、ルールを足した kagiya を作�
 - 実行ファイルから暗号の並びを取り出すとき、並びの直前の 1 バイトが、文字として付くことがあった（例: 「uECDHE-RSA-…」）。先頭の名前が、その版の OpenSSL が
   知らない名前で、先頭の 1 文字を除くと知っている名前になる場合だけ、その 1 文字を除くようにした。
 
+### HAProxy・stunnel・Postfix・Dovecot の、ルールがなかった残りの版と、RHEL 9.9 の OpenJDK 8（2026-11-15）
+
+開発者は、公式リポジトリの目録（`lab/phase1b/versions-summary.py`）と突き合わせて、ルールがまだない「系列 × 開発元の版」を数えた。
+HAProxy・stunnel・Postfix・Dovecot で残っていたのは、次の 7 版だけだった（WildFly と Spring Boot には、残りはなかった）。あわせて、UBI 9 のリポジトリにあり、
+AlmaLinux にはまだない OpenJDK 8 の 1 版を測った。
+
+| スナップショット | イメージとリポジトリ | 版 |
+|---|---|---|
+| `haproxy/alma9+9.0` | AlmaLinux 9.0 のイメージと保管庫 | haproxy 2.4.7-2.el9_0 |
+| `stunnel/alma8+8.9` | AlmaLinux 8.9 のイメージと保管庫 | stunnel 5.56-5.el8_3 |
+| `dovecot/alma8+8.5` | AlmaLinux 8.5 のイメージと保管庫 | dovecot 2.3.8-9.el8 |
+| `haproxy/ubuntu2004+ha2.0.13` | Ubuntu 20.04（リリース時の版） | haproxy 2.0.13-2 |
+| `haproxy/ubuntu2004+ha2.0.31` | Ubuntu 20.04（セキュリティ更新の版） | haproxy 2.0.31-0ubuntu0.3 |
+| `postfix/ubuntu2004+pf3.4.10` | Ubuntu 20.04（リリース時の版） | postfix 3.4.10-1ubuntu1 |
+| `haproxy/ubuntu2204+ha2.4.14` | Ubuntu 22.04（リリース時の版） | haproxy 2.4.14-1ubuntu1 |
+| `haproxy/ubuntu2404+ha2.8.5` | Ubuntu 24.04（リリース時の版） | haproxy 2.8.5-1ubuntu3 |
+| `java/ubi9+j8` | UBI 9（RHEL 9.9） | java-1.8.0-openjdk-headless 1.8.0.512.b09-1.2.el9 |
+
+- Ubuntu の版の指定は、apt の優先度の決まり（`/etc/apt/preferences.d`）を書いて行った（`lab/phase1c/repos.sh` の `LAB_PIN=<パッケージ>=<版>`）。
+  OpenSSL は、イメージのいまの版（更新済み）のままで、アプリだけがリリース時の版になる。導入された版は、記録（`packages.tsv`）で確かめた。
+- **測り方についての判断:** リポジトリの所有者が決めた測り方の濃淡では、この 4 つのソフトの古い版は「軽い測定」（サーバーを起動しない）の対象である。
+  開発者は、8 版と数が少なく、既存の測定のスクリプトでそのまま起動して数え上げるほうが、軽い測定の手順を新しく作るより手間が少ないので、精密な測定
+  （起動しての数え上げ）で測った。そのため、これらの版のルールは、数え上げで裏付けあり（確度は「高」になりうる）として記録されている。
+- 結果: 7 版のすべての場面で、予測と数え上げが一致した。kagiya の結果との突き合わせも、すべて一致した
+  （HAProxy 5 版・35 場面、stunnel 7 場面、Postfix 12 場面、Dovecot 11 場面。確度はすべて「高」）。
+- OpenJDK 8（RHEL 9.9）は、JDK だけの TLS サーバーへの数え上げが、JDK 自身の報告と一致し、裏付けありになった。`rules/java/openjdk.yaml` は 224 版になった。
+- この時点で、目録に載っている版のうち、ルールがない「系列 × 開発元の版」は、約 35 残っている。内訳は、Debian 13 と Ubuntu のリリース時の版
+  （nginx、Apache httpd、OpenJDK、PostgreSQL、MariaDB、Tomcat）、AlmaLinux の一部（OpenSSL 3.5.5、nginx 1.20.0、httpd 2.4.51、モジュールで配られる nginx）、
+  Ubuntu 16.04 の一部（この方法で測れないもの）、ルールにしなかった 3 版である。Ubuntu と Debian の古い版は、上の apt の版の指定で測れるようになった。
+
 ### リファクタリング（2026-11-15）
 
 このリポジトリの所有者の依頼により、開発者は、次の 4 件のリファクタリングを行った。どれも、前後で全テストが通ることを確かめた。
