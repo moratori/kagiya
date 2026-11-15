@@ -1317,7 +1317,7 @@ OpenJDK は、四半期ごとの更新のたびに開発元の版が変わり、
 ### RHEL 系の古いマイナー版の OpenSSL、sshd、アプリ（2026-11-15）
 
 開発者は、AlmaLinux の古いマイナー版の公式イメージ（Docker Hub の `almalinux` の、マイナー版のタグ）を使い、パッケージの取得先を、
-公式の保管庫（`vault.almalinux.org`）の、そのマイナー版のリポジトリに切り替えて測った（`lab/phase1c/vault.sh`）。
+公式の保管庫（`vault.almalinux.org`）の、そのマイナー版のリポジトリに切り替えて測った（`lab/phase1c/repos.sh`）。
 こうすると、そのマイナー版の最後の時点のパッケージが導入される。
 
 | スナップショット | イメージ | 導入された OpenSSL |
