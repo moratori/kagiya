@@ -353,16 +353,19 @@ func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec st
 	steps := []model.ResolutionStep{{Layer: "library", Op: "default", Source: ctx.prov}, {Layer: ctx.layer, Op: "remove", Setting: ctx.settingID}}
 	notes := append([]string{"these are the defaults of this JDK, used unless the application chooses its own protocols, cipher suites or groups; " +
 		"options given when Java is started (-D options, an extra security properties file) are not read"}, ctx.notes...)
-	emit := func(param string, values, extra []string, rule confidence.Rule) {
+	emit := func(param string, values, extra, qualifiers []string, rule confidence.Rule) {
 		c.Builder.AddEffective(model.EffectiveValue{Service: svc.ID, Parameter: param, Direction: app.Direction, Scope: home,
-			Status: model.StatusResolved, Values: values, Steps: steps,
+			Status: model.StatusResolved, Values: values, Steps: steps, Qualifiers: qualifiers,
 			Notes: append(append([]string{}, notes...), extra...)}, rule)
 	}
-	emit(model.ParamTLSProtocols, r.Protocols, nil, ctx.suites)
+	emit(model.ParamTLSProtocols, r.Protocols, nil, nil, ctx.suites)
 	var tls12, tls13, dheNote []string
 	for _, s := range r.Suites {
 		switch {
 		case s == "TLS_EMPTY_RENEGOTIATION_INFO_SCSV": // 再ネゴシエーションの印で、暗号スイートではない
+		case tomcatSuiteAuth(s) == "DSA":
+			// JDK の既定には、サーバーの証明書がない。証明書の種類が分からないサーバーと同じく、RSA の証明書の場合と EC の証明書の場合に
+			// 受け入れるものを合わせた一覧にする。DSA の証明書でしか使えないスイートは、JDK のルールの裏付け（数え上げ）で確かめていないので、入れない
 		case strings.Contains(s, "_WITH_"):
 			tls12 = append(tls12, s)
 			if strings.Contains(s, "_DHE_") && tb.DHEDefaultBits < 2048 && dheNote == nil {
@@ -372,13 +375,13 @@ func (c *Collector) jdkHome(app ruleset.AppRule, svc model.Service, home, sec st
 			tls13 = append(tls13, s)
 		}
 	}
-	emit(paramCiphers, tls12, dheNote, ctx.suites)
-	emit(paramTLS13, tls13, nil, ctx.suites)
+	emit(paramCiphers, tls12, dheNote, []string{model.QualifierAnyCertificateKind}, ctx.suites)
+	emit(paramTLS13, tls13, nil, nil, ctx.suites)
 	if r.GroupsBlocker != "" {
 		c.unresolved(svc, app.Direction, home, r.GroupsBlocker, model.ParamTLSGroups)
 		return
 	}
-	emit(model.ParamTLSGroups, jsseGroups(r), nil, ctx.groups)
+	emit(model.ParamTLSGroups, jsseGroups(r), nil, nil, ctx.groups)
 }
 
 // unresolved は、指定した項目を「求められない」として、理由とともに記録する。

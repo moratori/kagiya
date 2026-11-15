@@ -25,7 +25,6 @@ const (
 	tcDebJava  = "/usr/lib/jvm/java-21-openjdk-arm64"
 	tcScope    = "connector 8443"
 	tcBoth12   = "ac7fad05bc5bcf16" // 既定の暗号指定、RSA と EC の証明書（21）
-	tcAny12    = "698878ff8c0df26c" // 既定の暗号指定、証明書の種類が分からない（27）
 	tcRSA12    = "71168486bfa11015" // 既定の暗号指定、RSA の証明書だけ（14）
 	tcExpr12   = "67fb66c72d782074" // ECDHE+AESGCM:ECDHE+CHACHA20:!aNULL（6）
 	tcEL9RSA12 = "f816aa69be7b8671" // Java 8 + 暗号ポリシー、RSA の証明書（12）

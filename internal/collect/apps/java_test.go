@@ -218,7 +218,8 @@ func TestJDK8(t *testing.T) {
 	}
 	// 連動を切った場合（java.security の値のまま）
 	_, inv = collect(t, "", jdkHost(t, map[string]string{sec: jdk8Disabled}, pkgEL9J8))
-	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkEL9Home8), 30, "f3b54407c1bef775", "high")
+	// JDK が有効にする 30 個のうち、DSA の証明書でしか使えない 6 個を除いた 24 個
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkEL9Home8), 24, "5320181f2611ce1a", "high")
 	// 2048 ビットの版では、この注記は出ない
 	_, inv = collect(t, "", jdkHost(t, map[string]string{jdkDeb25Home + "/conf/security/java.security": jdkUpstreamDisabled}, pkgDeb25))
 	if e := jdkEff(t, inv, "tls.ciphers", jdkDeb25Home); strings.Contains(strings.Join(e.Notes, " "), "1024-bit") {
