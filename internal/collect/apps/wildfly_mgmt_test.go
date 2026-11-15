@@ -298,6 +298,24 @@ func TestWildFlyManagementLegacyRealm(t *testing.T) {
 		t.Errorf("a realm without ssl and an ssl-context: protocols=%v ciphers=%v tls13=%v (%s)", p.Values, e.Values, e13.Values, p.Reason)
 	}
 
+	// 場面 m-k-and-context: security-realm に ssl があり（TLS 1.2 だけに絞ってある）、ssl-context も書かれている場合は、ssl-context の設定で待ち受ける
+	// （実測: ssl-context の側の TLS 1.3 だけを受け入れた）
+	both := strings.Replace(wfMgmtLegacy("", `<engine enabled-protocols="TLSv1.2"/>`, realm+` ssl-context="mgmtSSC"`, wfBothSockets), "    <profile>\n", `    <profile>
+        <subsystem xmlns="urn:wildfly:elytron:13.0">
+            <tls>
+                <key-managers><key-manager name="mgmtKM" key-store="mgmtKS"><credential-reference clear-text="SECRET-PASSWORD"/></key-manager></key-managers>
+                <server-ssl-contexts>
+                    <server-ssl-context name="mgmtSSC" key-manager="mgmtKM" protocols="TLSv1.3" cipher-suite-names="TLS_AES_128_GCM_SHA256"/>
+                </server-ssl-contexts>
+            </tls>
+        </subsystem>
+`, 1)
+	inv = host("24.0.1.Final", both)
+	if p, e, e13 := wfMgmtEff(t, inv, "tls.protocols"), wfMgmtEff(t, inv, "tls.ciphers"), wfMgmtEff(t, inv, "tls.ciphersuites-tls13"); strings.Join(p.Values, ",") != "TLSv1.3" ||
+		e.Status != "resolved" || len(e.Values) != 0 || strings.Join(e13.Values, ",") != "TLS_AES_128_GCM_SHA256" {
+		t.Errorf("a realm with ssl and an ssl-context: protocols=%v ciphers=%v tls13=%v (%s)", p.Values, e.Values, e13.Values, p.Reason)
+	}
+
 	// 値を求めない場合
 	for name, c := range map[string]struct{ version, xml, want string }{
 		// 場面 m-binding-only: TLS 用のソケットがあるのに、security-realm に ssl がない（サーバーが起動しなかった）
