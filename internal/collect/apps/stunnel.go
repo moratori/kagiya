@@ -114,8 +114,16 @@ func (c *Collector) stunnel(app ruleset.AppRule, svc model.Service) {
 				sc.setGroups(d.Value, d.File, d.Line, "curves")
 			}
 			// 証明書は1つのサービスに1つ。絶対パスで指定されたものだけを読む
-			if d, ok := lookup("cert"); ok && strings.HasPrefix(d.Value, "/") && !strings.ContainsAny(d.Value, "$*?[") {
+			d, hasCert := lookup("cert")
+			if hasCert && strings.HasPrefix(d.Value, "/") && !strings.ContainsAny(d.Value, "$*?[") {
 				sc.certs, sc.certsOK = []string{d.Value}, true
+			}
+			if !hasCert {
+				// 証明書の指定が、読んだ設定のどこにもない。stunnel は、そのようなサービスを起動しない（実測）ので、
+				// 動いているなら、証明書は読んでいない場所で指定されている。証明書の種類が分からない場合と同じ一覧を出し、前提を説明に書く
+				sc.info = append(sc.info, "no certificate (cert) is specified for this service in the configuration that was read; "+
+					"stunnel does not start a service that accepts connections without a certificate (measured), "+
+					"so the certificate is assumed to be specified in a place that is not read (for example, an included file)")
 			}
 			scopes = append(scopes, sc)
 		}
