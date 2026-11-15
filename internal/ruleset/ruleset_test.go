@@ -1537,3 +1537,19 @@ func TestBuiltinSpringBootTables(t *testing.T) {
 		t.Error("an unmeasured version must not match")
 	}
 }
+
+// 内蔵のルールは、実行ファイルに埋め込まれていて変わらないので、読み込みは 1 回だけ行い、同じものを返す。
+// 返したルールは、読むだけにする（書き換えると、ほかの呼び出し元にも影響する）。
+func TestBuiltinIsLoadedOnce(t *testing.T) {
+	a, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a != b {
+		t.Error("Builtin must return the same rule set every time")
+	}
+}
