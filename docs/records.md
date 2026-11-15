@@ -1361,3 +1361,14 @@ stunnel 7 場面、Postfix 12 場面、グループ 14 場面のすべてで一�
 Postfix、stunnel、MySQL は、鍵交換のグループを自分で決める（システムの設定やライブラリの既定には従わない）。
 開発者は、これらのアプリで、その版の既定のグループがルールになく、設定にも記載がない場合は、結果を「不明」にするよう直した（`internal/collect/apps/tlsgroups.go` の `decidesOwnGroups`）。
 あわせて、ルールを作るプログラムを直し、AlmaLinux で測った版でも、グループの数え上げとの突き合わせを行って、`tls.groups` を書くようにした。
+
+AlmaLinux 9.1 で測ったアプリ（2026-11-15。測り方は 9.4 と同じ。導入された OpenSSL は openssl-libs 3.0.1-47.el9_1）:
+
+| アプリ | 版 | 結果 |
+|---|---|---|
+| nginx | nginx-core 1.20.1-13.el9.alma | 予測と数え上げが、すべての場面で一致した |
+| Apache httpd | httpd-core 2.4.53-7.el9_1.5 | 同上 |
+| HAProxy | haproxy 2.4.17-3.el9_1.2 | 同上 |
+| stunnel | stunnel 5.62-2.el9 | 同上。既定のグループ（`X25519:P-256:X448:P-521:P-384`）も、数え上げと一致した |
+
+kagiya の結果との突き合わせは、nginx・Apache 8 場面、HAProxy 7 場面、stunnel 7 場面、グループ 14 場面のすべてで一致した。

@@ -153,6 +153,24 @@ defaults:
       tls.groups: "X25519:P-256:X448:P-521:P-384"
   - app: stunnel
     package: stunnel
+    version: "5.62-2.el9"
+    source:
+      image: "almalinux@sha256:49923f8fbbf1de90100b511c485bd3fc88b2f8f0ab6be67b8a30bf6eb48fb67b"
+      os: "AlmaLinux 9.1 (Lime Lynx)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.ciphersuites-tls13: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.groups: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client); default strings taken from the binary"
+    values:
+      tls.ciphers: "PROFILE=SYSTEM"
+      tls.ciphersuites-tls13: "TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256"
+      tls.dhe-without-params: "builtin"
+      tls.groups: "X25519:P-256:X448:P-521:P-384"
+  - app: stunnel
+    package: stunnel
     version: "5.71-1.el9"
     source:
       image: "almalinux@sha256:1c718a4cd7bab3bdb069ddbbd1eb593a390e6932d51d0048a2f6556303bafba7"
