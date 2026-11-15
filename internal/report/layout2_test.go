@@ -400,3 +400,20 @@ func TestReportConfidenceAndQualifiers(t *testing.T) {
 		t.Error("an unknown qualifier is shown")
 	}
 }
+
+// 値の読み方についての説明（Qualifiers）は、どれも、利用者が読む文を持つ。文のない説明は、レポートに出ない。
+func TestEveryQualifierHasText(t *testing.T) {
+	all := []string{model.QualifierAnyCertificateKind, model.QualifierJDKDefaultAnyCertificateKind, model.QualifierAnyJDKFound, model.QualifierNothingAccepted}
+	if got := model.KnownQualifiers(all); len(got) != len(all) {
+		t.Errorf("KnownQualifiers drops a qualifier: %v", got)
+	}
+	for _, q := range all {
+		if qualifierText[q] == "" {
+			t.Errorf("no text for %s", q)
+		}
+	}
+	// JDK の既定のサービス用の文は、「証明書を読めなかった」とは書かない
+	if s := qualifierText[model.QualifierJDKDefaultAnyCertificateKind]; strings.Contains(s, "読めなかった") || !strings.Contains(s, "DSA") {
+		t.Errorf("text = %q", s)
+	}
+}

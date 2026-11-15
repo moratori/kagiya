@@ -107,11 +107,12 @@ func TestJDKDefaultsDebian13(t *testing.T) {
 			t.Errorf("a suite that needs a DSA certificate is listed: %s", v)
 		}
 	}
-	if !hasQualifier(e, model.QualifierAnyCertificateKind) {
+	// 説明は、JDK の既定のサービス用のもの（証明書を読めなかったのではなく、この項目には対応する証明書がない）。サーバー用の説明は付けない
+	if !hasQualifier(e, model.QualifierJDKDefaultAnyCertificateKind) || hasQualifier(e, model.QualifierAnyCertificateKind) {
 		t.Errorf("qualifiers = %v", e.Qualifiers)
 	}
-	if hasQualifier(jdkEff(t, inv, "tls.ciphersuites-tls13", jdkDeb25Home), model.QualifierAnyCertificateKind) {
-		t.Error("TLS 1.3 suites do not depend on the kind of the certificate")
+	if q := jdkEff(t, inv, "tls.ciphersuites-tls13", jdkDeb25Home).Qualifiers; len(q) != 0 {
+		t.Errorf("TLS 1.3 suites do not depend on the kind of the certificate: %v", q)
 	}
 	if l := layers(e); l != "library/default app-config/remove" {
 		t.Errorf("steps = %s", l)
