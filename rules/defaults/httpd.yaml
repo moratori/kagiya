@@ -101,3 +101,14 @@ defaults:
       note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
     values:
       tls.dhe-without-params: "builtin"
+  - app: httpd
+    package: apache2-bin
+    version: "2.4.71-1~deb13u1"
+    source:
+      image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+      os: "Debian GNU/Linux 13 (trixie)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.dhe-without-params: "builtin"
