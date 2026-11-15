@@ -42,11 +42,13 @@ const (
 var (
 	wildflyVersionValue = regexp.MustCompile(`^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[A-Za-z0-9]{1,16}$`)
 	wildflyConfigName   = regexp.MustCompile(`^standalone[A-Za-z0-9._-]{0,64}\.xml$`)
-	wildflyProtocol     = regexp.MustCompile(`^(SSLv2Hello|SSLv[23]|TLSv1(\.[123])?)$`)
-	wildflyJSSEName     = regexp.MustCompile(`^(TLS|SSL)_[A-Z0-9_]{1,90}$`)
-	wildflyName         = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
-	wildflyJavaAssign   = regexp.MustCompile(`^(?:export\s+)?(JAVA_HOME|JAVA)=(.*)$`)
-	wildflyProductJar   = regexp.MustCompile(`^wildfly-feature-pack-product-conf-[A-Za-z0-9._-]{1,64}\.jar$`)
+	// 古い形式の ssl の protocol で、測った値（TLS の実装の名前）
+	wildflyContextProtocols = map[string]bool{"TLS": true, "TLSv1": true, "TLSv1.1": true, "TLSv1.2": true, "TLSv1.3": true}
+	wildflyProtocol         = regexp.MustCompile(`^(SSLv2Hello|SSLv[23]|TLSv1(\.[123])?)$`)
+	wildflyJSSEName         = regexp.MustCompile(`^(TLS|SSL)_[A-Z0-9_]{1,90}$`)
+	wildflyName             = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
+	wildflyJavaAssign       = regexp.MustCompile(`^(?:export\s+)?(JAVA_HOME|JAVA)=(.*)$`)
+	wildflyProductJar       = regexp.MustCompile(`^wildfly-feature-pack-product-conf-[A-Za-z0-9._-]{1,64}\.jar$`)
 	// 製品の JAR は、マニフェストだけが入った小さなもの
 	wildflyJarLimits = jarfile.Limits{MaxArchiveSize: 1 << 20, MaxEntries: 256, MaxNameLen: 256, MaxEntrySize: wildflyMaxManifest, MaxRatio: 200}
 	// relative-to の名前と、WildFly の置き場所からの相対の場所（起動時にシステムプロパティで変えられていれば、実際と食い違う）
@@ -348,14 +350,26 @@ type wildflyPlan struct {
 	names     standalonexml.Attr // cipher-suite-names（TLS 1.3 用）
 	hasNames  bool
 
-	// 古い形式: 名指しされた暗号スイート（Java での名前）
-	suites    []string
-	hasSuites bool
-	suitesAt  int
-
-	protocols    []string
+	// どちらの形式でも: プロトコルと、TLS 1.2 以下の暗号スイートが、設定に書かれているか（書かれていれば、その行）
 	hasProtocols bool
 	protocolsAt  int
+	hasSuites    bool
+	suitesAt     int
+
+	// Elytron の形式: ssl-context の protocols
+	protocols []string
+
+	// 古い形式（security-realm。24 まで）。lab/out/tlsapp/wildfly-legacy の測定による
+	contextProtocol   string   // ssl の protocol（TLS の実装の名前）。書かれていなければ空
+	realmProtocols    []string // engine の enabled-protocols（書かれたままの名前）
+	hasRealmProtocols bool
+	realmSuites       []string // engine の enabled-cipher-suites（書かれたままの名前）
+	hasRealmSuites    bool
+	// 待ち受けの側の指定は、security-realm の側の指定を置き換える
+	listenerProtocols    []string // https-listener の enabled-protocols（カンマで区切り、前後の空白を落としたもの）
+	hasListenerProtocols bool
+	listenerFilter       standalonexml.Attr // https-listener の enabled-cipher-suites（Elytron の式として解釈される）
+	hasListenerFilter    bool
 }
 
 func wildflyExpression(values ...string) bool {
@@ -507,59 +521,56 @@ func (c *Collector) wildflyRead(in *wildflyInstall, l standalonexml.Listener, sc
 		if wildflyExpression(realm.SSL["protocol"].Value, ep.Value, ec.Value) {
 			note("an attribute of the security-realm is written as an expression (${...}); its value is decided when the server starts")
 		}
-		if p, ok := realm.SSL["protocol"]; ok && p.Value != "TLSv1.3" {
-			note("the ssl element of the security-realm sets protocol to a value whose effect has not been measured")
+		// ssl の protocol は、TLS の実装（SSLContext）の名前。測った 5 つの値では、受け入れるものを変えなかった。
+		// JDK にない名前では、サーバーが起動しなかった（その JDK にあるかどうかは、wildflyWith で確かめる）
+		if p, ok := realm.SSL["protocol"]; ok {
+			if !wildflyContextProtocols[p.Value] {
+				note("the ssl element of the security-realm sets protocol to a value that has not been measured (with a name the JDK does not have, the server did not start)")
+			}
+			plan.contextProtocol = p.Value
 		}
-		switch {
-		case hasEP && hasLP:
-			note("enabled-protocols is set both in the security-realm and on the https-listener, which has not been measured")
-		case hasEP:
-			plan.hasProtocols, plan.protocolsAt = true, ep.Line
+		// security-realm の側（engine）。JDK の知らない名前は落ちる（wildflyWith）
+		list := func(value string, max int) ([]string, bool) {
+			l := strings.Fields(value)
+			return l, len(l) > 0 && len(l) <= max
+		}
+		if hasEP {
+			plan.hasProtocols, plan.protocolsAt, plan.hasRealmProtocols = true, ep.Line, true
 			var ok bool
-			if plan.protocols, ok = wildflyProtocols(ep.Value); ok {
-				rec("enabled-protocols", strings.Join(plan.protocols, " "), ep.Line, "")
+			if plan.realmProtocols, ok = list(ep.Value, 16); ok {
+				rec("enabled-protocols", strings.Join(plan.realmProtocols, " "), ep.Line, "")
 			} else {
 				note("the value of enabled-protocols in the security-realm is not interpreted")
 			}
-		case hasLP:
-			plan.hasProtocols, plan.protocolsAt = true, lp.Line
-			if !wildflyProtocol.MatchString(lp.Value) {
-				note("enabled-protocols on the https-listener has several values or an unknown value, which has not been measured")
+		}
+		if hasEC {
+			plan.hasSuites, plan.suitesAt, plan.hasRealmSuites = true, ec.Line, true
+			var ok bool
+			if plan.realmSuites, ok = list(ec.Value, 256); ok {
+				rec("enabled-cipher-suites", strings.Join(plan.realmSuites, " "), ec.Line, "")
 			} else {
-				plan.protocols = []string{lp.Value}
-				rec("enabled-protocols", lp.Value, lp.Line, "")
+				note("the value of enabled-cipher-suites in the security-realm is not interpreted")
 			}
 		}
-		names := func(value string, max int) ([]string, bool) {
-			list := strings.Fields(value)
-			if len(list) == 0 || len(list) > max {
-				return nil, false
+		// 待ち受けの側。書かれていれば、security-realm の側の指定を置き換える（実測。共通部分ではない）
+		if hasLP {
+			plan.hasProtocols, plan.protocolsAt, plan.hasListenerProtocols = true, lp.Line, true
+			// カンマで区切り、前後の空白を落とす（空白は区切りではない）
+			for _, v := range strings.Split(lp.Value, ",") {
+				plan.listenerProtocols = append(plan.listenerProtocols, strings.TrimSpace(v))
 			}
-			for _, n := range list {
-				if !wildflyJSSEName.MatchString(n) {
-					return nil, false
-				}
-			}
-			return list, true
-		}
-		switch {
-		case hasEC && hasLC:
-			note("enabled-cipher-suites is set both in the security-realm and on the https-listener, which has not been measured")
-		case hasEC:
-			plan.hasSuites, plan.suitesAt = true, ec.Line
-			var ok bool
-			if plan.suites, ok = names(ec.Value, 256); ok {
-				rec("enabled-cipher-suites", strings.Join(plan.suites, " "), ec.Line, "")
+			if strings.TrimSpace(lp.Value) == "" || len(plan.listenerProtocols) > 16 {
+				note("the value of enabled-protocols on the https-listener is not interpreted")
 			} else {
-				note("enabled-cipher-suites in the security-realm has names that are not Java names of cipher suites, which has not been measured")
+				rec("enabled-protocols", strings.Join(plan.listenerProtocols, " "), lp.Line, "")
 			}
-		case hasLC:
-			plan.hasSuites, plan.suitesAt = true, lc.Line
-			var ok bool
-			if plan.suites, ok = names(lc.Value, 1); ok {
+		}
+		if hasLC {
+			plan.hasSuites, plan.suitesAt, plan.hasListenerFilter, plan.listenerFilter = true, lc.Line, true, lc
+			if strings.TrimSpace(lc.Value) == "" {
+				note("the value of enabled-cipher-suites on the https-listener is not interpreted")
+			} else {
 				rec("enabled-cipher-suites", lc.Value, lc.Line, "")
-			} else {
-				note("enabled-cipher-suites on the https-listener has several names or a name that is not a Java name of a cipher suite, which has not been measured")
 			}
 		}
 		if p, ok := realm.Keystore["path"]; ok {
@@ -574,6 +585,11 @@ func wildflyCheck(in *wildflyInstall, plan wildflyPlan) string {
 	if !plan.elytron {
 		if !in.legacy {
 			return "the https-listener names a security-realm, but WildFly " + in.version + " does not take TLS settings from a security-realm (that form ended with WildFly 24)"
+		}
+		if plan.hasListenerFilter {
+			if _, err := elytronciphers.Evaluate(in.table, plan.listenerFilter.Value, nil); err != nil {
+				return "the enabled-cipher-suites value on the https-listener is not accepted by Elytron's rules (as measured, the server does not start with it), or is not interpreted here"
+			}
 		}
 		return ""
 	}
@@ -624,20 +640,13 @@ func wildflyWith(in *wildflyInstall, plan wildflyPlan, jdk jdkContext) (res wild
 				protocols = append(protocols, "TLSv1.3")
 			}
 		}
+		if plan.hasProtocols {
+			protocols = plan.protocols
+		}
 	} else {
-		protocols = append([]string{}, tb.LegacyDefaultProtocols...)
-		// 名指しがなければ、JDK の既定の暗号スイート
-		for _, s := range jdk.table.Suites {
-			if s.Default {
-				want = append(want, s.Name)
-			}
+		if res.reason = wildflyLegacy(tb, plan, jdk, &protocols, &want); res.reason != "" {
+			return res
 		}
-		if plan.hasSuites {
-			want = plan.suites
-		}
-	}
-	if plan.hasProtocols {
-		protocols = plan.protocols
 	}
 	r := jsse.ResolveExplicit(jdk.table, jdk.input, protocols, want)
 	// キーストアの中は読まないので、RSA の証明書の場合と EC の証明書の場合を合わせた一覧にする
@@ -661,6 +670,62 @@ func wildflyWith(in *wildflyInstall, plan wildflyPlan, jdk jdkContext) (res wild
 	}
 	res.groups, res.groupsBlocker = jsseGroups(used), r.GroupsBlocker
 	return res
+}
+
+// wildflyLegacy は、古い形式（security-realm）で、有効にされるプロトコルと暗号スイートを求める（JDK が無効にしているものを除く前）。
+// 値を求められない場合は、理由を返す。決まりは、19.0.0〜24.0.1 の 14 版の測定による（lab/out/tlsapp/wildfly-legacy）。
+func wildflyLegacy(tb *ruleset.WildFlyTable, plan wildflyPlan, jdk jdkContext, protocols, want *[]string) (reason string) {
+	hasProtocol, hasSuite := map[string]bool{}, map[string]bool{}
+	supported := make([]string, 0, len(jdk.table.Suites))
+	for _, p := range jdk.table.Protocols {
+		hasProtocol[p.Name] = true
+	}
+	for _, s := range jdk.table.Suites {
+		hasSuite[s.Name] = true
+		supported = append(supported, s.Name)
+	}
+	keep := func(names []string, known map[string]bool) []string {
+		out := []string{}
+		for _, n := range names {
+			if known[n] {
+				out = append(out, n)
+			}
+		}
+		return out
+	}
+	// ssl の protocol: その JDK にない名前では、サーバーが起動しない
+	if cp := plan.contextProtocol; cp != "" && cp != "TLS" && !hasProtocol[cp] {
+		return "the ssl element of the security-realm sets protocol to " + cp + ", which this JDK does not have (as measured, the server does not start with a name the JDK does not have)"
+	}
+	// security-realm の側。書かれた名前のうち、JDK が知っているものだけが残る。1 つも残らない場合は、キーストアによって結果が違う
+	const none = ": as measured, the server does not start when the keystore exists, and applies no restriction at all when the certificate is generated on first use"
+	*protocols = append([]string{}, tb.LegacyDefaultProtocols...)
+	if plan.hasRealmProtocols {
+		if *protocols = keep(plan.realmProtocols, hasProtocol); len(*protocols) == 0 {
+			return "none of the enabled-protocols in the security-realm is a protocol of this JDK" + none
+		}
+	}
+	// 名指しがなければ、JDK の既定の暗号スイート
+	*want = nil
+	for _, s := range jdk.table.Suites {
+		if s.Default {
+			*want = append(*want, s.Name)
+		}
+	}
+	if plan.hasRealmSuites {
+		if *want = keep(plan.realmSuites, hasSuite); len(*want) == 0 {
+			return "none of the enabled-cipher-suites in the security-realm is a cipher suite of this JDK" + none
+		}
+	}
+	// 待ち受けの側の指定は、security-realm の側の指定を置き換える。JDK の知らないプロトコルは落ち、1 つも残らなければ、何も受け入れない
+	if plan.hasListenerProtocols {
+		*protocols = keep(plan.listenerProtocols, hasProtocol)
+	}
+	// 暗号は、Elytron の式として、JDK が対応しているスイートの中から選ばれる（式が受け付けられることは、先に確かめてある）
+	if plan.hasListenerFilter {
+		*want, _ = elytronciphers.Evaluate(tb, plan.listenerFilter.Value, supported)
+	}
+	return ""
 }
 
 // wildflyResolve は、待ち受け 1 つについて、受け入れるプロトコル・暗号スイート・グループを求めて記録する。
