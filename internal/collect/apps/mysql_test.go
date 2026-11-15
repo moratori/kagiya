@@ -25,13 +25,14 @@ const (
 )
 
 func dbAlma9(t *testing.T, pkg, version, release, lab string) func(p string, b *inventory.Builder) {
-	return dbAlma9On(t, "3.5.8", "2.el9_8", pkg, version, release, lab)
+	return dbAlma9On(t, "3.5.8", "2.el9_8", rhel9PolicyGroups, pkg, version, release, lab)
 }
 
-// dbAlma9On は、OpenSSL の版を指定して、AlmaLinux 9 にデータベースのサーバーを導入した状態を作る（古いマイナー版のホスト用）。
-func dbAlma9On(t *testing.T, opensslVersion, opensslRelease, pkg, version, release, lab string) func(p string, b *inventory.Builder) {
+// dbAlma9On は、OpenSSL の版と、暗号ポリシーが書くグループの指定（そのマイナー版のもの）を指定して、AlmaLinux 9 に
+// データベースのサーバーを導入した状態を作る（古いマイナー版のホスト用）。
+func dbAlma9On(t *testing.T, opensslVersion, opensslRelease, policyGroups, pkg, version, release, lab string) func(p string, b *inventory.Builder) {
 	prepare := rhel9Web(t, opensslVersion, opensslRelease, map[string]string{myCnf: myMain, myLab: lab})
-	return withGroups(rhel9PolicyGroups, func(p string, b *inventory.Builder) {
+	return withGroups(policyGroups, func(p string, b *inventory.Builder) {
 		b.AddPackage(model.Package{Manager: "rpm", Name: pkg, Epoch: 3, Version: version, Release: release, Role: "database"})
 		prepare(p, b)
 	})
@@ -156,7 +157,9 @@ func TestMySQLEffective(t *testing.T) {
 // （新しい版は、P-256・P-384・P-521 だけに絞る）。ルールでは、tls.groups の値「@system」で表す。
 // 期待値は、検証ラボの AlmaLinux 9.3 の mysql-server 8.0.32-1.el9_2（OpenSSL 3.0.7-25.el9_3）を起動して数え上げた結果。
 func TestMySQLOldVersionFollowsSystemGroups(t *testing.T) {
-	_, inv := collect(t, "rhel9", dbAlma9On(t, "3.0.7", "25.el9_3", "mysql-server", "8.0.32", "1.el9_2", myRSA))
+	// AlmaLinux 9.3 の暗号ポリシーが書くグループの指定（OpenSSL 3.0 の書き方。9.8 の「*」付きの書き方は、3.0 では受け付けられない）
+	const alma93PolicyGroups = "X25519:secp256r1:X448:secp521r1:secp384r1:ffdhe2048:ffdhe3072:ffdhe4096:ffdhe6144:ffdhe8192"
+	_, inv := collect(t, "rhel9", dbAlma9On(t, "3.0.7", "25.el9_3", alma93PolicyGroups, "mysql-server", "8.0.32", "1.el9_2", myRSA))
 	checkSuites(t, eff(t, inv, "svc:mysql", "tls.ciphers", ""), 20, "3c3c5b556371eddf", "high")
 	g := groupsOf(t, inv, "svc:mysql", "")
 	if strings.Join(g.Values, " ") != alma9Groups {
@@ -171,4 +174,3 @@ func TestMySQLOldVersionFollowsSystemGroups(t *testing.T) {
 		t.Errorf("confidence = %s", g.Confidence)
 	}
 }
-

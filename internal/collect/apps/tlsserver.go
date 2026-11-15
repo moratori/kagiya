@@ -59,8 +59,8 @@ const (
 	// 既定の表: 後の版で加わった設定項目のうち、その版で、効き方を測ってあるもの（PostgreSQL の ssl_groups など）
 	paramMeasuredSettings = "tls.measured-settings"
 
-	// 既定の表での特別な値: アプリが暗号文字列を設定せず、OpenSSL のシステム既定のままになる
-	cipherSystemDefault = "@system"
+	// 既定の表での特別な値: アプリがその項目（暗号文字列、鍵交換のグループ）を設定せず、OpenSSL のシステム既定のままになる
+	ruleSystemDefault = "@system"
 )
 
 // libraryTable は、導入されている暗号ライブラリのパッケージ版に対応する、実測の表を探す。
@@ -449,7 +449,7 @@ func (cr *cipherResolver) resolve(sc tlsScope) (int, model.ResolutionStep) {
 	}
 	e.Steps = []model.ResolutionStep{first}
 	levelFrom := first // 暗号文字列にセキュリティレベルの指定が含まれるとき、それがどの層のものか
-	if in.CipherString == cipherSystemDefault {
+	if in.CipherString == ruleSystemDefault {
 		// アプリは何も設定しない。システムの openssl.cnf の暗号文字列があればそれ、なければライブラリの既定（DEFAULT）
 		if cr.sysCipher != "" {
 			in.CipherString = cr.sysCipher

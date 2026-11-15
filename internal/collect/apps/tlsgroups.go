@@ -17,6 +17,7 @@ import (
 
 // decidesOwnGroups は、設定に記載がないときの鍵交換のグループを、自分で決めるアプリ（システムの openssl.cnf やライブラリの既定には従わない）。
 // これらのアプリでは、その版の既定のグループ（ルールの tls.groups）が分からなければ、結果を「不明」にする。
+// 同じアプリでも、自分では決めない版がある（MySQL の 8.0.32 まで）。その版のルールは、tls.groups に「@system」を持つ。
 // システムの設定やライブラリの既定で代用すると、実物と食い違う（検証ラボの AlmaLinux 9.4 の Postfix 3.5.9 で確かめた）。
 var decidesOwnGroups = map[string]bool{"postfix": true, "stunnel": true, "mysql": true}
 
@@ -99,6 +100,16 @@ func (g *groupResolver) resolve(sc tlsScope, level int, levelStep model.Resoluti
 	}
 	spec := ""
 	appDefault := strings.Join(g.defs[model.ParamTLSGroups], ",")
+	// その版のアプリは、グループを自分では決めず、OpenSSL のシステム既定のままにする（ルールの値「@system」。古い MySQL など）。
+	// 値は、下の「システムの設定 → ライブラリの既定」の順で求める。そう決めた根拠はルールのこの項目なので、確度の材料に加える
+	followsSystem := appDefault == ruleSystemDefault
+	if followsSystem {
+		appDefault = ""
+		use(model.ParamTLSGroups)
+		if g.appNote != "" {
+			notes = append(notes, g.appNote)
+		}
+	}
 	switch {
 	case sc.groups != "":
 		param := sc.groupsParam
@@ -115,7 +126,7 @@ func (g *groupResolver) resolve(sc tlsScope, level int, levelStep model.Resoluti
 		if g.appNote != "" {
 			notes = append(notes, g.appNote)
 		}
-	case decidesOwnGroups[g.app.ID]:
+	case decidesOwnGroups[g.app.ID] && !followsSystem:
 		// グループを自分で決めるアプリなのに、その版の既定のグループがルールにない。システムの設定やライブラリの既定で代用しない
 		fail("the default groups of this version of the application are not recorded")
 		return
