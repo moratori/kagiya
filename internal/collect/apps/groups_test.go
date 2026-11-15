@@ -171,3 +171,29 @@ func TestGroupsLimits(t *testing.T) {
 	// 暗号スイートのほうは、従来どおり求まる（グループが求まらなくても影響しない）
 	checkSuites(t, eff(t, inv, "svc:haproxy", "tls.ciphers", "frontend fe_default bind 127.0.0.1:8443"), 30, "0034b8492620755c", "high")
 }
+
+// stunnel は、鍵交換のグループを自分で決める（埋め込まれた既定を持ち、システムの設定やライブラリの既定には従わない）。
+// その版の既定のグループがルールにない場合は、ライブラリの既定で代用せず、「不明」にする。
+// ここでは、既定のグループの記録がない版（Ubuntu 16.04 の stunnel 5.30）のルールを、グループの対応表がある OpenSSL と組み合わせて、その状態を作る。
+func TestStunnelGroupsUnknownWithoutRecordedDefault(t *testing.T) {
+	host := func(conf string) func(p string, b *inventory.Builder) {
+		return func(p string, b *inventory.Builder) {
+			b.AddPackage(model.Package{Manager: "dpkg", Name: "stunnel4", Version: "3:5.30-1ubuntu0.1", Role: "proxy"})
+			b.AddPackage(model.Package{Manager: "dpkg", Name: "libssl3t64", Version: "3.0.13-0ubuntu3.16", Role: "crypto-library"})
+			writeCert(t, p+"/etc/lab/rsa.crt", "rsa")
+			os.MkdirAll(filepath.Dir(p+stunnelConf), 0o755)
+			os.WriteFile(p+stunnelConf, []byte(conf), 0o644)
+		}
+	}
+	service := "[default]\naccept = 127.0.0.1:8443\n" + stunnelRSA
+	_, inv := collect(t, "", host(stunnelHead+service))
+	e := eff(t, inv, "svc:stunnel", "tls.groups", "stunnel.conf [default]")
+	if e.Status != "unresolved" || len(e.Values) != 0 || !strings.Contains(e.Reason, "default groups") {
+		t.Errorf("groups without a recorded default = %+v", e)
+	}
+	// 設定に curves の記載があれば、その記載から求められる
+	_, inv = collect(t, "", host(stunnelHead+"curves = secp384r1\n"+service))
+	if e := groupsOf(t, inv, "svc:stunnel", "stunnel.conf [default]"); strings.Join(e.Values, " ") != "P-384" {
+		t.Errorf("configured curves = %v", e.Values)
+	}
+}
