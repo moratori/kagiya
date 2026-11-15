@@ -26,18 +26,81 @@ type Result struct {
 	Ignored []string // 「?」付きで書かれていて、この版が知らないために無視された名前
 }
 
+// syntax は、グループの指定の書き方の決まり（版によって違う。ruleset の GroupSyntax〜 に対応する）。
+type syntax struct {
+	separators      string // 項目の区切りに使える文字
+	prefixes        string // 名前の前に付けられる記号（「?」= 知らない名前なら無視、「-」= それまでの並びから取り除く、「*」= 受け入れには関係しない印）
+	multiplePrefix  bool   // 記号を、いくつも重ねて書ける。false なら 1 つだけで、その後ろは、そのまま名前として扱う
+	defaultKeyword  bool   // 「DEFAULT」（既定の並びを足す）が使える
+	caseInsensitive bool   // 名前の大文字小文字を区別しない
+	repeatable      bool   // 同じグループを 2 回書いてもよい（2 回目は無視される）。false なら、拒否される
+}
+
+var syntaxes = map[string]syntax{
+	ruleset.GroupSyntaxBasic:    {separators: ":"},
+	ruleset.GroupSyntaxOptional: {separators: ":", prefixes: "?", repeatable: true},
+	ruleset.GroupSyntaxExtended: {separators: ":/", prefixes: "?*-", multiplePrefix: true, defaultKeyword: true, caseInsensitive: true, repeatable: true},
+}
+
+// item は、指定の中の 1 つの項目を、記号と名前に分けたもの。
+type item struct {
+	name     string
+	optional bool // 「?」: 知らない名前なら無視する
+	remove   bool // 「-」: それまでの並びから取り除く
+}
+
+// parseItem は、項目 1 つを、記号と名前に分ける。
+func (sx syntax) parseItem(text string) item {
+	it := item{name: text}
+	for it.name != "" && strings.IndexByte(sx.prefixes, it.name[0]) >= 0 {
+		it.optional = it.optional || it.name[0] == '?'
+		it.remove = it.remove || it.name[0] == '-'
+		it.name = it.name[1:]
+		if !sx.multiplePrefix {
+			break
+		}
+	}
+	return it
+}
+
+// orderedSet は、グループ（対応表の中の位置）の、重複のない並び。
+type orderedSet struct {
+	order []int
+	in    map[int]bool
+}
+
+func (s *orderedSet) add(i int) {
+	if s.in == nil {
+		s.in = map[int]bool{}
+	}
+	if !s.in[i] {
+		s.in[i] = true
+		s.order = append(s.order, i)
+	}
+}
+
+func (s *orderedSet) remove(i int) {
+	if !s.in[i] {
+		return
+	}
+	delete(s.in, i)
+	for k, x := range s.order {
+		if x == i {
+			s.order = append(s.order[:k], s.order[k+1:]...)
+			return
+		}
+	}
+}
+
 // Resolve は、グループの指定 spec を、対応表 t の版の OpenSSL と同じように解釈する。spec が空なら、ライブラリの既定。
 func Resolve(t *ruleset.GroupTable, spec string) (Result, error) {
 	if len(spec) > MaxSpecLen {
 		return Result{}, ErrInvalid
 	}
-	extended := t.Syntax == ruleset.GroupSyntaxExtended
-	// 「?」（知らない名前なら無視）だけが使える版。「?」の後ろは、そのまま名前として扱う
-	optionalOnly := t.Syntax == ruleset.GroupSyntaxOptional
-	repeatable := extended || optionalOnly // 同じグループを2回書いてもよい（2回目は無視される）
+	sx := syntaxes[t.Syntax]
 	key := func(n string) string {
-		if extended {
-			return strings.ToLower(n) // この版は大文字小文字を区別しない
+		if sx.caseInsensitive {
+			return strings.ToLower(n)
 		}
 		return n
 	}
@@ -52,79 +115,46 @@ func Resolve(t *ruleset.GroupTable, spec string) (Result, error) {
 			defaults = append(defaults, i)
 		}
 	}
-	var order []int
-	in := map[int]bool{}
-	add := func(i int) {
-		if !in[i] {
-			in[i] = true
-			order = append(order, i)
-		}
-	}
+	var chosen orderedSet
 	var r Result
 	if strings.TrimSpace(spec) == "" {
 		for _, i := range defaults {
-			add(i)
+			chosen.add(i)
 		}
 	} else {
-		items := strings.Split(spec, ":")
-		if extended {
-			items = strings.FieldsFunc(spec, func(c rune) bool { return c == ':' || c == '/' })
-			// 区切りの前後や連続（空の項目）は拒否される
-			if n := strings.Count(spec, ":") + strings.Count(spec, "/"); n+1 != len(items) {
+		// 区切りの前後や連続（空の項目）は、どの書き方でも拒否される
+		for _, raw := range splitKeepEmpty(spec, sx.separators) {
+			text := strings.TrimSpace(raw)
+			if text == "" {
 				return Result{}, ErrInvalid
 			}
-		}
-		for _, raw := range items {
-			item := strings.TrimSpace(raw)
-			if item == "" {
-				return Result{}, ErrInvalid
-			}
-			optional, remove := false, false
-			if extended {
-				for len(item) > 0 && strings.ContainsRune("?*-", rune(item[0])) {
-					optional = optional || item[0] == '?'
-					remove = remove || item[0] == '-'
-					item = item[1:]
+			it := sx.parseItem(text)
+			if sx.defaultKeyword && it.name == "DEFAULT" {
+				for _, i := range defaults {
+					chosen.add(i)
 				}
-				if item == "DEFAULT" {
-					for _, i := range defaults {
-						add(i)
-					}
-					continue
-				}
-			} else if optionalOnly && strings.HasPrefix(item, "?") {
-				optional = true
-				item = item[1:]
+				continue
 			}
-			i, known := byName[key(item)]
+			i, known := byName[key(it.name)]
 			switch {
-			case !known && (optional || remove):
-				if optional {
-					r.Ignored = append(r.Ignored, item)
-				}
+			case !known && it.optional:
+				r.Ignored = append(r.Ignored, it.name)
+			case !known && it.remove: // 知らない名前を取り除く指定は、何もしない
 			case !known:
 				return Result{}, ErrInvalid
-			case remove:
-				if in[i] {
-					delete(in, i)
-					for k, x := range order {
-						if x == i {
-							order = append(order[:k], order[k+1:]...)
-							break
-						}
-					}
-				}
-			case in[i] && !repeatable:
-				return Result{}, ErrInvalid // 同じグループを2回書くと拒否される
+			case it.remove:
+				chosen.remove(i)
+			case chosen.in[i] && !sx.repeatable:
+				return Result{}, ErrInvalid
 			default:
-				add(i)
+				chosen.add(i)
 			}
 		}
 	}
-	if len(order) == 0 {
+	if len(chosen.order) == 0 {
 		return Result{}, ErrInvalid
 	}
-	for _, i := range order {
+	for _, i := range chosen.order {
 		g := t.Groups[i]
 		r.Groups = append(r.Groups, g.Name)
 		if g.TLS13 {
@@ -135,6 +165,19 @@ func Resolve(t *ruleset.GroupTable, spec string) (Result, error) {
 		}
 	}
 	return r, nil
+}
+
+// splitKeepEmpty は、text を、separators のどれかの文字で区切る。区切りの前後や連続による空の項目も、そのまま返す。
+func splitKeepEmpty(text, separators string) []string {
+	var out []string
+	start := 0
+	for i := 0; i < len(text); i++ {
+		if strings.IndexByte(separators, text[i]) >= 0 {
+			out = append(out, text[start:i])
+			start = i + 1
+		}
+	}
+	return append(out, text[start:])
 }
 
 // Usable は、グループの一覧を、セキュリティレベル level で受け入れられるものに絞る。level が負なら絞らない。
