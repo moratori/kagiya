@@ -35,7 +35,9 @@ const (
 	jdkEL10Home25 = "/usr/lib/jvm/java-25-openjdk"
 	jdkPolicyFile = "/etc/crypto-policies/back-ends/java.config"
 
-	jdkDefault12     = "698878ff8c0df26c" // 上流の既定での TLS 1.2 以下のスイート（27）
+	// 上流の既定での TLS 1.2 以下のスイートのうち、RSA か EC の証明書で使えるもの（21）。
+	// JDK が既定で有効にするのは 27 個で、残りの 6 個（TLS_DHE_DSS_…）は DSA の証明書でしか使えないので、一覧に入れない
+	jdkDefault12     = "ac7fad05bc5bcf16"
 	jdkTLS13         = "0298a462f55e65f8" // TLS 1.3 のスイート（3）
 	jdkGroups        = "P-256,P-384,P-521,X25519,X448,ffdhe2048,ffdhe3072,ffdhe4096,ffdhe6144,ffdhe8192"
 	jdkGroupsHybrid  = "P-256,P-384,P-521,X25519,X25519MLKEM768,X448,ffdhe2048,ffdhe3072,ffdhe4096,ffdhe6144,ffdhe8192"
@@ -94,9 +96,22 @@ func TestJDKDefaultsDebian13(t *testing.T) {
 		t.Errorf("protocols = %+v", p)
 	}
 	e := jdkEff(t, inv, "tls.ciphers", jdkDeb25Home)
-	checkSuites(t, e, 27, jdkDefault12, "high")
+	checkSuites(t, e, 21, jdkDefault12, "high")
 	if contains(e.Values, "TLS_EMPTY_RENEGOTIATION_INFO_SCSV") {
 		t.Error("the renegotiation marker is not a cipher suite and must not be listed")
+	}
+	// JDK の既定には、サーバーの証明書がない。RSA の証明書の場合と EC の証明書の場合に受け入れるものを合わせて出し、その旨の説明を付ける。
+	// DSA の証明書でしか使えないスイート（この JDK の既定では TLS_DHE_DSS_… の 6 個）は、接続で確かめていないので、入れない
+	for _, v := range e.Values {
+		if strings.Contains(v, "_DSS_") {
+			t.Errorf("a suite that needs a DSA certificate is listed: %s", v)
+		}
+	}
+	if !hasQualifier(e, model.QualifierAnyCertificateKind) {
+		t.Errorf("qualifiers = %v", e.Qualifiers)
+	}
+	if hasQualifier(jdkEff(t, inv, "tls.ciphersuites-tls13", jdkDeb25Home), model.QualifierAnyCertificateKind) {
+		t.Error("TLS 1.3 suites do not depend on the kind of the certificate")
 	}
 	if l := layers(e); l != "library/default app-config/remove" {
 		t.Errorf("steps = %s", l)
@@ -151,7 +166,7 @@ func TestJDKCryptoPolicyRHEL9(t *testing.T) {
 	files[sec] = "security.useSystemPropertiesFile=false\n" + jdkUpstreamDisabled
 	_, inv = collect(t, "", jdkHost(t, files, pkgEL9J21))
 	e = jdkEff(t, inv, "tls.ciphers", jdkEL9Home21)
-	checkSuites(t, e, 27, jdkDefault12, "high")
+	checkSuites(t, e, 21, jdkDefault12, "high")
 	if l := layers(e); l != "library/default app-config/remove" {
 		t.Errorf("steps = %s", l)
 	}
@@ -241,7 +256,7 @@ func TestJDKInterpolated(t *testing.T) {
 	pkg := model.Package{Manager: "rpm", Name: "java-21-openjdk-headless", Version: "21.0.13.0.9", Release: "5.el9"}
 	_, inv := collect(t, "", jdkHost(t, map[string]string{home + "/conf/security/java.security": jdkUpstreamDisabled}, pkg))
 	e := jdkEff(t, inv, "tls.ciphers", home)
-	checkSuites(t, e, 27, jdkDefault12, "medium")
+	checkSuites(t, e, 21, jdkDefault12, "medium")
 	if !strings.Contains(strings.Join(e.Notes, " "), "21.0.13.0.9-1.2.el9.alma.1") {
 		t.Errorf("notes = %v", e.Notes)
 	}
@@ -319,7 +334,7 @@ func TestJDKOtherDistributor(t *testing.T) {
 		link(t, p, "java-21-amazon-corretto.aarch64", "/usr/lib/jvm/java-21-amazon-corretto")
 	})
 	e := jdkEff(t, inv, "tls.ciphers", home)
-	checkSuites(t, e, 27, jdkDefault12, "medium")
+	checkSuites(t, e, 21, jdkDefault12, "medium")
 	notes := strings.Join(e.Notes, " ")
 	if !strings.Contains(notes, "21.0.13") || !strings.Contains(notes, "another distributor") {
 		t.Errorf("notes = %v", e.Notes)
@@ -357,7 +372,8 @@ func TestJDKOtherDistributor(t *testing.T) {
 	if p := jdkEff(t, inv, "tls.protocols", c8); strings.Join(p.Values, ",") != "TLSv1.3,TLSv1.2,TLSv1.1,TLSv1,SSLv2Hello" || p.Confidence != "medium" {
 		t.Errorf("Corretto 8 protocols = %+v", p)
 	}
-	checkSuites(t, jdkEff(t, inv, "tls.ciphers", c8), 35, "12681ad093c3755c", "medium")
+	// Corretto 8 が既定で有効にする 35 個のうち、DSA の証明書でしか使えない 7 個を除いた 28 個
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", c8), 28, "01942026463e9178", "medium")
 
 	// 補わない場合
 	for name, c := range map[string]struct {
@@ -385,7 +401,7 @@ func TestJDKOtherDistributor(t *testing.T) {
 	pkg := model.Package{Manager: "rpm", Name: "java-21-openjdk-headless", Version: "21.0.13.0.9", Release: "1.fc43"}
 	fhome := "/usr/lib/jvm/java-21-openjdk"
 	_, inv = collect(t, "", jdkHost(t, map[string]string{fhome + "/conf/security/java.security": jdkUpstreamDisabled, fhome + "/release": "JAVA_VERSION=\"21.0.13\"\n"}, pkg))
-	checkSuites(t, jdkEff(t, inv, "tls.ciphers", fhome), 27, jdkDefault12, "medium")
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", fhome), 21, jdkDefault12, "medium")
 }
 
 // JDK に含まれないセキュリティプロバイダ（BouncyCastle など）が登録されていると、TLS をどの実装が担当するかが変わりうる。
@@ -396,13 +412,13 @@ func TestJDKForeignProvider(t *testing.T) {
 		"security.provider.6=SunJGSS\nsecurity.provider.7=SunSASL\nsecurity.provider.8=XMLDSig\nsecurity.provider.9=SunPCSC\nsecurity.provider.10=JdkLDAP\n" +
 		"security.provider.11=JdkSASL\nsecurity.provider.12=SunPKCS11\nfips.provider.1=SunPKCS11 ${java.home}/conf/security/nss.fips.cfg\n"
 	_, inv := collect(t, "", jdkHost(t, map[string]string{sec: std + jdkUpstreamDisabled}, pkgDeb25))
-	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 27, jdkDefault12, "high")
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 21, jdkDefault12, "high")
 
 	java8 := "security.provider.1=sun.security.provider.Sun\nsecurity.provider.2=sun.security.rsa.SunRsaSign\nsecurity.provider.3=sun.security.ec.SunEC\n" +
 		"security.provider.4=com.sun.net.ssl.internal.ssl.Provider\nsecurity.provider.5=com.sun.crypto.provider.SunJCE\nsecurity.provider.6=sun.security.jgss.SunProvider\n" +
 		"security.provider.7=com.sun.security.sasl.Provider\nsecurity.provider.8=org.jcp.xml.dsig.internal.dom.XMLDSigRI\nsecurity.provider.9=sun.security.smartcardio.SunPCSC\n"
 	_, inv = collect(t, "", jdkHost(t, map[string]string{sec: java8 + jdkUpstreamDisabled}, pkgDeb25))
-	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 27, jdkDefault12, "high")
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 21, jdkDefault12, "high")
 
 	for name, c := range map[string][2]string{
 		"bouncy castle":   {"security.provider.13=org.bouncycastle.jce.provider.BouncyCastleProvider\n", "org.bouncycastle.jce.provider.BouncyCastleProvider"},
@@ -424,7 +440,7 @@ func TestJDKForeignProvider(t *testing.T) {
 	// 既定の値（SunX509、PKIX）は妨げにならない
 	ok := "ssl.KeyManagerFactory.algorithm=SunX509\nssl.TrustManagerFactory.algorithm=PKIX\n"
 	_, inv = collect(t, "", jdkHost(t, map[string]string{sec: std + ok + jdkUpstreamDisabled}, pkgDeb25))
-	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 27, jdkDefault12, "high")
+	checkSuites(t, jdkEff(t, inv, "tls.ciphers", jdkDeb25Home), 21, jdkDefault12, "high")
 }
 
 // Tomcat を動かす JDK に、JDK に含まれないプロバイダが登録されている場合も、値を求めない。
