@@ -1877,3 +1877,77 @@ WildFly 24 までの古い形式（`security-realm`）は、測った書き方�
 - `examples/ansible/kagiya.yml` を、標準出力のパスを `fetch` と削除に渡す形に直し（ファイルを探すタスクをなくした）、実物の Ansible
   （ansible-core 2.22.0、`python:3.13-slim` のコンテナ、対象は自分自身）で動かした。6 つのタスクがすべて成功し、結果が集め先に届き、
   サーバー側の出力先には、ログだけが残った。README に載せているプレイブックは、ファイルを探す形のままで、いまも動く（README は、所有者が直す）。
+
+### WildFly の管理用の待ち受け（2026-11-15）
+
+WildFly には、アプリ用の待ち受け（Undertow の `https-listener`）のほかに、管理用の待ち受け（`management-interfaces` の `http-interface`。管理コンソールと管理用の API。
+TLS のポートは、既定では 9993 番）がある。これまで、kagiya は管理用の待ち受けを読んでいなかった。開発者は、測定してから対応した。
+
+**開発元のソースで確かめたこと**
+
+- TLS で待ち受けるかどうかは、`http-interface` に、TLS 用のソケットの指定（`secure-socket-binding`。設定ファイルでは `socket-binding` 要素の `https`）があるかで決まる。
+  あれば、TLS の設定（`ssl-context`。なければ `security-realm` の持つもの）で待ち受け、TLS の設定がなければ例外になる。`ssl-context` があれば、そちらが使われる。
+  WildFly Core の `ManagementHttpServer`（`getSSLContext`）と `HttpManagementAddHandler`
+  <https://github.com/wildfly/wildfly-core/blob/16.0.1.Final/domain-http/interface/src/main/java/org/jboss/as/domain/http/server/ManagementHttpServer.java>
+  <https://github.com/wildfly/wildfly-core/blob/34.0.0.Final/server/src/main/java/org/jboss/as/server/operations/HttpManagementAddHandler.java>。
+- 読んだのは、WildFly Core の 4 つのタグ（11.0.0.Final、16.0.1.Final、17.0.1.Final、34.0.0.Final。WildFly の 19.0.0、24.0.1、25.0.0、42.0.0 に入っている版）。
+  ほかの版で同じであることは、測定で確かめた。取得したファイルの URL とチェックサムは、ラボに残した（`lab/out/tlsapp/wildfly-mgmt-source/sources.tsv`）。
+
+**測定**
+
+- 対象は、アプリ用の待ち受けと同じ 54 版（19.0.0.Final〜42.0.0.Final。同じ配布物（チェックサムが、54 版とも前回の記録と一致）、同じイメージ、
+  同じ JDK: 26 までは OpenJDK 11.0.33、27 以降は 17.0.21.0.3）。
+- 測定のスクリプト（`lab/phase2/wildfly.sh`）を、測るポートと場面の一覧を差し替えられるようにし、管理用の場面（`lab/phase2/wildfly-mgmt-scenes.sh`）を
+  9993 番で測った。結果は `lab/out/tlsapp/wildfly-mgmt/`。場面は、どの版でも測る 23 場面（配布物のまま、TLS が有効になる条件、Elytron の形式の指定）と、
+  24 までの版だけで測る 24 場面（`security-realm` の形式。`m-k-…` は実在するキーストア、`m-l-…` は証明書を最初の接続のときに自動で作る設定）。
+- 結果は、24 までの 14 版どうし、25 以降の 40 版どうしで、全場面が同じだった。測定の失敗（起動の記録が出ない、など）は、0 件。
+
+| | 24 までの 14 版（1 版あたり） | 25 以降の 40 版（1 版あたり） | 合計 |
+|---|---|---|---|
+| 場面 | 47 | 23 | 1,578 |
+| 9993 番が開き、数え上げた | 38 | 18 | 1,252 |
+| サーバーは起動したが、9993 番は開かない | 3 | 2 | 122 |
+| サーバーが起動しない | 4 | 0 | 56 |
+| WildFly が、設定そのものを受け付けない | 2 | 3 | 148 |
+
+**分かったこと**
+
+| 設定 | 結果（測った結果） |
+|---|---|
+| 配布物のまま | 9993 番は開かない（TLS で待ち受けない） |
+| TLS の設定（`ssl-context`、または `security-realm` の `ssl`）だけを足し、TLS 用のソケットを指定しない | 9993 番は開かない |
+| TLS 用のソケットだけを指定し、TLS の設定がない | 25 以降は、設定そのものを受け付けない（WFLYSRV0259）。24 までは、サーバーが起動しない（WFLYDMHTTP0012 のあと、WFLYSRV0056 で終了する）。アプリ用の待ち受けの設定の誤りでは、サーバーは「エラーつきで起動」するが、管理用では、サーバーごと終了する |
+| TLS の設定と、TLS 用のソケットの両方 | 9993 番が開く。HTTP 用のソケット（9990 番）を外して、TLS 用だけにしても同じ |
+| `ssl-context` の指定（`protocols`、`cipher-suite-filter`、`cipher-suite-names`） | アプリ用の待ち受けの同じ場面と、同じものを受け入れた |
+| `security-realm` の指定（`ssl` の `protocol`、`engine` の `enabled-protocols`・`enabled-cipher-suites`） | アプリ用の待ち受けの `security-realm` と、同じ効き方だった（JDK の知らない名前だけの指定では、実在するキーストアなら起動せず、証明書を自動で作る設定なら制限が外れる、という点も同じ） |
+| `security-realm`（`ssl` あり。TLS 1.2 だけに絞ったもの）と `ssl-context`（TLS 1.3 だけ）の両方 | TLS 1.3 だけを受け入れた（`ssl-context` が使われる） |
+
+24 までの配布物では、`http-interface` に、認証のための `security-realm`（`ssl` はない）が書かれている。そこに `ssl-context` を足す形（管理用のコマンドで設定すると、この形になる）
+でも、`ssl-context` の設定で待ち受けた。
+
+**本体の変更**
+
+- テストを先に書き、失敗を確かめてから実装した（`internal/parse/standalonexml` の `TestParseManagementInterfaces`、`internal/collect/apps/wildfly_mgmt_test.go`）。
+- 設定ファイルの読み取り（`internal/parse/standalonexml`）に、`http-interface` と `native-interface` の、TLS の設定を指す属性とソケットの指定を足した。
+- kagiya は、`http-interface` に TLS 用のソケットの指定があるときだけ、管理用の待ち受けを、TLS で待ち受けるもの（範囲の名前は `management http-interface`）として扱い、
+  アプリ用の待ち受けと同じ処理で値を求める（`wildflyEndpoint`）。指定がなければ、管理用の待ち受けについては、何も記録しない（値も「不明」も）。
+- 測っていないものは「不明」にする: `native-interface`（管理用の独自のプロトコル）に TLS の設定がある場合、古い書き方（`socket` 要素）に TLS の設定がある場合。
+- 結果の注記にあった「管理用の待ち受けは読まない」を外した。
+
+**確かめたこと**
+
+- 測定結果との突き合わせ（`TestWildFlyManagementAgainstLab`。設定を受け付けなかった 148 場面を除く 1,430 場面）: 一致 1,224、TLS で待ち受けない（kagiya も何も出さない）122、
+  サーバーが起動しない（kagiya も値を出さない）56、設計どおり求めない 28（JDK の知らない名前だけの指定で、証明書を自動で作る設定の 2 場面 × 14 版）、食い違い 0。
+- これまでの突き合わせは、変わらない（アプリ用の待ち受けの 54 版: 一致 1,084、食い違い 0。古い形式の 14 版: 一致 560、起動しない 84、求めない 28、食い違い 0）。
+- 実物の配置での確認: コンテナの中で、6 版（19.0.0、24.0.1、26.1.3、30.0.1、31.0.0、42.0.0）の配布物を展開し、測定のときの設定を置いて、kagiya の実行ファイルに読ませた
+  （JDK を指定した場合と、しない場合。340 回）。一致 288、求めない 8、起動しない 16、TLS で待ち受けない 28、食い違い 0。
+- Linux のコンテナ（Ubuntu 24.04）で、単体テスト（アプリの収集部、設定ファイルの読み取り）が、root と一般の利用者で通った。
+
+**測定の進め方で起きたこと**
+
+- はじめ、8 つのコンテナを並行に動かした。空き容量が、27 GB から、開始の直後に 16 GB、40 分後に 13.2 GB まで減った（決まりは、12 GB を切らないこと）。
+  開発者は、新しい版を測り始めたばかりのコンテナを、2 回に分けて 6 つ止め、残りの 17 版を 2 並行で測り直した（済んだ版は飛ばされる。止めた版は、最初から測り直した）。
+  すべてのコンテナが止まったあと、空き容量は 26 GB に戻った。
+- 1 版あたりの時間は、8 並行では約 10 分、2 並行では約 2.7 分で、並行の数を増やしても速くならなかった（今後は、2〜3 並行までにする）。
+- 実物の配置での確認の 1 回目は、スクリプトを書き換えた直後に起動したところ、コンテナの中で文法エラーになった。ファイルを変えずにやり直すと、通った
+  （原因は確かめていない。書き換えたファイルが、コンテナの側に反映されきっていなかった可能性がある）。
