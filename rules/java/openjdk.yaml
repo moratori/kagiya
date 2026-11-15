@@ -60,7 +60,7 @@ jdk_tables:
           image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
           os: "AlmaLinux 8.10 (Cerulean Leopard)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -73,7 +73,7 @@ jdk_tables:
           image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
           os: "AlmaLinux 9.8 (Olive Jaguar)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -205,7 +205,7 @@ jdk_tables:
           image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
           os: "AlmaLinux 10.2 (Lavender Lion)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -218,7 +218,7 @@ jdk_tables:
           image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
           os: "AlmaLinux 9.8 (Olive Jaguar)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -351,7 +351,7 @@ jdk_tables:
           image: "almalinux@sha256:32f37b0ffeba33dba04d08437f2ae86429cb5d8caa5f86c447c19ddc4b7e30d9"
           os: "AlmaLinux 10.0 (Purple Lion)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -364,7 +364,7 @@ jdk_tables:
           image: "almalinux@sha256:995c8b08af9f7b7bce0f3f1d1559378261c5b29c4b8c6f77b4860833a0e7cbc7"
           os: "AlmaLinux 9.6 (Sage Margay)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -496,7 +496,7 @@ jdk_tables:
           image: "almalinux@sha256:5e1f19a1fc018dcb17f042411bff68c64cb06131ff1a71356d0be011f87c7baa"
           os: "AlmaLinux 10.1 (Heliotrope Lion)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -509,7 +509,7 @@ jdk_tables:
           image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
           os: "AlmaLinux 9.7 (Moss Jungle Cat)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -641,7 +641,7 @@ jdk_tables:
           image: "almalinux@sha256:5e1f19a1fc018dcb17f042411bff68c64cb06131ff1a71356d0be011f87c7baa"
           os: "AlmaLinux 10.1 (Heliotrope Lion)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -654,7 +654,7 @@ jdk_tables:
           image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
           os: "AlmaLinux 9.7 (Moss Jungle Cat)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -923,7 +923,7 @@ jdk_tables:
           image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
           os: "AlmaLinux 8.10 (Cerulean Leopard)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -936,7 +936,7 @@ jdk_tables:
           image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
           os: "AlmaLinux 9.8 (Olive Jaguar)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -949,7 +949,7 @@ jdk_tables:
           image: "almalinux@sha256:1c718a4cd7bab3bdb069ddbbd1eb593a390e6932d51d0048a2f6556303bafba7"
           os: "AlmaLinux 9.4 (Seafoam Ocelot)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -1081,7 +1081,7 @@ jdk_tables:
           image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
           os: "AlmaLinux 8.10 (Cerulean Leopard)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -1094,7 +1094,7 @@ jdk_tables:
           image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
           os: "AlmaLinux 9.8 (Olive Jaguar)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -1226,7 +1226,7 @@ jdk_tables:
           image: "almalinux@sha256:1408146154a68b1dfd8bd62a8490f76b65f9e9fc8ec72f869ccab88f19591db7"
           os: "AlmaLinux 8.4 (Electric Cheetah)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -1363,7 +1363,7 @@ jdk_tables:
           image: "almalinux@sha256:1408146154a68b1dfd8bd62a8490f76b65f9e9fc8ec72f869ccab88f19591db7"
           os: "AlmaLinux 8.4 (Electric Cheetah)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -1640,7 +1640,7 @@ jdk_tables:
           image: "almalinux@sha256:49923f8fbbf1de90100b511c485bd3fc88b2f8f0ab6be67b8a30bf6eb48fb67b"
           os: "AlmaLinux 9.1 (Lime Lynx)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -1777,7 +1777,7 @@ jdk_tables:
           image: "almalinux@sha256:49923f8fbbf1de90100b511c485bd3fc88b2f8f0ab6be67b8a30bf6eb48fb67b"
           os: "AlmaLinux 9.1 (Lime Lynx)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -1909,7 +1909,7 @@ jdk_tables:
           image: "almalinux@sha256:49923f8fbbf1de90100b511c485bd3fc88b2f8f0ab6be67b8a30bf6eb48fb67b"
           os: "AlmaLinux 9.1 (Lime Lynx)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -2041,7 +2041,7 @@ jdk_tables:
           image: "almalinux@sha256:1c718a4cd7bab3bdb069ddbbd1eb593a390e6932d51d0048a2f6556303bafba7"
           os: "AlmaLinux 9.4 (Seafoam Ocelot)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -2178,7 +2178,7 @@ jdk_tables:
           image: "almalinux@sha256:1c718a4cd7bab3bdb069ddbbd1eb593a390e6932d51d0048a2f6556303bafba7"
           os: "AlmaLinux 9.4 (Seafoam Ocelot)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -2310,7 +2310,7 @@ jdk_tables:
           image: "almalinux@sha256:1c718a4cd7bab3bdb069ddbbd1eb593a390e6932d51d0048a2f6556303bafba7"
           os: "AlmaLinux 9.4 (Seafoam Ocelot)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -2442,7 +2442,7 @@ jdk_tables:
           image: "almalinux@sha256:995c8b08af9f7b7bce0f3f1d1559378261c5b29c4b8c6f77b4860833a0e7cbc7"
           os: "AlmaLinux 9.6 (Sage Margay)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -2579,7 +2579,7 @@ jdk_tables:
           image: "almalinux@sha256:995c8b08af9f7b7bce0f3f1d1559378261c5b29c4b8c6f77b4860833a0e7cbc7"
           os: "AlmaLinux 9.6 (Sage Margay)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -2711,7 +2711,7 @@ jdk_tables:
           image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
           os: "AlmaLinux 9.7 (Moss Jungle Cat)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -2848,7 +2848,7 @@ jdk_tables:
           image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
           os: "AlmaLinux 9.7 (Moss Jungle Cat)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -3111,7 +3111,7 @@ jdk_tables:
           image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
           os: "Debian GNU/Linux 13 (trixie)"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -3243,7 +3243,7 @@ jdk_tables:
           image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
           os: "Ubuntu 16.04.7 LTS"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -3510,7 +3510,7 @@ jdk_tables:
           image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
           os: "Ubuntu 20.04.6 LTS"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -3641,7 +3641,7 @@ jdk_tables:
           image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
           os: "Ubuntu 20.04.6 LTS"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -3772,7 +3772,7 @@ jdk_tables:
           image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
           os: "Ubuntu 20.04.6 LTS"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -4052,7 +4052,7 @@ jdk_tables:
           image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
           os: "Ubuntu 22.04.5 LTS"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -4196,7 +4196,7 @@ jdk_tables:
           image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
           os: "Ubuntu 22.04.5 LTS"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -4340,7 +4340,7 @@ jdk_tables:
           image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
           os: "Ubuntu 22.04.5 LTS"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -4353,7 +4353,7 @@ jdk_tables:
           image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
           os: "Ubuntu 24.04.5 LTS"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
@@ -4484,12 +4484,25 @@ jdk_tables:
     upstream: "25.0.5.0.3+1"
     builds:
       - package: openjdk-25-jre-headless
+        version: "25.0.5.0.3+1-1~22.04.1"
+        source:
+          image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+          os: "Ubuntu 22.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+          note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 25.0.5.0.3+1-1-22.04.1-Ubuntu"
+      - package: openjdk-25-jre-headless
         version: "25.0.5.0.3+1-1~24.04.1"
         source:
           image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
           os: "Ubuntu 24.04.5 LTS"
           method: reported-by-software
-          verified-by-handshake: false
+          verified-by-handshake: true
           items:
             dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
             disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }

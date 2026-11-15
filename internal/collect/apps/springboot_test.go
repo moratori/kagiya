@@ -252,7 +252,7 @@ func TestSpringBootWithoutLaunchDefinition(t *testing.T) {
 	}
 	// JDK が 2 つ（21 と 25）: 暗号スイートは同じなので確定。鍵交換のグループは違う（25 は X25519MLKEM768 を受け入れる）ので「不明」
 	_, inv = sbCollect(t, sbHost{config: conf, jdks: []model.Package{pkgJava21Ubu, pkgDeb25}})
-	checkSuites(t, sbEff(t, inv, "tls.ciphers"), 21, tcBoth12, "medium")
+	checkSuites(t, sbEff(t, inv, "tls.ciphers"), 21, tcBoth12, "high")
 	g := sbEff(t, inv, "tls.groups")
 	if g.Status != "unresolved" || !strings.Contains(g.Reason, sbJava21) || !strings.Contains(g.Reason, jdkDeb25Home) {
 		t.Errorf("groups = %+v", g)

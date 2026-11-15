@@ -112,18 +112,25 @@ func TestConfidenceNothingAccepted(t *testing.T) {
 	}
 }
 
-// JDK の表は、項目によって裏付けが違う。暗号スイートとプロトコルは JDK 自身の報告（アプリのサーバーの数え上げで確かめた版だけ、裏付けあり）、
-// グループは JDK 単体の数え上げ。Debian 13 の JDK 25 は、アプリのサーバーでは確かめていない。
+// JDK の表の暗号スイートとプロトコルは、JDK 自身の報告で作る。その版の JDK の TLS サーバーへの数え上げ（または、その JDK の上で動かした
+// アプリのサーバーの数え上げ）と一致した版だけ、裏付けありになる。グループは、JDK 単体の数え上げで得ている。
 func TestConfidenceJDKTableItems(t *testing.T) {
+	// Debian 13 の JDK 25: 数え上げで裏付けた版。どの項目も「高」
 	sec := jdkDeb25Home + "/conf/security/java.security"
 	_, inv := collect(t, "", jdkHost(t, map[string]string{sec: "security.provider.1=SUN\n" + jdkUpstreamDisabled}, pkgDeb25))
-	if e := jdkEff(t, inv, "tls.ciphers", jdkDeb25Home); e.Status != "resolved" || e.Confidence != "medium" {
-		t.Errorf("ciphers = %s %s", e.Status, e.Confidence)
+	for _, param := range []string{"tls.ciphers", "tls.protocols", "tls.groups"} {
+		if e := jdkEff(t, inv, param, jdkDeb25Home); e.Status != "resolved" || e.Confidence != "high" {
+			t.Errorf("verified build: %s = %s %s", param, e.Status, e.Confidence)
+		}
 	}
-	if e := jdkEff(t, inv, "tls.protocols", jdkDeb25Home); e.Confidence != "medium" {
-		t.Errorf("protocols = %s", e.Confidence)
-	}
-	if e := jdkEff(t, inv, "tls.groups", jdkDeb25Home); e.Status != "resolved" || e.Confidence != "high" {
-		t.Errorf("groups = %s %s", e.Status, e.Confidence)
+	// AlmaLinux 8 の Java 8（1.8.0.504.b01-1.1.el8）: 以前に測ったが、数え上げの記録が残っておらず、測り直せない版。
+	// 版は完全に一致するが、裏付けがないので「中」
+	home := "/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.504.b01-1.1.el8.aarch64"
+	pkg := model.Package{Manager: "rpm", Name: "java-1.8.0-openjdk-headless", Version: "1.8.0.504.b01", Release: "1.1.el8"}
+	_, inv = collect(t, "", jdkHost(t, map[string]string{home + "/jre/lib/security/java.security": jdk8Disabled}, pkg))
+	for _, param := range []string{"tls.ciphers", "tls.protocols"} {
+		if e := jdkEff(t, inv, param, home); e.Status != "resolved" || e.Confidence != "medium" {
+			t.Errorf("build without a record of enumeration: %s = %s %s", param, e.Status, e.Confidence)
+		}
 	}
 }
