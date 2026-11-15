@@ -3,6 +3,7 @@
 #
 # その版が知っている名前、既定で受け入れるグループ、指定の書き方の解釈は、版によって違う。パッケージ版ごとに実物で採取した値を持つ。
 #   syntax          : 指定の書き方。basic = 「:」区切りだけ。名前は大文字小文字を区別し、同じグループを2回書くと拒否される。
+#                     optional = 「:」区切りだけ。名前は大文字小文字を区別する。接頭辞は「?」（知らない名前なら無視）だけが使える。同じグループを2回書いてもよい。
 #                     extended = 「/」での区切り、接頭辞（? * -）、DEFAULT が使える。名前は大文字小文字を区別しない。
 #   measured_levels : セキュリティレベルごとの測定ができた最大のレベル。
 #   groups          : グループ。既定で受け入れるもの（default）を、既定の並びの順で先に置く。
@@ -230,6 +231,38 @@ group_tables:
       - {name: MLKEM768, aliases: "mlkem768", tls13: true, tls12: false, level: 4}
       - {name: MLKEM1024, tls13: true, tls12: false, level: 5}
   - library: openssl
+    upstream: "1.1.1g"
+    builds:
+      - package: openssl-libs
+        version: "1.1.1g-15.el8_3"
+        source:
+          image: "almalinux@sha256:1408146154a68b1dfd8bd62a8490f76b65f9e9fc8ec72f869ccab88f19591db7"
+          os: "AlmaLinux 8.4 (Electric Cheetah)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+    syntax: basic
+    measured_levels: 2
+    groups:
+      - {name: X25519, tls13: true, tls12: true, level: 2, default: true}
+      - {name: X448, tls13: true, tls12: true, level: 2, default: true}
+      - {name: P-256, aliases: "prime256v1", tls13: true, tls12: true, level: 2, default: true}
+      - {name: P-384, aliases: "secp384r1", tls13: true, tls12: true, level: 2, default: true}
+      - {name: P-521, aliases: "secp521r1", tls13: true, tls12: true, level: 2, default: true}
+      - {name: P-224, aliases: "secp224r1", tls13: true, tls12: true, level: 2}
+      - {name: secp256k1, tls13: true, tls12: true, level: 2}
+      - {name: K-283, tls13: false, tls12: false}
+      - {name: sect283k1, tls13: false, tls12: false}
+      - {name: B-283, tls13: false, tls12: false}
+      - {name: sect283r1, tls13: false, tls12: false}
+      - {name: K-409, tls13: false, tls12: false}
+      - {name: sect409k1, tls13: false, tls12: false}
+      - {name: K-571, tls13: false, tls12: false}
+      - {name: sect571k1, tls13: false, tls12: false}
+      - {name: brainpoolP256r1, tls13: false, tls12: false}
+      - {name: brainpoolP384r1, tls13: false, tls12: false}
+      - {name: brainpoolP512r1, tls13: false, tls12: false}
+  - library: openssl
     upstream: "3.5.8"
     builds:
       - package: openssl-libs
@@ -245,6 +278,150 @@ group_tables:
         source:
           image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
           os: "AlmaLinux 10.2 (Lavender Lion)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+    syntax: extended
+    measured_levels: 5
+    groups:
+      - {name: X25519MLKEM768, tls13: true, tls12: false, level: 4, default: true}
+      - {name: X25519, aliases: "x25519", tls13: true, tls12: true, level: 3, default: true}
+      - {name: P-256, aliases: "prime256v1 secp256r1", tls13: true, tls12: true, level: 3, default: true}
+      - {name: X448, aliases: "x448", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-384, aliases: "secp384r1", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-521, aliases: "secp521r1", tls13: true, tls12: true, level: 5, default: true}
+      - {name: ffdhe2048, tls13: true, tls12: false, level: 2, default: true}
+      - {name: ffdhe3072, tls13: true, tls12: false, level: 3, default: true}
+      - {name: P-224, aliases: "secp224r1", tls13: false, tls12: true}
+      - {name: secp256k1, tls13: false, tls12: true}
+      - {name: brainpoolP256r1, tls13: false, tls12: true}
+      - {name: brainpoolP384r1, tls13: false, tls12: true}
+      - {name: brainpoolP512r1, tls13: false, tls12: true}
+      - {name: brainpoolP256r1tls13, tls13: true, tls12: false, level: 3}
+      - {name: brainpoolP384r1tls13, tls13: true, tls12: false, level: 4}
+      - {name: brainpoolP512r1tls13, tls13: true, tls12: false, level: 5}
+      - {name: ffdhe4096, tls13: true, tls12: false, level: 3}
+      - {name: ffdhe6144, tls13: true, tls12: false, level: 3}
+      - {name: ffdhe8192, tls13: true, tls12: false, level: 4}
+      - {name: SecP256r1MLKEM768, tls13: true, tls12: false, level: 4}
+      - {name: SecP384r1MLKEM1024, tls13: true, tls12: false, level: 5}
+      - {name: MLKEM512, tls13: true, tls12: false, level: 3}
+      - {name: MLKEM768, aliases: "mlkem768", tls13: true, tls12: false, level: 4}
+      - {name: MLKEM1024, tls13: true, tls12: false, level: 5}
+  - library: openssl
+    upstream: "3.0.1"
+    builds:
+      - package: openssl-libs
+        version: "3.0.1-47.el9_1"
+        source:
+          image: "almalinux@sha256:49923f8fbbf1de90100b511c485bd3fc88b2f8f0ab6be67b8a30bf6eb48fb67b"
+          os: "AlmaLinux 9.1 (Lime Lynx)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+    syntax: basic
+    measured_levels: 5
+    groups:
+      - {name: X25519, aliases: "x25519", tls13: true, tls12: true, level: 3, default: true}
+      - {name: X448, aliases: "x448", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-256, aliases: "prime256v1 secp256r1", tls13: true, tls12: true, level: 3, default: true}
+      - {name: P-384, aliases: "secp384r1", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-521, aliases: "secp521r1", tls13: true, tls12: true, level: 5, default: true}
+      - {name: ffdhe2048, tls13: true, tls12: false, level: 2, default: true}
+      - {name: ffdhe3072, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe4096, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe6144, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe8192, tls13: true, tls12: false, level: 4, default: true}
+      - {name: P-224, aliases: "secp224r1", tls13: false, tls12: true}
+      - {name: secp256k1, tls13: false, tls12: true}
+      - {name: brainpoolP256r1, tls13: false, tls12: false}
+      - {name: brainpoolP384r1, tls13: false, tls12: false}
+      - {name: brainpoolP512r1, tls13: false, tls12: false}
+  - library: openssl
+    upstream: "3.0.7"
+    builds:
+      - package: openssl-libs
+        version: "3.0.7-28.el9_4"
+        source:
+          image: "almalinux@sha256:1c718a4cd7bab3bdb069ddbbd1eb593a390e6932d51d0048a2f6556303bafba7"
+          os: "AlmaLinux 9.4 (Seafoam Ocelot)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+    syntax: basic
+    measured_levels: 5
+    groups:
+      - {name: X25519, aliases: "x25519", tls13: true, tls12: true, level: 3, default: true}
+      - {name: X448, aliases: "x448", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-256, aliases: "prime256v1 secp256r1", tls13: true, tls12: true, level: 3, default: true}
+      - {name: P-384, aliases: "secp384r1", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-521, aliases: "secp521r1", tls13: true, tls12: true, level: 5, default: true}
+      - {name: ffdhe2048, tls13: true, tls12: false, level: 2, default: true}
+      - {name: ffdhe3072, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe4096, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe6144, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe8192, tls13: true, tls12: false, level: 4, default: true}
+      - {name: P-224, aliases: "secp224r1", tls13: false, tls12: true}
+      - {name: secp256k1, tls13: false, tls12: true}
+      - {name: brainpoolP256r1, tls13: false, tls12: true}
+      - {name: brainpoolP384r1, tls13: false, tls12: true}
+      - {name: brainpoolP512r1, tls13: false, tls12: true}
+  - library: openssl
+    upstream: "3.2.2"
+    builds:
+      - package: openssl-libs
+        version: "3.2.2-6.el9_5.1"
+        source:
+          image: "almalinux@sha256:995c8b08af9f7b7bce0f3f1d1559378261c5b29c4b8c6f77b4860833a0e7cbc7"
+          os: "AlmaLinux 9.6 (Sage Margay)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+      - package: openssl-libs
+        version: "3.2.2-16.el10_0.4.alma.1"
+        source:
+          image: "almalinux@sha256:32f37b0ffeba33dba04d08437f2ae86429cb5d8caa5f86c447c19ddc4b7e30d9"
+          os: "AlmaLinux 10.0 (Purple Lion)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+    syntax: optional
+    measured_levels: 5
+    groups:
+      - {name: X25519, aliases: "x25519", tls13: true, tls12: true, level: 3, default: true}
+      - {name: X448, aliases: "x448", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-256, aliases: "prime256v1 secp256r1", tls13: true, tls12: true, level: 3, default: true}
+      - {name: P-384, aliases: "secp384r1", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-521, aliases: "secp521r1", tls13: true, tls12: true, level: 5, default: true}
+      - {name: ffdhe2048, tls13: true, tls12: false, level: 2, default: true}
+      - {name: ffdhe3072, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe4096, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe6144, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe8192, tls13: true, tls12: false, level: 4, default: true}
+      - {name: P-224, aliases: "secp224r1", tls13: false, tls12: true}
+      - {name: secp256k1, tls13: false, tls12: true}
+      - {name: brainpoolP256r1, tls13: false, tls12: true}
+      - {name: brainpoolP384r1, tls13: false, tls12: true}
+      - {name: brainpoolP512r1, tls13: false, tls12: true}
+      - {name: brainpoolP256r1tls13, tls13: true, tls12: false, level: 3}
+      - {name: brainpoolP384r1tls13, tls13: true, tls12: false, level: 4}
+      - {name: brainpoolP512r1tls13, tls13: true, tls12: false, level: 5}
+  - library: openssl
+    upstream: "3.5.1"
+    builds:
+      - package: openssl-libs
+        version: "3.5.1-7.el9_7"
+        source:
+          image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
+          os: "AlmaLinux 9.7 (Moss Jungle Cat)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+      - package: openssl-libs
+        version: "3.5.1-7.el10_1.alma.1"
+        source:
+          image: "almalinux@sha256:5e1f19a1fc018dcb17f042411bff68c64cb06131ff1a71356d0be011f87c7baa"
+          os: "AlmaLinux 10.1 (Heliotrope Lion)"
           method: enumerated-by-handshake
           verified-by-handshake: true
           note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"

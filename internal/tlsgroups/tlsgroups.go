@@ -32,6 +32,9 @@ func Resolve(t *ruleset.GroupTable, spec string) (Result, error) {
 		return Result{}, ErrInvalid
 	}
 	extended := t.Syntax == ruleset.GroupSyntaxExtended
+	// 「?」（知らない名前なら無視）だけが使える版。「?」の後ろは、そのまま名前として扱う
+	optionalOnly := t.Syntax == ruleset.GroupSyntaxOptional
+	repeatable := extended || optionalOnly // 同じグループを2回書いてもよい（2回目は無視される）
 	key := func(n string) string {
 		if extended {
 			return strings.ToLower(n) // この版は大文字小文字を区別しない
@@ -89,6 +92,9 @@ func Resolve(t *ruleset.GroupTable, spec string) (Result, error) {
 					}
 					continue
 				}
+			} else if optionalOnly && strings.HasPrefix(item, "?") {
+				optional = true
+				item = item[1:]
 			}
 			i, known := byName[key(item)]
 			switch {
@@ -108,7 +114,7 @@ func Resolve(t *ruleset.GroupTable, spec string) (Result, error) {
 						}
 					}
 				}
-			case in[i] && !extended:
+			case in[i] && !repeatable:
 				return Result{}, ErrInvalid // 同じグループを2回書くと拒否される
 			default:
 				add(i)

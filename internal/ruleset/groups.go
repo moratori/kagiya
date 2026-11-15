@@ -21,7 +21,9 @@ type Group struct {
 
 // グループの指定の書き方。
 const (
-	GroupSyntaxBasic    = "basic"    // 「:」区切りだけ。名前は大文字小文字を区別し、同じグループを2回書くと拒否される
+	GroupSyntaxBasic = "basic" // 「:」区切りだけ。名前は大文字小文字を区別し、同じグループを2回書くと拒否される
+	// 「:」区切りだけ。名前は大文字小文字を区別する。接頭辞は「?」（知らない名前なら無視）だけが使える。同じグループを2回書いてもよい
+	GroupSyntaxOptional = "optional"
 	GroupSyntaxExtended = "extended" // 「/」での区切り、接頭辞（? * -）、DEFAULT が使える。名前は大文字小文字を区別しない
 )
 
@@ -47,7 +49,7 @@ func (rs *RuleSet) addGroupTable(t *GroupTable, ids map[string]bool) error {
 	if err := checkBuilds("group", t.Library, t.Upstream, t.Builds, ids); err != nil {
 		return fmt.Errorf("%s: %w", where, err)
 	}
-	if t.Syntax != GroupSyntaxBasic && t.Syntax != GroupSyntaxExtended {
+	if t.Syntax != GroupSyntaxBasic && t.Syntax != GroupSyntaxOptional && t.Syntax != GroupSyntaxExtended {
 		return fmt.Errorf("%s: unknown syntax %q", where, t.Syntax)
 	}
 	if t.MeasuredLevels < 0 || t.MeasuredLevels > 5 {
