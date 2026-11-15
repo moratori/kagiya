@@ -164,6 +164,79 @@ func TestParseLegacyForm(t *testing.T) {
 	}
 }
 
+// 管理用の待ち受け（management-interfaces）。検証ラボで、WildFly 42.0.0.Final と 24.0.1.Final に、管理用のコマンドで TLS を設定したときの形
+// （lab/out/tlsapp/wildfly-mgmt）を、関わる部分だけに縮めたもの。native-interface と、古い書き方の socket 要素は、スキーマにある形。
+const managementForm = `<?xml version="1.0" encoding="UTF-8"?>
+<server xmlns="urn:jboss:domain:community:20.0">
+    <management>
+        <management-interfaces>
+            <http-interface http-authentication-factory="management-http-authentication" ssl-context="labSSC" security-realm="ManagementRealm" console-enabled="true">
+                <http-upgrade enabled="true" sasl-authentication-factory="management-sasl-authentication"/>
+                <socket-binding http="management-http" https="management-https"/>
+            </http-interface>
+            <native-interface ssl-context="nativeSSC">
+                <socket-binding native="management-native"/>
+            </native-interface>
+        </management-interfaces>
+    </management>
+    <profile>
+        <subsystem xmlns="urn:example:other:1.0">
+            <management-interfaces>
+                <http-interface ssl-context="fake"><socket-binding https="fake"/></http-interface>
+            </management-interfaces>
+        </subsystem>
+    </profile>
+    <socket-binding-group name="standard-sockets" default-interface="public">
+        <socket-binding name="management-http" interface="management" port="${jboss.management.http.port:9990}"/>
+        <socket-binding name="management-https" interface="management" port="${jboss.management.https.port:9993}"/>
+    </socket-binding-group>
+</server>
+`
+
+func TestParseManagementInterfaces(t *testing.T) {
+	f, err := Parse([]byte(managementForm))
+	if err != nil || len(f.Problems) != 0 {
+		t.Fatalf("err=%v problems=%v", err, f.Problems)
+	}
+	if len(f.Management) != 2 {
+		t.Fatalf("management interfaces = %+v (only those under server/management are taken)", f.Management)
+	}
+	h := f.Management[0]
+	if h.Kind != "http-interface" || h.Line != 5 || h.Attr["ssl-context"].Value != "labSSC" || h.Attr["ssl-context"].Line != 5 || h.Attr["security-realm"].Value != "ManagementRealm" ||
+		h.Binding["http"].Value != "management-http" || h.Binding["https"].Value != "management-https" || h.Binding["https"].Line != 7 || h.Socket {
+		t.Errorf("http-interface = %+v", h)
+	}
+	for _, name := range []string{"console-enabled", "http-authentication-factory"} {
+		if _, ok := h.Attr[name]; ok {
+			t.Errorf("an attribute that is not in the list is taken: %s", name)
+		}
+	}
+	n := f.Management[1]
+	if n.Kind != "native-interface" || n.Attr["ssl-context"].Value != "nativeSSC" || n.Binding["native"].Value != "management-native" || n.Line != 9 {
+		t.Errorf("native-interface = %+v", n)
+	}
+	if len(f.SocketBindings) != 2 || f.SocketBindings[1].Name != "management-https" || f.SocketBindings[1].Port != "${jboss.management.https.port:9993}" {
+		t.Errorf("socket bindings = %+v", f.SocketBindings)
+	}
+
+	// 配布物のままの形（TLS の設定も、TLS 用のソケットもない）
+	f, err = Parse([]byte(elytronForm))
+	if err != nil || len(f.Management) != 1 {
+		t.Fatalf("err=%v management=%+v", err, f.Management)
+	}
+	if d := f.Management[0]; d.Kind != "http-interface" || len(d.Attr) != 0 || d.Binding["http"].Value != "management-http" || d.Binding["https"].Value != "" {
+		t.Errorf("default http-interface = %+v", d)
+	}
+
+	// 古い書き方（socket 要素に、interface と port を直接書く）は、あることだけを残す
+	f, err = Parse([]byte(`<server xmlns="urn:jboss:domain:17.0"><management><management-interfaces>
+<http-interface security-realm="ManagementRealm"><socket interface="management" port="9990" secure-port="9993"/></http-interface>
+</management-interfaces></management></server>`))
+	if err != nil || len(f.Management) != 1 || !f.Management[0].Socket || len(f.Management[0].Binding) != 0 {
+		t.Errorf("socket form: err=%v management=%+v", err, f.Management)
+	}
+}
+
 func TestParseRejectsAndProblems(t *testing.T) {
 	for name, text := range map[string]string{
 		"not xml":    "this is not xml <",
@@ -204,13 +277,14 @@ func TestParseRejectsAndProblems(t *testing.T) {
 func FuzzParse(f *testing.F) {
 	f.Add([]byte(elytronForm))
 	f.Add([]byte(legacyForm))
+	f.Add([]byte(managementForm))
 	f.Add([]byte(`<server><profile><subsystem xmlns="urn:wildfly:elytron:1.0"><tls><key-stores><key-store><file/></key-store></key-stores></tls></subsystem></profile></server>`))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		file, err := Parse(data)
 		if err != nil {
 			return
 		}
-		if len(file.Listeners) > 1024 || len(file.SSLContexts) > 1024 || len(file.KeyStores) > 1024 || len(file.Realms) > 1024 || len(file.SocketBindings) > 1024 {
+		if len(file.Listeners) > 1024 || len(file.SSLContexts) > 1024 || len(file.KeyStores) > 1024 || len(file.Realms) > 1024 || len(file.SocketBindings) > 1024 || len(file.Management) > 1024 {
 			t.Fatal("too many elements are kept")
 		}
 	})
