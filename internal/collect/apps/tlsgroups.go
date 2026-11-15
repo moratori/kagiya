@@ -101,10 +101,13 @@ func (g *groupResolver) resolve(sc tlsScope, level int, levelStep model.Resoluti
 	spec := ""
 	appDefault := strings.Join(g.defs[model.ParamTLSGroups], ",")
 	// その版のアプリは、グループを自分では決めず、OpenSSL のシステム既定のままにする（ルールの値「@system」。古い MySQL など）。
-	// 値は、下の「システムの設定 → ライブラリの既定」の順で求める。そう決めた根拠はルールのこの項目なので、確度の材料に加える
+	// 値は、下の「システムの設定 → ライブラリの既定」の順で求める
 	followsSystem := appDefault == ruleSystemDefault
 	if followsSystem {
 		appDefault = ""
+	}
+	if followsSystem && sc.groups == "" {
+		// 設定に記載がなく、システムの既定に従うと決めた根拠は、ルールのこの項目。確度の材料に加える（設定に記載があれば、この項目は使わない）
 		use(model.ParamTLSGroups)
 		if g.appNote != "" {
 			notes = append(notes, g.appNote)
