@@ -53,27 +53,16 @@
           - 30m
           - --label
           - "inventory_hostname={{ inventory_hostname }}"
+      register: kagiya_scan   # 標準出力は、結果のファイルのパス（1 行）
       changed_when: true
-
-    - name: 結果のファイルを探す
-      ansible.builtin.find:
-        paths: "{{ kagiya_output_dir }}"
-        patterns: "kagiya-*.json"
-      register: kagiya_results
 
     - name: 結果を管理サーバーに集める
       ansible.builtin.fetch:
-        src: "{{ item.path }}"
+        src: "{{ kagiya_scan.stdout }}"
         dest: "{{ collect_dir }}/{{ inventory_hostname }}/"
         flat: true
-      loop: "{{ kagiya_results.files }}"
-      loop_control:
-        label: "{{ item.path | basename }}"
 
     - name: 集め終えた結果を、サーバーから消す
       ansible.builtin.file:
-        path: "{{ item.path }}"
+        path: "{{ kagiya_scan.stdout }}"
         state: absent
-      loop: "{{ kagiya_results.files }}"
-      loop_control:
-        label: "{{ item.path | basename }}"

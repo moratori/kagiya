@@ -19,10 +19,11 @@ ROOTS=/etc
 [ -d /usr/share/ca-certificates ] && ROOTS=/etc,/usr/share/ca-certificates
 
 # 1. 通常のスキャン
-"$K" scan --roots "$ROOTS" --output-dir "$W/out" --log-dir "$W/logs" --cpu-limit 100 --io-limit 0
+"$K" scan --roots "$ROOTS" --output-dir "$W/out" --log-dir "$W/logs" --cpu-limit 100 --io-limit 0 >"$W/stdout1"
 check "scan が正常終了する" "[ $? -eq 0 ]"
 R=$(ls "$W"/out/*.json 2>/dev/null | head -1)
 check "結果ファイルができる" "[ -n \"$R\" ]"
+check "標準出力は、結果ファイルのパスの 1 行だけ" "[ \"\$(cat \"$W/stdout1\")\" = \"$R\" ] && [ \"\$(wc -l <\"$W/stdout1\")\" -eq 1 ]"
 sed -n '/"hardening"/,/}/p' "$R"
 check "優先度が下がっている"         "grep -q '\"priority_lowered\": true' \"$R\""
 check "コアダンプが無効化されている" "grep -q '\"core_dump_disabled\": true' \"$R\""

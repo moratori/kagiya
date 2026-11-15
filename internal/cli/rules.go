@@ -95,7 +95,9 @@ func rulesExport(dir string, stdout, stderr io.Writer) int {
 			return exitFatal
 		}
 	}
-	fmt.Fprintf(stdout, "wrote %d rule files to %s\n", len(files), abs)
+	// 標準出力には、書いた場所だけを出す（scan と同じ決まり）
+	fmt.Fprintln(stdout, abs)
+	fmt.Fprintf(stderr, "kagiya: %d rule files; directory: %s\n", len(files), abs)
 	return exitOK
 }
 

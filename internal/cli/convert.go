@@ -76,10 +76,10 @@ func runConvert(args []string, stdout, stderr io.Writer) int {
 	if err := w.Commit(); err != nil {
 		return fatal(err)
 	}
-	if *to == "cbom" {
-		fmt.Fprintf(stdout, "wrote %s\n", w.Path())
-	} else {
-		fmt.Fprintf(stdout, "wrote %s (%d rows)\n", w.Path(), len(inv.Occurrences))
+	// 標準出力には、書いたファイルのパスだけを出す（scan と同じ決まり）
+	fmt.Fprintln(stdout, w.Path())
+	if *to == "csv" {
+		fmt.Fprintf(stderr, "kagiya: %d rows; result: %s\n", len(inv.Occurrences), w.Path())
 	}
 	return exitOK
 }

@@ -99,6 +99,7 @@ func runReport(args []string, stdout, stderr io.Writer) int {
 	if err := w.Commit(); err != nil {
 		return fatal(err)
 	}
-	fmt.Fprintf(stdout, "wrote %s\n", w.Path())
+	// 標準出力には、書いたファイルのパスだけを出す（scan と同じ決まり）
+	fmt.Fprintln(stdout, w.Path())
 	return exitOK
 }

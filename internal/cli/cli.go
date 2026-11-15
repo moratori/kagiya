@@ -54,7 +54,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	}
 	switch args[0] {
 	case "scan":
-		return runScan(args[1:], stderr)
+		return runScan(args[1:], stdout, stderr)
 	case "rules":
 		return runRules(args[1:], stdout, stderr)
 	case "convert":

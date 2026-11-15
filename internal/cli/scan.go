@@ -163,7 +163,7 @@ func parseScanOptions(args []string, stderr io.Writer) (*scanOptions, error) {
 	return o, nil
 }
 
-func runScan(args []string, stderr io.Writer) int {
+func runScan(args []string, stdout, stderr io.Writer) int {
 	opts, err := parseScanOptions(args, stderr)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -469,6 +469,12 @@ func runScan(args []string, stderr io.Writer) int {
 		logErr = err
 	}
 
+	// 結果のファイルを書けたら、そのパスだけを標準出力に 1 行で出す（呼び出した側が、次の処理にそのまま渡せるように）。
+	// 途中までの結果でも出す（完了したかどうかは、終了コードと、結果の meta.completed で分かる）。ログを確定した後に出すのは、
+	// 標準出力の受け手がいなくなっていた場合（書くとプロセスが止まる）にも、結果とログを残すため
+	if werr == nil {
+		fmt.Fprintln(stdout, resultPath)
+	}
 	switch {
 	case werr != nil:
 		return fatal(werr)
