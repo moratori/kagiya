@@ -1,9 +1,9 @@
 {
   "schema": "kagiya-inventory/v0",
   "meta": {
-    "scan_id": "f21bf229b40c102ba378203a76934c7b",
-    "started_at": "2026-11-14T16:33:52Z",
-    "finished_at": "2026-11-14T16:33:53Z",
+    "scan_id": "fc0691bcad231a260895941976ab45d6",
+    "started_at": "2026-11-15T02:25:54Z",
+    "finished_at": "2026-11-15T02:25:54Z",
     "completed": true,
     "tool": {
       "version": "0.0.0-dev"
@@ -11,10 +11,10 @@
     "rules": {
       "source": "builtin",
       "version": "2026.11.0",
-      "sha256": "e82c53a0d0d6089a01482ee24c2c190405de73efdd2d83532eafe03787336235"
+      "sha256": "88ebab1787c2b405fc822f14cca1495b7d4618230a9251d4adceff22a239be88"
     },
     "host": {
-      "hostname": "de9fd42ecc48",
+      "hostname": "c7dd731e2ba0",
       "os": "linux",
       "arch": "arm64",
       "distribution": {
@@ -2471,6 +2471,25 @@
       }
     },
     {
+      "id": "cert:sha256:499b9397703e3e89493d5f64ce54d15ce516e65bc0828db5fd699a4d9693e947",
+      "type": "certificate",
+      "certificate": {
+        "subject": "CN=www.lab.test, O=Lab",
+        "issuer": "CN=www.lab.test, O=Lab",
+        "serial": "22e5581ba8eb2ffb550a11b1a492e1e96693b8ea",
+        "not_before": "2026-11-15T02:25:54Z",
+        "not_after": "2026-12-05T02:25:54Z",
+        "is_ca": true,
+        "self_signed": true,
+        "signature_algorithm": "alg:ecdsa-with-sha256",
+        "public_key": {
+          "algorithm": "alg:ec-p256",
+          "fingerprint_sha256": "80d134f4c415fed89a7533314affe4bd2f29b1c31dd563cb63199ade8de92077"
+        },
+        "fingerprint_sha256": "499b9397703e3e89493d5f64ce54d15ce516e65bc0828db5fd699a4d9693e947"
+      }
+    },
+    {
       "id": "cert:sha256:49e7a442acf0ea6287050054b52564b650e4f49e42e348d6aa38e039e957b1c1",
       "type": "certificate",
       "certificate": {
@@ -4675,25 +4694,6 @@
       }
     },
     {
-      "id": "cert:sha256:90217fac0348ac80323c8cd5aa576f7417dbefe47eb8442c51c661630c210d3f",
-      "type": "certificate",
-      "certificate": {
-        "subject": "CN=www.lab.test, O=Lab",
-        "issuer": "CN=www.lab.test, O=Lab",
-        "serial": "541eb6248d495281948787ea2dee4bd1e47046e3",
-        "not_before": "2026-11-14T16:33:52Z",
-        "not_after": "2027-12-19T16:33:52Z",
-        "is_ca": true,
-        "self_signed": true,
-        "signature_algorithm": "alg:sha256-with-rsa",
-        "public_key": {
-          "algorithm": "alg:rsa-2048",
-          "fingerprint_sha256": "044f97ec80038716372d5d9fc07f5c21e3bd92c9b8a016d85783556f8e2d67a3"
-        },
-        "fingerprint_sha256": "90217fac0348ac80323c8cd5aa576f7417dbefe47eb8442c51c661630c210d3f"
-      }
-    },
-    {
       "id": "cert:sha256:90370d3efa88bf58c30105ba25104a358460a7fa52dfc2011df233a0f417912a",
       "type": "certificate",
       "certificate": {
@@ -4824,6 +4824,25 @@
           "fingerprint_sha256": "497128fc90656b87290482b223efb72240fe9c421e79938de5f8110cb0be9056"
         },
         "fingerprint_sha256": "945bbc825ea554f489d1fd51a73ddf2ea624ac7019a05205225c22a78ccfa8b4"
+      }
+    },
+    {
+      "id": "cert:sha256:957b7b92306d74b3b00152baacb777de026680c99303c70e7ec974f1f3b2ea22",
+      "type": "certificate",
+      "certificate": {
+        "subject": "CN=www.lab.test, O=Lab",
+        "issuer": "CN=www.lab.test, O=Lab",
+        "serial": "4e555a6490f1a4d57b9308e7380c317b4496dde6",
+        "not_before": "2026-11-15T02:25:54Z",
+        "not_after": "2027-12-20T02:25:54Z",
+        "is_ca": true,
+        "self_signed": true,
+        "signature_algorithm": "alg:sha256-with-rsa",
+        "public_key": {
+          "algorithm": "alg:rsa-2048",
+          "fingerprint_sha256": "9c6f9284615114f1d5f1bc05f922a8323ab6bdebb46fd7a04d7c42362a0f9481"
+        },
+        "fingerprint_sha256": "957b7b92306d74b3b00152baacb777de026680c99303c70e7ec974f1f3b2ea22"
       }
     },
     {
@@ -7392,25 +7411,6 @@
       }
     },
     {
-      "id": "cert:sha256:ed6c0c233017a31409ce801e2d58e4a3d0c0cca010e8607378660db46a4221cc",
-      "type": "certificate",
-      "certificate": {
-        "subject": "CN=www.lab.test, O=Lab",
-        "issuer": "CN=www.lab.test, O=Lab",
-        "serial": "72e9a3289f3c59cd0018f28d088527d17ad1e83f",
-        "not_before": "2026-11-14T16:33:52Z",
-        "not_after": "2026-12-04T16:33:52Z",
-        "is_ca": true,
-        "self_signed": true,
-        "signature_algorithm": "alg:ecdsa-with-sha256",
-        "public_key": {
-          "algorithm": "alg:ec-p256",
-          "fingerprint_sha256": "f33e040b63a78373722e4b1dc6950ee08e1a3c1e9ab48cca34de4286428c637c"
-        },
-        "fingerprint_sha256": "ed6c0c233017a31409ce801e2d58e4a3d0c0cca010e8607378660db46a4221cc"
-      }
-    },
-    {
       "id": "cert:sha256:edf7ebbca27a2a384d387b7d4010c666e2edb4843e4c29b4ae1d5b9332e6b24d",
       "type": "certificate",
       "certificate": {
@@ -7924,81 +7924,81 @@
       }
     },
     {
-      "id": "key:private:spki-sha256:044f97ec80038716372d5d9fc07f5c21e3bd92c9b8a016d85783556f8e2d67a3",
+      "id": "key:private:spki-sha256:2042a1bfa5e8252dbf069d5b65f50c0d5d1b2d9e82ac35e8e67e65e7470e2c3c",
+      "type": "private-key",
+      "key": {
+        "algorithm": "alg:ed25519",
+        "public_fingerprint_sha256": "2042a1bfa5e8252dbf069d5b65f50c0d5d1b2d9e82ac35e8e67e65e7470e2c3c",
+        "ssh_fingerprint": "SHA256:nOdy8YodMYoz/1GYpOVKKYvTUIti4LqTkBk6ohVze0w"
+      }
+    },
+    {
+      "id": "key:private:spki-sha256:248bc8ba07bd8fa6023fbb6528e9692755cba6fdc403fe0160f3d7caaa99faee",
+      "type": "private-key",
+      "key": {
+        "algorithm": "alg:rsa-3072",
+        "public_fingerprint_sha256": "248bc8ba07bd8fa6023fbb6528e9692755cba6fdc403fe0160f3d7caaa99faee",
+        "ssh_fingerprint": "SHA256:W4ZpoBrMQ9K1XpE3PcUHWk5c0GXxUYiTwVtrGXv6mLY"
+      }
+    },
+    {
+      "id": "key:private:spki-sha256:726c7349414ef4b965f061f0bc884ded5236ca7b2ff601d1464f086204006b4f",
+      "type": "private-key",
+      "key": {
+        "algorithm": "alg:ec-p256",
+        "public_fingerprint_sha256": "726c7349414ef4b965f061f0bc884ded5236ca7b2ff601d1464f086204006b4f",
+        "ssh_fingerprint": "SHA256:M1usGideAJynzxR1mgID8AbNLGpcYx8Y8LaqfGV3k90"
+      }
+    },
+    {
+      "id": "key:private:spki-sha256:80d134f4c415fed89a7533314affe4bd2f29b1c31dd563cb63199ade8de92077",
+      "type": "private-key",
+      "key": {
+        "algorithm": "alg:ec-p256",
+        "public_fingerprint_sha256": "80d134f4c415fed89a7533314affe4bd2f29b1c31dd563cb63199ade8de92077"
+      }
+    },
+    {
+      "id": "key:private:spki-sha256:9c6f9284615114f1d5f1bc05f922a8323ab6bdebb46fd7a04d7c42362a0f9481",
       "type": "private-key",
       "key": {
         "algorithm": "alg:rsa-2048",
-        "public_fingerprint_sha256": "044f97ec80038716372d5d9fc07f5c21e3bd92c9b8a016d85783556f8e2d67a3"
+        "public_fingerprint_sha256": "9c6f9284615114f1d5f1bc05f922a8323ab6bdebb46fd7a04d7c42362a0f9481"
       }
     },
     {
-      "id": "key:private:spki-sha256:4292e8745712a59ff8505f2b08015f92f5ffc49d0560580209932dc997169843",
+      "id": "key:private:spki-sha256:e22ac35c4ebe08f6dee5fe631a94a6fd409afd2a8aab456f4776e342696b3443",
       "type": "private-key",
       "key": {
         "algorithm": "alg:rsa-1024",
-        "public_fingerprint_sha256": "4292e8745712a59ff8505f2b08015f92f5ffc49d0560580209932dc997169843"
+        "public_fingerprint_sha256": "e22ac35c4ebe08f6dee5fe631a94a6fd409afd2a8aab456f4776e342696b3443"
       }
     },
     {
-      "id": "key:private:spki-sha256:c5dbd88b9295c6176b97b0338e1dc0da1777302189edb4bcbfc92c8ef73bf42a",
-      "type": "private-key",
-      "key": {
-        "algorithm": "alg:rsa-3072",
-        "public_fingerprint_sha256": "c5dbd88b9295c6176b97b0338e1dc0da1777302189edb4bcbfc92c8ef73bf42a",
-        "ssh_fingerprint": "SHA256:htjglT6Ox8QzdjhupqAH1v3FnH07L9XJF5GFpgqc648"
-      }
-    },
-    {
-      "id": "key:private:spki-sha256:cdf83c7e079610f294933f1ec02afdb09e161a53945a33a18156f10cc42622f1",
-      "type": "private-key",
-      "key": {
-        "algorithm": "alg:ec-p256",
-        "public_fingerprint_sha256": "cdf83c7e079610f294933f1ec02afdb09e161a53945a33a18156f10cc42622f1",
-        "ssh_fingerprint": "SHA256:k73ZoKDn2J3M2pGBU0I+M0VBnwCqAH0iNGE3VYTyQWk"
-      }
-    },
-    {
-      "id": "key:private:spki-sha256:e7d94723835e2df8a62421c7c6e67a91d6d058b76fc76dfda3b9d928b7183120",
-      "type": "private-key",
-      "key": {
-        "algorithm": "alg:ed25519",
-        "public_fingerprint_sha256": "e7d94723835e2df8a62421c7c6e67a91d6d058b76fc76dfda3b9d928b7183120",
-        "ssh_fingerprint": "SHA256:YLHdysiy1+PDgUTM8Wrmp8KnzWYZhRp8Ks7XfyU7Z1Q"
-      }
-    },
-    {
-      "id": "key:private:spki-sha256:f33e040b63a78373722e4b1dc6950ee08e1a3c1e9ab48cca34de4286428c637c",
-      "type": "private-key",
-      "key": {
-        "algorithm": "alg:ec-p256",
-        "public_fingerprint_sha256": "f33e040b63a78373722e4b1dc6950ee08e1a3c1e9ab48cca34de4286428c637c"
-      }
-    },
-    {
-      "id": "key:public:spki-sha256:c5dbd88b9295c6176b97b0338e1dc0da1777302189edb4bcbfc92c8ef73bf42a",
-      "type": "public-key",
-      "key": {
-        "algorithm": "alg:rsa-3072",
-        "public_fingerprint_sha256": "c5dbd88b9295c6176b97b0338e1dc0da1777302189edb4bcbfc92c8ef73bf42a",
-        "ssh_fingerprint": "SHA256:htjglT6Ox8QzdjhupqAH1v3FnH07L9XJF5GFpgqc648"
-      }
-    },
-    {
-      "id": "key:public:spki-sha256:cdf83c7e079610f294933f1ec02afdb09e161a53945a33a18156f10cc42622f1",
-      "type": "public-key",
-      "key": {
-        "algorithm": "alg:ec-p256",
-        "public_fingerprint_sha256": "cdf83c7e079610f294933f1ec02afdb09e161a53945a33a18156f10cc42622f1",
-        "ssh_fingerprint": "SHA256:k73ZoKDn2J3M2pGBU0I+M0VBnwCqAH0iNGE3VYTyQWk"
-      }
-    },
-    {
-      "id": "key:public:spki-sha256:e7d94723835e2df8a62421c7c6e67a91d6d058b76fc76dfda3b9d928b7183120",
+      "id": "key:public:spki-sha256:2042a1bfa5e8252dbf069d5b65f50c0d5d1b2d9e82ac35e8e67e65e7470e2c3c",
       "type": "public-key",
       "key": {
         "algorithm": "alg:ed25519",
-        "public_fingerprint_sha256": "e7d94723835e2df8a62421c7c6e67a91d6d058b76fc76dfda3b9d928b7183120",
-        "ssh_fingerprint": "SHA256:YLHdysiy1+PDgUTM8Wrmp8KnzWYZhRp8Ks7XfyU7Z1Q"
+        "public_fingerprint_sha256": "2042a1bfa5e8252dbf069d5b65f50c0d5d1b2d9e82ac35e8e67e65e7470e2c3c",
+        "ssh_fingerprint": "SHA256:nOdy8YodMYoz/1GYpOVKKYvTUIti4LqTkBk6ohVze0w"
+      }
+    },
+    {
+      "id": "key:public:spki-sha256:248bc8ba07bd8fa6023fbb6528e9692755cba6fdc403fe0160f3d7caaa99faee",
+      "type": "public-key",
+      "key": {
+        "algorithm": "alg:rsa-3072",
+        "public_fingerprint_sha256": "248bc8ba07bd8fa6023fbb6528e9692755cba6fdc403fe0160f3d7caaa99faee",
+        "ssh_fingerprint": "SHA256:W4ZpoBrMQ9K1XpE3PcUHWk5c0GXxUYiTwVtrGXv6mLY"
+      }
+    },
+    {
+      "id": "key:public:spki-sha256:726c7349414ef4b965f061f0bc884ded5236ca7b2ff601d1464f086204006b4f",
+      "type": "public-key",
+      "key": {
+        "algorithm": "alg:ec-p256",
+        "public_fingerprint_sha256": "726c7349414ef4b965f061f0bc884ded5236ca7b2ff601d1464f086204006b4f",
+        "ssh_fingerprint": "SHA256:M1usGideAJynzxR1mgID8AbNLGpcYx8Y8LaqfGV3k90"
       }
     },
     {
@@ -26448,8 +26448,8 @@
       }
     },
     {
-      "id": "occ:5d8ddd8ac40e9b58b2901317",
-      "asset": "cert:sha256:ed6c0c233017a31409ce801e2d58e4a3d0c0cca010e8607378660db46a4221cc",
+      "id": "occ:50e5d134ccf6c98ea000bb0d",
+      "asset": "cert:sha256:499b9397703e3e89493d5f64ce54d15ce516e65bc0828db5fd699a4d9693e947",
       "collector": "fscrawl",
       "state": "present",
       "confidence": "high",
@@ -26472,8 +26472,8 @@
       }
     },
     {
-      "id": "occ:fcfa7f6bb2e705ee16ac2b38",
-      "asset": "key:private:spki-sha256:f33e040b63a78373722e4b1dc6950ee08e1a3c1e9ab48cca34de4286428c637c",
+      "id": "occ:217107391351e99790553324",
+      "asset": "key:private:spki-sha256:80d134f4c415fed89a7533314affe4bd2f29b1c31dd563cb63199ade8de92077",
       "collector": "fscrawl",
       "state": "present",
       "confidence": "high",
@@ -26500,8 +26500,8 @@
       }
     },
     {
-      "id": "occ:a51ab7f66ba702c4bece4c81",
-      "asset": "cert:sha256:90217fac0348ac80323c8cd5aa576f7417dbefe47eb8442c51c661630c210d3f",
+      "id": "occ:294fc00afe7079e219e56ee2",
+      "asset": "cert:sha256:957b7b92306d74b3b00152baacb777de026680c99303c70e7ec974f1f3b2ea22",
       "collector": "fscrawl",
       "state": "present",
       "confidence": "high",
@@ -26524,8 +26524,8 @@
       }
     },
     {
-      "id": "occ:ba628c528d11abeb4517ff04",
-      "asset": "key:private:spki-sha256:4292e8745712a59ff8505f2b08015f92f5ffc49d0560580209932dc997169843",
+      "id": "occ:c51651ce8c3ecd370567629f",
+      "asset": "key:private:spki-sha256:e22ac35c4ebe08f6dee5fe631a94a6fd409afd2a8aab456f4776e342696b3443",
       "collector": "fscrawl",
       "state": "present",
       "confidence": "high",
@@ -26543,8 +26543,8 @@
       }
     },
     {
-      "id": "occ:349fdd05e73db529c306f321",
-      "asset": "key:private:spki-sha256:044f97ec80038716372d5d9fc07f5c21e3bd92c9b8a016d85783556f8e2d67a3",
+      "id": "occ:52404ebca923d5c54607fdbd",
+      "asset": "key:private:spki-sha256:9c6f9284615114f1d5f1bc05f922a8323ab6bdebb46fd7a04d7c42362a0f9481",
       "collector": "fscrawl",
       "state": "present",
       "confidence": "high",
@@ -26571,8 +26571,8 @@
       }
     },
     {
-      "id": "occ:1a623ab73a06f159adfb80db",
-      "asset": "key:public:spki-sha256:e7d94723835e2df8a62421c7c6e67a91d6d058b76fc76dfda3b9d928b7183120",
+      "id": "occ:0c1a0d1e320faf867cde9165",
+      "asset": "key:public:spki-sha256:2042a1bfa5e8252dbf069d5b65f50c0d5d1b2d9e82ac35e8e67e65e7470e2c3c",
       "collector": "fscrawl",
       "state": "present",
       "confidence": "high",
@@ -26589,8 +26589,8 @@
       }
     },
     {
-      "id": "occ:360efa36cd3f27df903e730e",
-      "asset": "key:private:spki-sha256:e7d94723835e2df8a62421c7c6e67a91d6d058b76fc76dfda3b9d928b7183120",
+      "id": "occ:273e62fbef831cf841ecaf2a",
+      "asset": "key:private:spki-sha256:2042a1bfa5e8252dbf069d5b65f50c0d5d1b2d9e82ac35e8e67e65e7470e2c3c",
       "collector": "fscrawl",
       "state": "present",
       "confidence": "high",
@@ -26615,8 +26615,8 @@
       }
     },
     {
-      "id": "occ:2b42ed7a9c4acbc652131cb7",
-      "asset": "key:private:spki-sha256:c5dbd88b9295c6176b97b0338e1dc0da1777302189edb4bcbfc92c8ef73bf42a",
+      "id": "occ:dc15676ef2d36e2ef80bc95e",
+      "asset": "key:private:spki-sha256:248bc8ba07bd8fa6023fbb6528e9692755cba6fdc403fe0160f3d7caaa99faee",
       "collector": "fscrawl",
       "state": "present",
       "confidence": "high",
@@ -26641,8 +26641,8 @@
       }
     },
     {
-      "id": "occ:67472946ff06e4156275452b",
-      "asset": "key:public:spki-sha256:c5dbd88b9295c6176b97b0338e1dc0da1777302189edb4bcbfc92c8ef73bf42a",
+      "id": "occ:3b89a3d635e67f3f332a80be",
+      "asset": "key:public:spki-sha256:248bc8ba07bd8fa6023fbb6528e9692755cba6fdc403fe0160f3d7caaa99faee",
       "collector": "fscrawl",
       "state": "present",
       "confidence": "high",
@@ -26659,8 +26659,8 @@
       }
     },
     {
-      "id": "occ:ab26770f898d38e9ceab960b",
-      "asset": "key:private:spki-sha256:cdf83c7e079610f294933f1ec02afdb09e161a53945a33a18156f10cc42622f1",
+      "id": "occ:4ffb97d2e464043ae1f201f7",
+      "asset": "key:private:spki-sha256:726c7349414ef4b965f061f0bc884ded5236ca7b2ff601d1464f086204006b4f",
       "collector": "fscrawl",
       "state": "present",
       "confidence": "high",
@@ -26685,8 +26685,8 @@
       }
     },
     {
-      "id": "occ:ed41de0fd709b5618434d64b",
-      "asset": "key:public:spki-sha256:cdf83c7e079610f294933f1ec02afdb09e161a53945a33a18156f10cc42622f1",
+      "id": "occ:9b62f1afe6f51567fc407d11",
+      "asset": "key:public:spki-sha256:726c7349414ef4b965f061f0bc884ded5236ca7b2ff601d1464f086204006b4f",
       "collector": "fscrawl",
       "state": "present",
       "confidence": "high",
@@ -30425,6 +30425,16 @@
           "signature-sha2"
         ]
       },
+      "cert:sha256:499b9397703e3e89493d5f64ce54d15ce516e65bc0828db5fd699a4d9693e947": {
+        "quantum": "vulnerable",
+        "classical": "ok",
+        "rules": [
+          "ec-128bit",
+          "pk-key-quantum",
+          "pk-signature-quantum",
+          "signature-sha2"
+        ]
+      },
       "cert:sha256:49e7a442acf0ea6287050054b52564b650e4f49e42e348d6aa38e039e957b1c1": {
         "quantum": "vulnerable",
         "classical": "legacy",
@@ -31585,16 +31595,6 @@
           "signature-sha2"
         ]
       },
-      "cert:sha256:90217fac0348ac80323c8cd5aa576f7417dbefe47eb8442c51c661630c210d3f": {
-        "quantum": "vulnerable",
-        "classical": "legacy",
-        "rules": [
-          "pk-key-quantum",
-          "pk-signature-quantum",
-          "rsa-dsa-112bit",
-          "signature-sha2"
-        ]
-      },
       "cert:sha256:90370d3efa88bf58c30105ba25104a358460a7fa52dfc2011df233a0f417912a": {
         "quantum": "vulnerable",
         "classical": "ok",
@@ -31662,6 +31662,16 @@
           "ec-128bit",
           "pk-key-quantum",
           "pk-signature-quantum",
+          "signature-sha2"
+        ]
+      },
+      "cert:sha256:957b7b92306d74b3b00152baacb777de026680c99303c70e7ec974f1f3b2ea22": {
+        "quantum": "vulnerable",
+        "classical": "legacy",
+        "rules": [
+          "pk-key-quantum",
+          "pk-signature-quantum",
+          "rsa-dsa-112bit",
           "signature-sha2"
         ]
       },
@@ -33015,16 +33025,6 @@
           "signature-sha1"
         ]
       },
-      "cert:sha256:ed6c0c233017a31409ce801e2d58e4a3d0c0cca010e8607378660db46a4221cc": {
-        "quantum": "vulnerable",
-        "classical": "ok",
-        "rules": [
-          "ec-128bit",
-          "pk-key-quantum",
-          "pk-signature-quantum",
-          "signature-sha2"
-        ]
-      },
       "cert:sha256:edf7ebbca27a2a384d387b7d4010c666e2edb4843e4c29b4ae1d5b9332e6b24d": {
         "quantum": "vulnerable",
         "classical": "ok",
@@ -33295,7 +33295,39 @@
           "signature-sha1"
         ]
       },
-      "key:private:spki-sha256:044f97ec80038716372d5d9fc07f5c21e3bd92c9b8a016d85783556f8e2d67a3": {
+      "key:private:spki-sha256:2042a1bfa5e8252dbf069d5b65f50c0d5d1b2d9e82ac35e8e67e65e7470e2c3c": {
+        "quantum": "vulnerable",
+        "classical": "ok",
+        "rules": [
+          "ec-128bit",
+          "pk-signature-quantum"
+        ]
+      },
+      "key:private:spki-sha256:248bc8ba07bd8fa6023fbb6528e9692755cba6fdc403fe0160f3d7caaa99faee": {
+        "quantum": "vulnerable",
+        "classical": "ok",
+        "rules": [
+          "pk-key-quantum",
+          "rsa-dsa-128bit"
+        ]
+      },
+      "key:private:spki-sha256:726c7349414ef4b965f061f0bc884ded5236ca7b2ff601d1464f086204006b4f": {
+        "quantum": "vulnerable",
+        "classical": "ok",
+        "rules": [
+          "ec-128bit",
+          "pk-key-quantum"
+        ]
+      },
+      "key:private:spki-sha256:80d134f4c415fed89a7533314affe4bd2f29b1c31dd563cb63199ade8de92077": {
+        "quantum": "vulnerable",
+        "classical": "ok",
+        "rules": [
+          "ec-128bit",
+          "pk-key-quantum"
+        ]
+      },
+      "key:private:spki-sha256:9c6f9284615114f1d5f1bc05f922a8323ab6bdebb46fd7a04d7c42362a0f9481": {
         "quantum": "vulnerable",
         "classical": "legacy",
         "rules": [
@@ -33303,7 +33335,7 @@
           "rsa-dsa-112bit"
         ]
       },
-      "key:private:spki-sha256:4292e8745712a59ff8505f2b08015f92f5ffc49d0560580209932dc997169843": {
+      "key:private:spki-sha256:e22ac35c4ebe08f6dee5fe631a94a6fd409afd2a8aab456f4776e342696b3443": {
         "quantum": "vulnerable",
         "classical": "weak",
         "rules": [
@@ -33311,23 +33343,7 @@
           "rsa-dsa-below-2048"
         ]
       },
-      "key:private:spki-sha256:c5dbd88b9295c6176b97b0338e1dc0da1777302189edb4bcbfc92c8ef73bf42a": {
-        "quantum": "vulnerable",
-        "classical": "ok",
-        "rules": [
-          "pk-key-quantum",
-          "rsa-dsa-128bit"
-        ]
-      },
-      "key:private:spki-sha256:cdf83c7e079610f294933f1ec02afdb09e161a53945a33a18156f10cc42622f1": {
-        "quantum": "vulnerable",
-        "classical": "ok",
-        "rules": [
-          "ec-128bit",
-          "pk-key-quantum"
-        ]
-      },
-      "key:private:spki-sha256:e7d94723835e2df8a62421c7c6e67a91d6d058b76fc76dfda3b9d928b7183120": {
+      "key:public:spki-sha256:2042a1bfa5e8252dbf069d5b65f50c0d5d1b2d9e82ac35e8e67e65e7470e2c3c": {
         "quantum": "vulnerable",
         "classical": "ok",
         "rules": [
@@ -33335,15 +33351,7 @@
           "pk-signature-quantum"
         ]
       },
-      "key:private:spki-sha256:f33e040b63a78373722e4b1dc6950ee08e1a3c1e9ab48cca34de4286428c637c": {
-        "quantum": "vulnerable",
-        "classical": "ok",
-        "rules": [
-          "ec-128bit",
-          "pk-key-quantum"
-        ]
-      },
-      "key:public:spki-sha256:c5dbd88b9295c6176b97b0338e1dc0da1777302189edb4bcbfc92c8ef73bf42a": {
+      "key:public:spki-sha256:248bc8ba07bd8fa6023fbb6528e9692755cba6fdc403fe0160f3d7caaa99faee": {
         "quantum": "vulnerable",
         "classical": "ok",
         "rules": [
@@ -33351,20 +33359,12 @@
           "rsa-dsa-128bit"
         ]
       },
-      "key:public:spki-sha256:cdf83c7e079610f294933f1ec02afdb09e161a53945a33a18156f10cc42622f1": {
+      "key:public:spki-sha256:726c7349414ef4b965f061f0bc884ded5236ca7b2ff601d1464f086204006b4f": {
         "quantum": "vulnerable",
         "classical": "ok",
         "rules": [
           "ec-128bit",
           "pk-key-quantum"
-        ]
-      },
-      "key:public:spki-sha256:e7d94723835e2df8a62421c7c6e67a91d6d058b76fc76dfda3b9d928b7183120": {
-        "quantum": "vulnerable",
-        "classical": "ok",
-        "rules": [
-          "ec-128bit",
-          "pk-signature-quantum"
         ]
       }
     },
