@@ -204,6 +204,9 @@ func (c *Collector) wildflyHome(app ruleset.AppRule, home string, l wildflyLaunc
 	for _, lis := range f.Listeners {
 		c.wildflyListener(in, lis)
 	}
+	for _, m := range f.Management {
+		c.wildflyManagement(in, m)
+	}
 }
 
 // wildflyVersion は、置かれている WildFly の版を読む。

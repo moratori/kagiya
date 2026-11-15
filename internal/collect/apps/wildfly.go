@@ -15,8 +15,8 @@ import (
 
 // このファイルは、WildFly（開発元の配布物を展開して置いたもの）の読み取り。
 //
-// WildFly は、Undertow の https-listener で TLS を待ち受ける。設定は、https-listener が指す Elytron の server-ssl-context
-// （WildFly 24 までは、古い形式の security-realm も）にある。TLS の実装は JDK のもの（JSSE）。
+// WildFly は、Undertow の https-listener（アプリ用）と、管理用の待ち受け（management-interfaces の http-interface）で TLS を待ち受ける。
+// 設定は、それぞれが指す Elytron の server-ssl-context（WildFly 24 までは、古い形式の security-realm も）にある。TLS の実装は JDK のもの（JSSE）。
 // 受け入れるプロトコルと暗号スイートは、次の順で求める:
 //
 //  1. 設定の記載（なければ既定）を、WildFly の対応表（rules/java/wildfly.yaml）で解釈する。
@@ -26,7 +26,11 @@ import (
 // 解釈の規則と既定は、検証ラボで 19.0.0.Final〜42.0.0.Final の 54 版を場面ごとに起動して確かめたもの。測っていない版と、
 // 測っていない書き方は、値を求めず「不明」にする。
 //
-// 読まないもの: パスワードの記載、ドメインのモード（domain.xml / host.xml）、管理用の待ち受け、起動時に渡されるシステムプロパティ。
+// 管理用の待ち受けは、TLS の設定と、TLS 用のソケット（socket-binding の https）の両方があるときだけ、TLS で待ち受ける。受け入れるものは、
+// アプリ用の待ち受けと同じ決まりで求まる（54 版で、同じ設定の結果が同じだった。lab/out/tlsapp/wildfly-mgmt）。
+//
+// 読まないもの: パスワードの記載、ドメインのモード（domain.xml / host.xml）、起動時に渡されるシステムプロパティ。
+// 管理用の独自のプロトコルの待ち受け（native-interface）の TLS は、測っていないので、値を求めない。
 //
 // 置かれている WildFly を探し、版・設定ファイル・動かす JDK を決める部分は、wildfly_install.go にある。
 
@@ -99,22 +103,65 @@ func wildflyProtocols(value string) ([]string, bool) {
 	return list, true
 }
 
+// wildflySource は、TLS の設定を指す側（アプリ用の待ち受け、または管理用の待ち受け）の記載。
+type wildflySource struct {
+	what string                        // 理由の文での呼び名
+	attr map[string]standalonexml.Attr // ssl-context、security-realm。アプリ用の待ち受けでは、enabled-protocols と enabled-cipher-suites も
+	// 管理用の待ち受け: 認証のための security-realm と、ssl-context の両方を書ける（24 までの配布物は、security-realm を書いている）。
+	// 両方があれば、ssl-context の設定で待ち受ける
+	management bool
+}
+
+var wildflyParams = []string{model.ParamTLSProtocols, paramCiphers, paramTLS13, model.ParamTLSGroups}
+
 func (c *Collector) wildflyListener(in *wildflyInstall, l standalonexml.Listener) {
 	name := l.Attr["name"].Value
 	scope := "https-listener at line " + strconv.Itoa(l.Line)
 	if wildflyName.MatchString(l.Server) && wildflyName.MatchString(name) {
 		scope = "https-listener " + l.Server + "/" + name
 	}
-	params := []string{model.ParamTLSProtocols, paramCiphers, paramTLS13, model.ParamTLSGroups}
-	plan, reason := c.wildflyRead(in, l, scope)
+	c.wildflyEndpoint(in, wildflySource{what: "https-listener", attr: l.Attr}, scope)
+}
+
+// wildflyManagement は、管理用の待ち受け 1 つを調べる。TLS で待ち受けない設定なら、何も記録しない。
+func (c *Collector) wildflyManagement(in *wildflyInstall, m standalonexml.Management) {
+	scope := "management " + m.Kind
+	_, hasContext := m.Attr["ssl-context"]
+	// security-realm は、認証のためにも書かれる。TLS の設定になるのは、ssl のあるものだけ
+	realmSSL := false
+	for _, r := range in.file.Realms {
+		realmSSL = realmSSL || (r.Name == m.Attr["security-realm"].Value && r.HasSSL)
+	}
+	https, hasHTTPS := m.Binding["https"]
+	switch {
+	case m.Kind != "http-interface":
+		if hasContext || realmSSL {
+			c.unresolved(in.svc, in.app.Direction, scope, "the "+m.Kind+" of the management interfaces has TLS settings; TLS on that interface (the native management protocol) has not been measured", wildflyParams...)
+		}
+	case m.Socket:
+		if hasContext || realmSSL {
+			c.unresolved(in.svc, in.app.Direction, scope, "the management http-interface is written with the socket element (the interface and the ports are written directly), which has not been measured", wildflyParams...)
+		}
+	case !hasHTTPS:
+		// TLS 用のソケットがなければ、TLS の設定があっても、TLS では待ち受けない（実測）
+	case wildflyExpression(https.Value):
+		c.unresolved(in.svc, in.app.Direction, scope, "the socket for TLS of the management http-interface is written as an expression (${...}); its value is decided when the server starts", wildflyParams...)
+	default:
+		c.wildflyEndpoint(in, wildflySource{what: "management http-interface", attr: m.Attr, management: true}, scope)
+	}
+}
+
+// wildflyEndpoint は、TLS で待ち受けるもの 1 つ（アプリ用の待ち受け、または管理用の待ち受け）について、受け入れるものを求めて記録する。
+func (c *Collector) wildflyEndpoint(in *wildflyInstall, src wildflySource, scope string) {
+	plan, reason := c.wildflyRead(in, src, scope)
 	if in.reason != "" {
 		reason = in.reason
 	}
 	if reason == "" {
-		reason = wildflyCheck(in, plan)
+		reason = wildflyCheck(in, plan, src.what)
 	}
 	if reason != "" {
-		c.unresolved(in.svc, in.app.Direction, scope, reason, params...)
+		c.unresolved(in.svc, in.app.Direction, scope, reason, wildflyParams...)
 		return
 	}
 	c.wildflyResolve(in, plan, scope)
@@ -124,6 +171,7 @@ func (c *Collector) wildflyListener(in *wildflyInstall, l standalonexml.Listener
 type wildflyReader struct {
 	c      *Collector
 	in     *wildflyInstall
+	src    wildflySource
 	scope  string
 	plan   wildflyPlan
 	reason string // 解釈できない書き方があれば、最初に見つかった理由
@@ -154,30 +202,31 @@ func (r *wildflyReader) recStore(path standalonexml.Attr, relativeTo string) {
 }
 
 // wildflyRead は、待ち受け 1 つの設定の記載を記録し、解釈に使う値を返す。解釈できない書き方があれば、reason に理由が入る。
-func (c *Collector) wildflyRead(in *wildflyInstall, l standalonexml.Listener, scope string) (plan wildflyPlan, reason string) {
-	r := &wildflyReader{c: c, in: in, scope: scope}
-	context, hasContext := l.Attr["ssl-context"]
-	realmName, hasRealm := l.Attr["security-realm"]
-	if wildflyExpression(context.Value, realmName.Value, l.Attr["enabled-protocols"].Value, l.Attr["enabled-cipher-suites"].Value) {
-		r.note("an attribute of the https-listener is written as an expression (${...}); its value is decided when the server starts")
+func (c *Collector) wildflyRead(in *wildflyInstall, src wildflySource, scope string) (plan wildflyPlan, reason string) {
+	r := &wildflyReader{c: c, in: in, src: src, scope: scope}
+	a := src.attr
+	context, hasContext := a["ssl-context"]
+	realmName, hasRealm := a["security-realm"]
+	if wildflyExpression(context.Value, realmName.Value, a["enabled-protocols"].Value, a["enabled-cipher-suites"].Value) {
+		r.note("an attribute of the " + src.what + " is written as an expression (${...}); its value is decided when the server starts")
 	}
 	switch {
-	case hasContext && hasRealm:
-		r.note("the https-listener names both an ssl-context and a security-realm")
+	case hasContext && hasRealm && !src.management:
+		r.note("the " + src.what + " names both an ssl-context and a security-realm")
 	case !hasContext && !hasRealm:
-		r.note("the https-listener names neither an ssl-context nor a security-realm")
+		r.note("the " + src.what + " names neither an ssl-context nor a security-realm")
 	case hasContext:
-		r.elytron(l, context)
+		r.elytron(context)
 	default:
-		r.legacy(l, realmName)
+		r.legacy(realmName)
 	}
 	return r.plan, r.reason
 }
 
-// elytron は、いまの形式（https-listener が、Elytron の server-ssl-context を指す）の記載を読む。
-func (r *wildflyReader) elytron(l standalonexml.Listener, context standalonexml.Attr) {
-	_, hasLP := l.Attr["enabled-protocols"]
-	_, hasLC := l.Attr["enabled-cipher-suites"]
+// elytron は、いまの形式（待ち受けが、Elytron の server-ssl-context を指す）の記載を読む。
+func (r *wildflyReader) elytron(context standalonexml.Attr) {
+	_, hasLP := r.src.attr["enabled-protocols"]
+	_, hasLC := r.src.attr["enabled-cipher-suites"]
 	r.plan.elytron = true
 	if hasLP {
 		r.note("enabled-protocols on the https-listener cannot be combined with an ssl-context (the server refused this configuration when measured)")
@@ -194,10 +243,10 @@ func (r *wildflyReader) elytron(l standalonexml.Listener, context standalonexml.
 	if ctx == nil {
 		for _, sni := range r.in.file.SNIContexts {
 			if sni == context.Value {
-				r.note("the https-listener uses a server-ssl-sni-context (the context is chosen by the server name), which has not been measured")
+				r.note("the " + r.src.what + " uses a server-ssl-sni-context (the context is chosen by the server name), which has not been measured")
 			}
 		}
-		r.note("the ssl-context named by the https-listener is not found in the configuration file")
+		r.note("the ssl-context named by the " + r.src.what + " is not found in the configuration file")
 		return
 	}
 	a := ctx.Attr
@@ -234,10 +283,10 @@ func (r *wildflyReader) elytron(l standalonexml.Listener, context standalonexml.
 	}
 }
 
-// legacy は、古い形式（https-listener が、security-realm を指す。WildFly 24 まで）の記載を読む。
-func (r *wildflyReader) legacy(l standalonexml.Listener, realmName standalonexml.Attr) {
-	lp, hasLP := l.Attr["enabled-protocols"]
-	lc, hasLC := l.Attr["enabled-cipher-suites"]
+// legacy は、古い形式（待ち受けが、security-realm を指す。WildFly 24 まで）の記載を読む。
+func (r *wildflyReader) legacy(realmName standalonexml.Attr) {
+	lp, hasLP := r.src.attr["enabled-protocols"]
+	lc, hasLC := r.src.attr["enabled-cipher-suites"]
 	var realm *standalonexml.Realm
 	for i := range r.in.file.Realms {
 		if r.in.file.Realms[i].Name == realmName.Value {
@@ -246,7 +295,7 @@ func (r *wildflyReader) legacy(l standalonexml.Listener, realmName standalonexml
 		}
 	}
 	if realm == nil || !realm.HasSSL {
-		r.note("the security-realm named by the https-listener has no ssl element in the configuration file")
+		r.note("the security-realm named by the " + r.src.what + " has no ssl element in the configuration file")
 		return
 	}
 	ep, hasEP := realm.Engine["enabled-protocols"]
@@ -312,10 +361,10 @@ func (r *wildflyReader) legacy(l standalonexml.Listener, realmName standalonexml
 }
 
 // wildflyCheck は、表を使って確かめること（その版にある形式か、Elytron が受け付ける指定か）。
-func wildflyCheck(in *wildflyInstall, plan wildflyPlan) string {
+func wildflyCheck(in *wildflyInstall, plan wildflyPlan, what string) string {
 	if !plan.elytron {
 		if !in.legacy {
-			return "the https-listener names a security-realm, but WildFly " + in.version + " does not take TLS settings from a security-realm (that form ended with WildFly 24)"
+			return "the " + what + " names a security-realm, but WildFly " + in.version + " does not take TLS settings from a security-realm (that form ended with WildFly 24)"
 		}
 		if plan.hasListenerFilter {
 			if _, err := elytronciphers.Evaluate(in.table, plan.listenerFilter.Value, nil); err != nil {
@@ -486,7 +535,7 @@ func (c *Collector) wildflyResolve(in *wildflyInstall, plan wildflyPlan, scope s
 	wildflyRule := ruleOf(in.table.Source, "", true) // WildFly の表は、その版そのもののものだけを使う
 	notes := []string{
 		"WildFly " + in.version + ", on the JDK's TLS implementation (JSSE): " + in.why,
-		"not read: system properties given when the server is started (they can change values written as expressions, and the settings of Java) and the management interface",
+		"not read: system properties given when the server is started (they can change values written as expressions, and the settings of Java)",
 	}
 	emit := func(param string, pick func(wildflyResult) []string, steps func(jdkContext) []model.ResolutionStep, qualifiers []string, blocker func(wildflyResult) string, extra ...string) {
 		var agreed []string
