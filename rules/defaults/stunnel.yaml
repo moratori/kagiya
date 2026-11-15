@@ -151,3 +151,21 @@ defaults:
       tls.ciphersuites-tls13: "TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256"
       tls.dhe-without-params: "builtin"
       tls.groups: "X25519:P-256:X448:P-521:P-384"
+  - app: stunnel
+    package: stunnel
+    version: "5.71-1.el9"
+    source:
+      image: "almalinux@sha256:1c718a4cd7bab3bdb069ddbbd1eb593a390e6932d51d0048a2f6556303bafba7"
+      os: "AlmaLinux 9.4 (Seafoam Ocelot)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.ciphersuites-tls13: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.groups: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client); default strings taken from the binary"
+    values:
+      tls.ciphers: "PROFILE=SYSTEM"
+      tls.ciphersuites-tls13: "TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256"
+      tls.dhe-without-params: "builtin"
+      tls.groups: "X25519:P-256:X448:P-521:P-384"

@@ -15,6 +15,11 @@ import (
 // グループの指定は、アプリの設定 > アプリ自身の既定（持つアプリだけ）> システムの openssl.cnf の Groups > ライブラリの既定
 // の順で決まる。指定の解釈、知っている名前、既定は、パッケージ版ごとに実測した対応表（rules/groups）から引く。
 
+// decidesOwnGroups は、設定に記載がないときの鍵交換のグループを、自分で決めるアプリ（システムの openssl.cnf やライブラリの既定には従わない）。
+// これらのアプリでは、その版の既定のグループ（ルールの tls.groups）が分からなければ、結果を「不明」にする。
+// システムの設定やライブラリの既定で代用すると、実物と食い違う（検証ラボの AlmaLinux 9.4 の Postfix 3.5.9 で確かめた）。
+var decidesOwnGroups = map[string]bool{"postfix": true, "stunnel": true, "mysql": true}
+
 // groupResolver は、1つのサービスの範囲に共通の、グループの解決に必要な情報。
 type groupResolver struct {
 	c       *Collector
@@ -110,6 +115,10 @@ func (g *groupResolver) resolve(sc tlsScope, level int, levelStep model.Resoluti
 		if g.appNote != "" {
 			notes = append(notes, g.appNote)
 		}
+	case decidesOwnGroups[g.app.ID]:
+		// グループを自分で決めるアプリなのに、その版の既定のグループがルールにない。システムの設定やライブラリの既定で代用しない
+		fail("the default groups of this version of the application are not recorded")
+		return
 	case g.systemUnread:
 		fail("the Groups setting in the system OpenSSL configuration could not be read")
 		return
