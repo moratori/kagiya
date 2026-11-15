@@ -79,7 +79,7 @@ func (rs *RuleSet) AppDefaultsFor(app, pkg, version string) (values map[string][
 		return v, version, s, true, true
 	}
 	for _, d := range rs.Defaults {
-		if d.App == app && d.Package == pkg && canInterpolate(version, d.Version) {
+		if d.App == app && d.Package == pkg && canInterpolate(version, d.Version, d.Source.OS, rs.host) {
 			v, s, _ := rs.AppDefaults(app, pkg, d.Version)
 			return v, d.Version, s, false, true
 		}

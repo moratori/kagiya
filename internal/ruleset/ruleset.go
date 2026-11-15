@@ -51,6 +51,8 @@ type RuleSet struct {
 	SpringBootTables     []*SpringBootTable
 	WildFlyTables        []*WildFlyTable
 
+	host Host // スキャンしているホストの OS（WithHost で持たせる。補間の条件に使う）
+
 	byAlias     map[string]int
 	storePaths  map[string]string // パス → ストア ID
 	pkgExact    map[string]string // パッケージ名 → 役割

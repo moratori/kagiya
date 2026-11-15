@@ -336,6 +336,17 @@ func runScan(args []string, stderr io.Writer) int {
 		walker.Mounts = mounts.table
 	}
 
+	// ディストリの名前と版。レポートのスキャン概要に出すほか、測っていない版を補うときに、ルールを測った OS のリリースと比べる
+	// （Ubuntu は、リリースが同じ場合に限って補う）。収集の前に読む。読めなければ、Ubuntu の版は補わない
+	var distribution *model.Distribution
+	for _, p := range []string{"/etc/os-release", "/usr/lib/os-release"} {
+		if data, err := opener.ReadFile(p, 64<<10); err == nil {
+			distribution = parseOSRelease(data)
+			break
+		}
+	}
+	rs = rs.WithHost(ruleHost(distribution))
+
 	// 処理の本体。途中で panic が起きても（コレクタごと・ファイルごとの回復をすり抜けたものでも）、そこまでの結果を
 	// 「未完了」として書き出せるように、ここで受け止める。panic の値は入力の断片を含みうるので、どこにも出さない
 	incomplete := ""
@@ -414,15 +425,6 @@ func runScan(args []string, stderr io.Writer) int {
 	}
 	// ここから先（結果の書き出し）は、止める合図があっても最後まで行う
 	builder.SetStop(nil)
-
-	// ディストリの名前と版（レポートのスキャン概要に出す）
-	var distribution *model.Distribution
-	for _, p := range []string{"/etc/os-release", "/usr/lib/os-release"} {
-		if data, err := opener.ReadFile(p, 64<<10); err == nil {
-			distribution = parseOSRelease(data)
-			break
-		}
-	}
 
 	inv := builder.Inventory()
 	inv.Meta = model.Meta{

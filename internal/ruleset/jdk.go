@@ -131,7 +131,7 @@ func (rs *RuleSet) addJDKTable(t *JDKTable, ids map[string]bool) error {
 // JDKTableFor は、JDK のパッケージ版に対応する対応表と、その実測元を返す。
 // 引き方と補間の条件は、暗号スイートの対応表（CipherTableFor）と同じ。
 func (rs *RuleSet) JDKTableFor(runtime, pkg, version string) (t *JDKTable, build CipherBuild, exact, ok bool) {
-	i, build, exact, ok := findBuild(runtime, pkg, version, len(rs.JDKTables), func(i int) (string, []CipherBuild) {
+	i, build, exact, ok := findBuild(rs.host, runtime, pkg, version, len(rs.JDKTables), func(i int) (string, []CipherBuild) {
 		tb := rs.JDKTables[i]
 		return tb.Runtime, tb.Builds
 	})

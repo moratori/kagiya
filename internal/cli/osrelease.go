@@ -5,6 +5,7 @@ import (
 
 	"kagiya/internal/model"
 	"kagiya/internal/parse/unitfile"
+	"kagiya/internal/ruleset"
 )
 
 // ディストリの名前と版として結果に出してよい文字（設定ファイルの値なので、そのままは信用しない）。
@@ -29,4 +30,13 @@ func parseOSRelease(data []byte) *model.Distribution {
 		return nil
 	}
 	return d
+}
+
+// ruleHost は、ルールの補間に渡すホストの OS を返す（os-release の ID と VERSION_ID）。読めなければ空。
+// 測っていない版を補うとき、Ubuntu は、ルールを測った OS のリリースが、ホストの OS のリリースと同じ場合に限る（ruleset.WithHost）。
+func ruleHost(d *model.Distribution) ruleset.Host {
+	if d == nil {
+		return ruleset.Host{}
+	}
+	return ruleset.Host{ID: d.ID, VersionID: d.VersionID}
 }

@@ -139,7 +139,7 @@ func (rs *RuleSet) addCipherTable(t *CipherTable, ids map[string]bool) error {
 //     リリース番号だけが違う版（エラータ）を想定している。呼び出し側は、補間であることを結果に残し、確度を下げること。
 //   - それ以外は返さない（上流の版やディストリが違う表では代用しない）。
 func (rs *RuleSet) CipherTableFor(library, pkg, version string) (t *CipherTable, build CipherBuild, exact, ok bool) {
-	i, build, exact, ok := findBuild(library, pkg, version, len(rs.CipherTables), func(i int) (string, []CipherBuild) {
+	i, build, exact, ok := findBuild(rs.host, library, pkg, version, len(rs.CipherTables), func(i int) (string, []CipherBuild) {
 		tb := rs.CipherTables[i]
 		return tb.Library, tb.Builds
 	})
