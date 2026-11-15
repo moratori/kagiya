@@ -6,6 +6,7 @@
 //   - Elytron の server-ssl-context、key-manager、key-store（いまの形式）
 //   - security-realm の ssl、engine、keystore（WildFly 24 までの古い形式）
 //   - socket-binding（ポート）
+//   - 管理用の待ち受け（management-interfaces の http-interface、native-interface）
 //
 // パスワードの記載（credential-reference の clear-text、keystore の keystore-password / key-password など）は、
 // 名前の一覧にないので読まない。
@@ -68,6 +69,15 @@ type Realm struct {
 	Line      int
 }
 
+// Management は、管理用の待ち受け（server/management/management-interfaces の下の http-interface / native-interface）。
+type Management struct {
+	Kind    string          // 要素の名前（http-interface / native-interface）
+	Attr    map[string]Attr // TLS の設定を指す属性（ssl-context、security-realm）
+	Binding map[string]Attr // socket-binding 要素の属性（http、https、native。ソケットの定義の名前）
+	Socket  bool            // 古い書き方（socket 要素に、interface と port を直接書く）がある
+	Line    int
+}
+
 // SocketBinding は、ポートの定義。Port は、書かれたままの値（「${jboss.https.port:8443}」のような式のことがある）。
 type SocketBinding struct {
 	Name string
@@ -83,6 +93,7 @@ type File struct {
 	KeyStores      []KeyStore
 	Realms         []Realm
 	SocketBindings []SocketBinding
+	Management     []Management
 	// 空でなければ、内容をそのまま信用できない（理由）
 	Problems []string
 }
@@ -96,6 +107,8 @@ var (
 	realmSSLAttrs   = []string{"protocol"}
 	engineAttrs     = []string{"enabled-protocols", "enabled-cipher-suites"}
 	keystoreAttrs   = []string{"path", "relative-to", "provider"}
+	managementAttrs = []string{"ssl-context", "security-realm"}
+	managementBinds = []string{"http", "https", "native"}
 )
 
 const (
@@ -159,6 +172,7 @@ func Parse(data []byte) (*File, error) {
 	server := ""    // いま中にいる Undertow の server の名前
 	var realm *Realm
 	var store *KeyStore
+	var mgmt *Management
 	sawRoot := false
 	for n := 0; ; n++ {
 		if n > maxTokenCount {
@@ -232,6 +246,19 @@ func Parse(data []byte) (*File, error) {
 				case "keystore":
 					realm.Keystore = p.pick(t, keystoreAttrs, line)
 				}
+			case path == "server/management/management-interfaces" && (name == "http-interface" || name == "native-interface"):
+				if full(len(f.Management)) {
+					break
+				}
+				f.Management = append(f.Management, Management{Kind: name, Attr: p.pick(t, managementAttrs, line), Binding: map[string]Attr{}, Line: line})
+				mgmt = &f.Management[len(f.Management)-1]
+			case mgmt != nil && (path == "server/management/management-interfaces/http-interface" || path == "server/management/management-interfaces/native-interface"):
+				switch name {
+				case "socket-binding":
+					mgmt.Binding = p.pick(t, managementBinds, line)
+				case "socket":
+					mgmt.Socket = true
+				}
 			case subsystem == "elytron" && path == "server/profile/subsystem/tls/key-stores" && name == "key-store":
 				if full(len(f.KeyStores)) {
 					break
@@ -284,6 +311,8 @@ func Parse(data []byte) (*File, error) {
 				realm = nil
 			case "server/profile/subsystem/tls/key-stores/key-store":
 				store = nil
+			case "server/management/management-interfaces/http-interface", "server/management/management-interfaces/native-interface":
+				mgmt = nil
 			}
 			stack = stack[:len(stack)-1]
 		}
