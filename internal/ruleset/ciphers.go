@@ -55,7 +55,10 @@ var (
 	suiteAttrPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_./-]{0,31}(\([0-9]{1,4}\))?$`)
 	suiteIDPattern   = regexp.MustCompile(`^0x[0-9A-F]{2}(,0x[0-9A-F]{2}){1,2}$`)
 	upstreamPattern  = regexp.MustCompile(`^[0-9][0-9A-Za-z.]{0,31}$`)
-	distroTagPattern = regexp.MustCompile(`\.el[0-9]+|ubuntu|deb[0-9]+`)
+	// ディストリの系列。RHEL 系は、ふつうのパッケージ（.el9）のほかに、モジュールで配られるパッケージの形がある
+	// （RHEL が作ったものは「module+el9」、AlmaLinux が作ったものは「module_el9」）。区切りの文字ごと取り出すので、
+	// この 3 つは別の系列として扱われる（配布元の違うモジュールの表を、互いに当てはめない）。
+	distroTagPattern = regexp.MustCompile(`[.+_]el[0-9]+|ubuntu|deb[0-9]+`)
 )
 
 func (rs *RuleSet) addCipherTable(t *CipherTable, ids map[string]bool) error {
@@ -144,7 +147,7 @@ func upstreamOf(version string) string {
 	return version
 }
 
-// distroTag は、パッケージ版からディストリの系列（.el9、ubuntu、deb13 など）を取り出す。分からなければ空。
+// distroTag は、パッケージ版からディストリの系列（.el9、+el9、_el9、ubuntu、deb13 など）を取り出す。分からなければ空。
 func distroTag(version string) string {
 	if i := strings.IndexByte(version, '-'); i >= 0 {
 		return distroTagPattern.FindString(version[i:])
