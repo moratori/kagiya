@@ -1163,3 +1163,120 @@ func TestReportHasNoContactOption(t *testing.T) {
 		t.Errorf("--contact must not be accepted: code=%d", code)
 	}
 }
+
+// 書き出すコマンドは、書いた場所（絶対パス）だけを、標準出力に 1 行で出す（2026-11-15。Ansible などが、次の処理にそのまま渡せるように）。
+// 人が読む要約は、標準エラー出力に出す。
+func TestScanPrintsResultPathOnStdout(t *testing.T) {
+	fx := setup(t)
+	code, stdout, stderr := run(fx.scanArgs()...)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if want := singleFile(t, fx.out, ".json") + "\n"; stdout != want {
+		t.Errorf("stdout = %q, want only the path of the result file %q", stdout, want)
+	}
+	if !strings.Contains(stderr, "assets") {
+		t.Errorf("the summary must stay on stderr: %q", stderr)
+	}
+}
+
+// 出力先を相対パスで指定しても、絶対パスで出す（呼び出した側の作業ディレクトリに左右されないように）。
+func TestScanPrintsAbsoluteResultPath(t *testing.T) {
+	fx := setup(t)
+	t.Chdir(filepath.Dir(fx.out))
+	code, stdout, stderr := run("scan", "--roots", fx.root, "--output-dir", "out", "--exclude", fx.root+"/excluded", "--cpu-limit", "100", "--io-limit", "0")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if want := singleFile(t, fx.out, ".json") + "\n"; stdout != want || !filepath.IsAbs(stdout) {
+		t.Errorf("stdout = %q, want the absolute path %q", stdout, want)
+	}
+}
+
+// 結果のファイルを書いたときは、終了コードが 0 でなくても、そのパスを出す（途中までの結果、--strict）。
+// 完了したかどうかは、終了コードと、結果の meta.completed で分かる。
+func TestScanPrintsResultPathWheneverTheResultIsWritten(t *testing.T) {
+	t.Run("strict", func(t *testing.T) {
+		fx := setup(t)
+		code, stdout, _ := run(fx.scanArgs("--strict")...)
+		if want := singleFile(t, fx.out, ".json") + "\n"; code != 1 || stdout != want {
+			t.Errorf("code=%d stdout=%q, want 1 and %q", code, stdout, want)
+		}
+	})
+	t.Run("partial result", func(t *testing.T) {
+		fx := setup(t)
+		scanHook = func(phase string) {
+			if phase == "walk" {
+				panic("boom")
+			}
+		}
+		defer func() { scanHook = nil }()
+		code, stdout, _ := run(fx.scanArgs()...)
+		if want := singleFile(t, fx.out, ".json") + "\n"; code != 3 || stdout != want {
+			t.Errorf("code=%d stdout=%q, want 3 and %q", code, stdout, want)
+		}
+	})
+}
+
+// 結果のファイルを書かなかったときは、標準出力に何も出さない。
+func TestScanPrintsNothingOnStdoutWithoutResult(t *testing.T) {
+	fx := setup(t)
+	if code, stdout, _ := run("scan", "--no-such-option"); code != 2 || stdout != "" {
+		t.Errorf("usage error: code=%d stdout=%q", code, stdout)
+	}
+	if code, stdout, _ := run("scan", "--help"); code != 0 || stdout != "" {
+		t.Errorf("help: code=%d stdout=%q", code, stdout)
+	}
+	// 出力先を断る場合（探索の起点と重なる）
+	if code, stdout, _ := run("scan", "--roots", fx.root, "--output-dir", fx.root, "--log-dir", fx.logs); code == 0 || stdout != "" {
+		t.Errorf("refused output directory: code=%d stdout=%q", code, stdout)
+	}
+	if ents, _ := os.ReadDir(fx.out); len(ents) != 0 {
+		t.Errorf("no result must be written: %v", ents)
+	}
+}
+
+// convert、report、rules export も同じ決まり（書いた場所だけを、標準出力に 1 行で出す）。
+func TestWritingCommandsPrintOnlyThePathOnStdout(t *testing.T) {
+	fx := setup(t)
+	if code, _, stderr := run(fx.scanArgs()...); code != 0 {
+		t.Fatalf("scan: exit %d: %s", code, stderr)
+	}
+	result := singleFile(t, fx.out, ".json")
+	base := tmp(t)
+
+	csvDir := base + "/csv"
+	code, stdout, stderr := run("convert", "--to", "csv", "--output-dir", csvDir, result)
+	if want := singleFile(t, csvDir, ".csv") + "\n"; code != 0 || stdout != want {
+		t.Errorf("convert --to csv: code=%d stdout=%q, want %q (stderr %q)", code, stdout, want, stderr)
+	}
+	if !strings.Contains(stderr, "rows") {
+		t.Errorf("convert --to csv: the number of rows must be on stderr: %q", stderr)
+	}
+
+	cbomDir := base + "/cbom"
+	code, stdout, stderr = run("convert", "--to", "cbom", "--output-dir", cbomDir, result)
+	if want := singleFile(t, cbomDir, ".cdx.json") + "\n"; code != 0 || stdout != want {
+		t.Errorf("convert --to cbom: code=%d stdout=%q, want %q (stderr %q)", code, stdout, want, stderr)
+	}
+
+	reportDir := base + "/report"
+	code, stdout, stderr = run("report", "--output-dir", reportDir, result)
+	if want := singleFile(t, reportDir, ".html") + "\n"; code != 0 || stdout != want {
+		t.Errorf("report: code=%d stdout=%q, want %q (stderr %q)", code, stdout, want, stderr)
+	}
+
+	rulesDir := base + "/rules"
+	code, stdout, stderr = run("rules", "export", "--output-dir", rulesDir)
+	if code != 0 || stdout != rulesDir+"\n" {
+		t.Errorf("rules export: code=%d stdout=%q, want %q (stderr %q)", code, stdout, rulesDir+"\n", stderr)
+	}
+	if !strings.Contains(stderr, "rule files") {
+		t.Errorf("rules export: the number of files must be on stderr: %q", stderr)
+	}
+
+	// 書けなかったときは、何も出さない
+	if code, stdout, _ := run("convert", "--to", "csv", "--output-dir", csvDir, result); code == 0 || stdout != "" {
+		t.Errorf("convert refusing to overwrite: code=%d stdout=%q", code, stdout)
+	}
+}
