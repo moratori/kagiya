@@ -27,6 +27,38 @@ group_tables:
           method: enumerated-by-handshake
           verified-by-handshake: true
           note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+      - package: openssl-libs
+        version: "1.1.1k-6.el8_5"
+        source:
+          image: "almalinux@sha256:455902ea5ea726b38d4914ea745d225d5635486adc12706760ce1ef7cf86db20"
+          os: "AlmaLinux 8.5 (Arctic Sphynx)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+      - package: openssl-libs
+        version: "1.1.1k-7.el8_6"
+        source:
+          image: "almalinux@sha256:56ec0a505cbd57bfbc518e5e3cc8b1997b4ab1d7550027b09d3137b6c5d7f68e"
+          os: "AlmaLinux 8.6 (Sky Tiger)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+      - package: openssl-libs
+        version: "1.1.1k-9.el8_7"
+        source:
+          image: "almalinux@sha256:06af1e7ae846b170c1819f4556f6e2b35d19f1c1c77919602adc95463a964561"
+          os: "AlmaLinux 8.7 (Stone Smilodon)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+      - package: openssl-libs
+        version: "1.1.1k-12.el8_9"
+        source:
+          image: "almalinux@sha256:a54c7f0491a4a81cee7380da537c36685efa66dc2d5de418bd3fbaa1e11c8d57"
+          os: "AlmaLinux 8.9 (Midnight Oncilla)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
     syntax: basic
     measured_levels: 2
     groups:
@@ -312,6 +344,14 @@ group_tables:
     upstream: "3.0.1"
     builds:
       - package: openssl-libs
+        version: "3.0.1-43.el9_0"
+        source:
+          image: "almalinux@sha256:a95a7766fd056b35f72f7b7f7301bcd46e40a6eecd9017e9c41cb4bf22ecb28b"
+          os: "AlmaLinux 9.0 (Emerald Puma)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+      - package: openssl-libs
         version: "3.0.1-47.el9_1"
         source:
           image: "almalinux@sha256:49923f8fbbf1de90100b511c485bd3fc88b2f8f0ab6be67b8a30bf6eb48fb67b"
@@ -340,6 +380,43 @@ group_tables:
   - library: openssl
     upstream: "3.0.7"
     builds:
+      - package: openssl-libs
+        version: "3.0.7-17.el9_2"
+        source:
+          image: "almalinux@sha256:09fdb3db0975ac4bf4610abd8f159622ab8f460950b56212472625cc47fccd5a"
+          os: "AlmaLinux 9.2 (Turquoise Kodkod)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
+    syntax: basic
+    measured_levels: 5
+    groups:
+      - {name: X25519, aliases: "x25519", tls13: true, tls12: true, level: 3, default: true}
+      - {name: X448, aliases: "x448", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-256, aliases: "prime256v1 secp256r1", tls13: true, tls12: true, level: 3, default: true}
+      - {name: P-384, aliases: "secp384r1", tls13: true, tls12: true, level: 4, default: true}
+      - {name: P-521, aliases: "secp521r1", tls13: true, tls12: true, level: 5, default: true}
+      - {name: ffdhe2048, tls13: true, tls12: false, level: 2, default: true}
+      - {name: ffdhe3072, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe4096, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe6144, tls13: true, tls12: false, level: 3, default: true}
+      - {name: ffdhe8192, tls13: true, tls12: false, level: 4, default: true}
+      - {name: P-224, aliases: "secp224r1", tls13: false, tls12: true}
+      - {name: secp256k1, tls13: false, tls12: true}
+      - {name: brainpoolP256r1, tls13: false, tls12: false}
+      - {name: brainpoolP384r1, tls13: false, tls12: false}
+      - {name: brainpoolP512r1, tls13: false, tls12: false}
+  - library: openssl
+    upstream: "3.0.7"
+    builds:
+      - package: openssl-libs
+        version: "3.0.7-25.el9_3"
+        source:
+          image: "almalinux@sha256:3f0cc7f99b0739908a8d6e4adec37ef47908991dc838dac43d52effe90fec747"
+          os: "AlmaLinux 9.3 (Shamrock Pampas Cat)"
+          method: enumerated-by-handshake
+          verified-by-handshake: true
+          note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
       - package: openssl-libs
         version: "3.0.7-28.el9_4"
         source:
@@ -372,8 +449,8 @@ group_tables:
       - package: openssl-libs
         version: "3.2.2-6.el9_5.1"
         source:
-          image: "almalinux@sha256:995c8b08af9f7b7bce0f3f1d1559378261c5b29c4b8c6f77b4860833a0e7cbc7"
-          os: "AlmaLinux 9.6 (Sage Margay)"
+          image: "almalinux@sha256:e9bc8f598ddfe585b2bcf6402e1f4dae7eb689c8c9361877fcdd1efc86c18799"
+          os: "AlmaLinux 9.5 (Teal Serval)"
           method: enumerated-by-handshake
           verified-by-handshake: true
           note: "package installed from the distribution repository in the image; openssl s_server started in the container with an empty openssl.cnf and probed with openssl s_client, one group at a time"
