@@ -180,6 +180,20 @@ defaults:
       tls.dhe-without-params: "disabled"
   - app: nginx
     package: nginx-core
+    version: "1.17.10-0ubuntu1"
+    source:
+      image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
+      os: "Ubuntu 20.04.6 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "disabled"
+  - app: nginx
+    package: nginx-core
     version: "1.18.0-6ubuntu14.22"
     source:
       image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
@@ -212,6 +226,48 @@ defaults:
     source:
       image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
       os: "Debian GNU/Linux 13 (trixie)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "disabled"
+  - app: nginx
+    package: nginx
+    version: "1.20.1-1.module_el8.5.0+2611+ab304644.alma"
+    source:
+      image: "almalinux@sha256:455902ea5ea726b38d4914ea745d225d5635486adc12706760ce1ef7cf86db20"
+      os: "AlmaLinux 8.5 (Arctic Sphynx)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "disabled"
+  - app: nginx
+    package: nginx
+    version: "1.20.0-2.module_el8.5.0+2575+1b759a19.alma"
+    source:
+      image: "almalinux@sha256:455902ea5ea726b38d4914ea745d225d5635486adc12706760ce1ef7cf86db20"
+      os: "AlmaLinux 8.5 (Arctic Sphynx)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "disabled"
+  - app: nginx
+    package: nginx
+    version: "1.20.1-10.el9.alma"
+    source:
+      image: "almalinux@sha256:a95a7766fd056b35f72f7b7f7301bcd46e40a6eecd9017e9c41cb4bf22ecb28b"
+      os: "AlmaLinux 9.0 (Emerald Puma)"
       method: enumerated-by-handshake
       verified-by-handshake: true
       items:

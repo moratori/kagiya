@@ -1340,8 +1340,38 @@ defaults:
       tls.groups: "prime256v1"
       tls.dhe-without-params: "builtin"
   - app: postgresql
+    package: postgresql-12
+    version: "12.2-4"
+    source:
+      image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
+      os: "Ubuntu 20.04.6 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
     package: postgresql-14
     version: "14.24-0ubuntu0.22.04.1"
+    source:
+      image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+      os: "Ubuntu 22.04.5 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-14
+    version: "14.2-1ubuntu1"
     source:
       image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
       os: "Ubuntu 22.04.5 LTS"
@@ -1370,8 +1400,38 @@ defaults:
       tls.groups: "prime256v1"
       tls.dhe-without-params: "builtin"
   - app: postgresql
+    package: postgresql-16
+    version: "16.2-1ubuntu4"
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
     package: postgresql-17
     version: "17.12-0+deb13u1"
+    source:
+      image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+      os: "Debian GNU/Linux 13 (trixie)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-17
+    version: "17.11-0+deb13u1"
     source:
       image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
       os: "Debian GNU/Linux 13 (trixie)"

@@ -13933,6 +13933,268 @@ jdk_tables:
       - {name: ffdhe6144, jsse: ffdhe6144, id: 259, tls13: true, tls12: false, key: "DH 6144"}
       - {name: ffdhe8192, jsse: ffdhe8192, id: 260, tls13: true, tls12: false, key: "DH 8192"}
   - runtime: openjdk
+    upstream: "21.0.12.1+1"
+    builds:
+      - package: openjdk-21-jre-headless
+        version: "21.0.12.1+1-1~deb13u1"
+        source:
+          image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+          os: "Debian GNU/Linux 13 (trixie)"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+          note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 21.0.12.1+1-1-deb13u1-Debian"
+    java_version: "21.0.12.1"
+    wildcard: true
+    disable_groups_by_name: true
+    dhe_default_bits: 2048
+    protocols:
+      - {name: TLSv1.3, default: true}
+      - {name: TLSv1.2, default: true}
+      - {name: TLSv1.1, default: true}
+      - {name: TLSv1, default: true}
+      - {name: SSLv3}
+      - {name: SSLv2Hello}
+    suites:
+      - {name: TLS_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_EMPTY_RENEGOTIATION_INFO_SCSV, default: true}
+      - {name: TLS_DH_anon_WITH_AES_256_GCM_SHA384}
+      - {name: TLS_DH_anon_WITH_AES_128_GCM_SHA256}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_RSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDHE_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_MD5}
+      - {name: TLS_ECDH_anon_WITH_RC4_128_SHA}
+      - {name: SSL_DH_anon_WITH_RC4_128_MD5}
+      - {name: SSL_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_DSS_WITH_DES_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_DES_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_RC4_40_MD5}
+      - {name: SSL_DH_anon_EXPORT_WITH_RC4_40_MD5}
+      - {name: TLS_RSA_WITH_NULL_SHA256}
+      - {name: TLS_ECDHE_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_anon_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_MD5}
+    groups:
+      - {name: X25519, jsse: x25519, id: 29, tls13: true, tls12: true}
+      - {name: P-256, jsse: secp256r1, id: 23, tls13: true, tls12: true, key: "EC 256"}
+      - {name: P-384, jsse: secp384r1, id: 24, tls13: true, tls12: true, key: "EC 384"}
+      - {name: P-521, jsse: secp521r1, id: 25, tls13: true, tls12: true, key: "EC 521"}
+      - {name: X448, jsse: x448, id: 30, tls13: true, tls12: true}
+      - {name: ffdhe2048, jsse: ffdhe2048, id: 256, tls13: true, tls12: false, key: "DH 2048"}
+      - {name: ffdhe3072, jsse: ffdhe3072, id: 257, tls13: true, tls12: false, key: "DH 3072"}
+      - {name: ffdhe4096, jsse: ffdhe4096, id: 258, tls13: true, tls12: false, key: "DH 4096"}
+      - {name: ffdhe6144, jsse: ffdhe6144, id: 259, tls13: true, tls12: false, key: "DH 6144"}
+      - {name: ffdhe8192, jsse: ffdhe8192, id: 260, tls13: true, tls12: false, key: "DH 8192"}
+  - runtime: openjdk
+    upstream: "25.0.3+9"
+    builds:
+      - package: openjdk-25-jre-headless
+        version: "25.0.3+9-2~deb13u1"
+        source:
+          image: "debian@sha256:9c6e381421d0f48d1b8133e573f33c185ee16cbf505eda9c4a8a4791b25ea8a6"
+          os: "Debian GNU/Linux 13 (trixie)"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+          note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 25.0.3+9-2-deb13u1-Debian"
+    java_version: "25.0.3"
+    wildcard: true
+    disable_groups_by_name: true
+    dhe_default_bits: 2048
+    protocols:
+      - {name: TLSv1.3, default: true}
+      - {name: TLSv1.2, default: true}
+      - {name: TLSv1.1, default: true}
+      - {name: TLSv1, default: true}
+      - {name: SSLv3}
+      - {name: SSLv2Hello}
+    suites:
+      - {name: TLS_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_EMPTY_RENEGOTIATION_INFO_SCSV, default: true}
+      - {name: TLS_DH_anon_WITH_AES_256_GCM_SHA384}
+      - {name: TLS_DH_anon_WITH_AES_128_GCM_SHA256}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_RSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDHE_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_MD5}
+      - {name: TLS_ECDH_anon_WITH_RC4_128_SHA}
+      - {name: SSL_DH_anon_WITH_RC4_128_MD5}
+      - {name: SSL_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_DSS_WITH_DES_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_DES_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_RC4_40_MD5}
+      - {name: SSL_DH_anon_EXPORT_WITH_RC4_40_MD5}
+      - {name: TLS_RSA_WITH_NULL_SHA256}
+      - {name: TLS_ECDHE_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_anon_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_MD5}
+    groups:
+      - {name: X25519, jsse: x25519, id: 29, tls13: true, tls12: true}
+      - {name: P-256, jsse: secp256r1, id: 23, tls13: true, tls12: true, key: "EC 256"}
+      - {name: P-384, jsse: secp384r1, id: 24, tls13: true, tls12: true, key: "EC 384"}
+      - {name: P-521, jsse: secp521r1, id: 25, tls13: true, tls12: true, key: "EC 521"}
+      - {name: X448, jsse: x448, id: 30, tls13: true, tls12: true}
+      - {name: ffdhe2048, jsse: ffdhe2048, id: 256, tls13: true, tls12: false, key: "DH 2048"}
+      - {name: ffdhe3072, jsse: ffdhe3072, id: 257, tls13: true, tls12: false, key: "DH 3072"}
+      - {name: ffdhe4096, jsse: ffdhe4096, id: 258, tls13: true, tls12: false, key: "DH 4096"}
+      - {name: ffdhe6144, jsse: ffdhe6144, id: 259, tls13: true, tls12: false, key: "DH 6144"}
+      - {name: ffdhe8192, jsse: ffdhe8192, id: 260, tls13: true, tls12: false, key: "DH 8192"}
+  - runtime: openjdk
     upstream: "8u292"
     builds:
       - package: openjdk-8-jre-headless
@@ -15318,6 +15580,933 @@ jdk_tables:
       - {name: P-384, jsse: secp384r1, id: 24, tls13: true, tls12: true, key: "EC 384"}
       - {name: P-521, jsse: secp521r1, id: 25, tls13: true, tls12: true, key: "EC 521"}
       - {name: X448, jsse: x448, id: 30, tls13: true, tls12: true}
+      - {name: ffdhe2048, jsse: ffdhe2048, id: 256, tls13: true, tls12: false, key: "DH 2048"}
+      - {name: ffdhe3072, jsse: ffdhe3072, id: 257, tls13: true, tls12: false, key: "DH 3072"}
+      - {name: ffdhe4096, jsse: ffdhe4096, id: 258, tls13: true, tls12: false, key: "DH 4096"}
+      - {name: ffdhe6144, jsse: ffdhe6144, id: 259, tls13: true, tls12: false, key: "DH 6144"}
+      - {name: ffdhe8192, jsse: ffdhe8192, id: 260, tls13: true, tls12: false, key: "DH 8192"}
+  - runtime: openjdk
+    upstream: "11.0.14.1+1"
+    builds:
+      - package: openjdk-11-jre-headless
+        version: "11.0.14.1+1-0ubuntu1"
+        source:
+          image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+          os: "Ubuntu 22.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+          note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 11.0.14.1+1-Ubuntu-0ubuntu1"
+    java_version: "11.0.14.1"
+    wildcard: false
+    disable_groups_by_name: true
+    dhe_default_bits: 1024
+    protocols:
+      - {name: TLSv1.3, default: true}
+      - {name: TLSv1.2, default: true}
+      - {name: TLSv1.1, default: true}
+      - {name: TLSv1, default: true}
+      - {name: SSLv3, default: true}
+      - {name: SSLv2Hello, default: true}
+    suites:
+      - {name: TLS_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_EMPTY_RENEGOTIATION_INFO_SCSV, default: true}
+      - {name: TLS_DH_anon_WITH_AES_256_GCM_SHA384}
+      - {name: TLS_DH_anon_WITH_AES_128_GCM_SHA256}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDHE_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_MD5}
+      - {name: TLS_ECDH_anon_WITH_RC4_128_SHA}
+      - {name: SSL_DH_anon_WITH_RC4_128_MD5}
+      - {name: SSL_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_DSS_WITH_DES_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_DES_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_RC4_40_MD5}
+      - {name: SSL_DH_anon_EXPORT_WITH_RC4_40_MD5}
+      - {name: TLS_RSA_WITH_NULL_SHA256}
+      - {name: TLS_ECDHE_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_anon_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_MD5}
+    groups:
+      - {name: P-256, jsse: secp256r1, id: 23, tls13: true, tls12: true, key: "EC 256"}
+      - {name: P-384, jsse: secp384r1, id: 24, tls13: true, tls12: true, key: "EC 384"}
+      - {name: P-521, jsse: secp521r1, id: 25, tls13: true, tls12: true, key: "EC 521"}
+      - {name: X25519, jsse: x25519, id: 29, tls13: true, tls12: true}
+      - {name: X448, jsse: x448, id: 30, tls13: true, tls12: true}
+      - {name: ffdhe2048, jsse: ffdhe2048, id: 256, tls13: true, tls12: false, key: "DH 2048"}
+      - {name: ffdhe3072, jsse: ffdhe3072, id: 257, tls13: true, tls12: false, key: "DH 3072"}
+      - {name: ffdhe4096, jsse: ffdhe4096, id: 258, tls13: true, tls12: false, key: "DH 4096"}
+      - {name: ffdhe6144, jsse: ffdhe6144, id: 259, tls13: true, tls12: false, key: "DH 6144"}
+      - {name: ffdhe8192, jsse: ffdhe8192, id: 260, tls13: true, tls12: false, key: "DH 8192"}
+  - runtime: openjdk
+    upstream: "17.0.2+8"
+    builds:
+      - package: openjdk-17-jre-headless
+        version: "17.0.2+8-1"
+        source:
+          image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+          os: "Ubuntu 22.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+          note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 17.0.2+8-Ubuntu-1"
+    java_version: "17.0.2"
+    wildcard: false
+    disable_groups_by_name: true
+    dhe_default_bits: 1024
+    protocols:
+      - {name: TLSv1.3, default: true}
+      - {name: TLSv1.2, default: true}
+      - {name: TLSv1.1, default: true}
+      - {name: TLSv1, default: true}
+      - {name: SSLv3}
+      - {name: SSLv2Hello}
+    suites:
+      - {name: TLS_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_EMPTY_RENEGOTIATION_INFO_SCSV, default: true}
+      - {name: TLS_DH_anon_WITH_AES_256_GCM_SHA384}
+      - {name: TLS_DH_anon_WITH_AES_128_GCM_SHA256}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDHE_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_MD5}
+      - {name: TLS_ECDH_anon_WITH_RC4_128_SHA}
+      - {name: SSL_DH_anon_WITH_RC4_128_MD5}
+      - {name: SSL_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_DSS_WITH_DES_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_DES_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_RC4_40_MD5}
+      - {name: SSL_DH_anon_EXPORT_WITH_RC4_40_MD5}
+      - {name: TLS_RSA_WITH_NULL_SHA256}
+      - {name: TLS_ECDHE_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_anon_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_MD5}
+    groups:
+      - {name: P-256, jsse: secp256r1, id: 23, tls13: true, tls12: true, key: "EC 256"}
+      - {name: P-384, jsse: secp384r1, id: 24, tls13: true, tls12: true, key: "EC 384"}
+      - {name: P-521, jsse: secp521r1, id: 25, tls13: true, tls12: true, key: "EC 521"}
+      - {name: X25519, jsse: x25519, id: 29, tls13: true, tls12: true}
+      - {name: X448, jsse: x448, id: 30, tls13: true, tls12: true}
+      - {name: ffdhe2048, jsse: ffdhe2048, id: 256, tls13: true, tls12: false, key: "DH 2048"}
+      - {name: ffdhe3072, jsse: ffdhe3072, id: 257, tls13: true, tls12: false, key: "DH 3072"}
+      - {name: ffdhe4096, jsse: ffdhe4096, id: 258, tls13: true, tls12: false, key: "DH 4096"}
+      - {name: ffdhe6144, jsse: ffdhe6144, id: 259, tls13: true, tls12: false, key: "DH 6144"}
+      - {name: ffdhe8192, jsse: ffdhe8192, id: 260, tls13: true, tls12: false, key: "DH 8192"}
+  - runtime: openjdk
+    upstream: "8u312"
+    builds:
+      - package: openjdk-8-jre-headless
+        version: "8u312-b07-0ubuntu1"
+        source:
+          image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+          os: "Ubuntu 22.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+          note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 1.8.0_312-8u312-b07-0ubuntu1-b07"
+    java_version: "1.8.0_312"
+    wildcard: false
+    disable_groups_by_name: false
+    dhe_default_bits: 1024
+    unusable_groups: [x25519]
+    protocols:
+      - {name: TLSv1.3, default: true}
+      - {name: TLSv1.2, default: true}
+      - {name: TLSv1.1, default: true}
+      - {name: TLSv1, default: true}
+      - {name: SSLv3, default: true}
+      - {name: SSLv2Hello, default: true}
+    suites:
+      - {name: TLS_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_EMPTY_RENEGOTIATION_INFO_SCSV, default: true}
+      - {name: TLS_DH_anon_WITH_AES_256_GCM_SHA384}
+      - {name: TLS_DH_anon_WITH_AES_128_GCM_SHA256}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDHE_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_MD5}
+      - {name: TLS_ECDH_anon_WITH_RC4_128_SHA}
+      - {name: SSL_DH_anon_WITH_RC4_128_MD5}
+      - {name: SSL_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_DSS_WITH_DES_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_DES_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_RC4_40_MD5}
+      - {name: SSL_DH_anon_EXPORT_WITH_RC4_40_MD5}
+      - {name: TLS_RSA_WITH_NULL_SHA256}
+      - {name: TLS_ECDHE_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_anon_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_MD5}
+      - {name: TLS_KRB5_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_KRB5_WITH_3DES_EDE_CBC_MD5}
+      - {name: TLS_KRB5_WITH_RC4_128_SHA}
+      - {name: TLS_KRB5_WITH_RC4_128_MD5}
+      - {name: TLS_KRB5_WITH_DES_CBC_SHA}
+      - {name: TLS_KRB5_WITH_DES_CBC_MD5}
+      - {name: TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA}
+      - {name: TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5}
+      - {name: TLS_KRB5_EXPORT_WITH_RC4_40_SHA}
+      - {name: TLS_KRB5_EXPORT_WITH_RC4_40_MD5}
+    groups:
+      - {name: P-256, jsse: secp256r1, id: 23, tls13: true, tls12: true, key: "EC 256"}
+      - {name: P-384, jsse: secp384r1, id: 24, tls13: true, tls12: true, key: "EC 384"}
+      - {name: P-521, jsse: secp521r1, id: 25, tls13: true, tls12: true, key: "EC 521"}
+      - {name: ffdhe2048, jsse: ffdhe2048, id: 256, tls13: true, tls12: false, key: "DH 2048"}
+      - {name: ffdhe3072, jsse: ffdhe3072, id: 257, tls13: true, tls12: false, key: "DH 3072"}
+      - {name: ffdhe4096, jsse: ffdhe4096, id: 258, tls13: true, tls12: false, key: "DH 4096"}
+      - {name: ffdhe6144, jsse: ffdhe6144, id: 259, tls13: true, tls12: false, key: "DH 6144"}
+      - {name: ffdhe8192, jsse: ffdhe8192, id: 260, tls13: true, tls12: false, key: "DH 8192"}
+  - runtime: openjdk
+    upstream: "11.0.23+9"
+    builds:
+      - package: openjdk-11-jre-headless
+        version: "11.0.23+9-1ubuntu1"
+        source:
+          image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+          os: "Ubuntu 24.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+          note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 11.0.23+9-post-Ubuntu-1ubuntu1"
+    java_version: "11.0.23"
+    wildcard: false
+    disable_groups_by_name: true
+    dhe_default_bits: 2048
+    protocols:
+      - {name: TLSv1.3, default: true}
+      - {name: TLSv1.2, default: true}
+      - {name: TLSv1.1, default: true}
+      - {name: TLSv1, default: true}
+      - {name: SSLv3}
+      - {name: SSLv2Hello}
+    suites:
+      - {name: TLS_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_EMPTY_RENEGOTIATION_INFO_SCSV, default: true}
+      - {name: TLS_DH_anon_WITH_AES_256_GCM_SHA384}
+      - {name: TLS_DH_anon_WITH_AES_128_GCM_SHA256}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDHE_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_MD5}
+      - {name: TLS_ECDH_anon_WITH_RC4_128_SHA}
+      - {name: SSL_DH_anon_WITH_RC4_128_MD5}
+      - {name: SSL_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_DSS_WITH_DES_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_DES_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_RC4_40_MD5}
+      - {name: SSL_DH_anon_EXPORT_WITH_RC4_40_MD5}
+      - {name: TLS_RSA_WITH_NULL_SHA256}
+      - {name: TLS_ECDHE_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_anon_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_MD5}
+    groups:
+      - {name: P-256, jsse: secp256r1, id: 23, tls13: true, tls12: true, key: "EC 256"}
+      - {name: P-384, jsse: secp384r1, id: 24, tls13: true, tls12: true, key: "EC 384"}
+      - {name: P-521, jsse: secp521r1, id: 25, tls13: true, tls12: true, key: "EC 521"}
+      - {name: X25519, jsse: x25519, id: 29, tls13: true, tls12: true}
+      - {name: X448, jsse: x448, id: 30, tls13: true, tls12: true}
+      - {name: ffdhe2048, jsse: ffdhe2048, id: 256, tls13: true, tls12: false, key: "DH 2048"}
+      - {name: ffdhe3072, jsse: ffdhe3072, id: 257, tls13: true, tls12: false, key: "DH 3072"}
+      - {name: ffdhe4096, jsse: ffdhe4096, id: 258, tls13: true, tls12: false, key: "DH 4096"}
+      - {name: ffdhe6144, jsse: ffdhe6144, id: 259, tls13: true, tls12: false, key: "DH 6144"}
+      - {name: ffdhe8192, jsse: ffdhe8192, id: 260, tls13: true, tls12: false, key: "DH 8192"}
+  - runtime: openjdk
+    upstream: "17.0.11+9"
+    builds:
+      - package: openjdk-17-jre-headless
+        version: "17.0.11+9-1"
+        source:
+          image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+          os: "Ubuntu 24.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+          note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 17.0.11+9-Ubuntu-1"
+    java_version: "17.0.11"
+    wildcard: false
+    disable_groups_by_name: true
+    dhe_default_bits: 2048
+    protocols:
+      - {name: TLSv1.3, default: true}
+      - {name: TLSv1.2, default: true}
+      - {name: TLSv1.1, default: true}
+      - {name: TLSv1, default: true}
+      - {name: SSLv3}
+      - {name: SSLv2Hello}
+    suites:
+      - {name: TLS_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_EMPTY_RENEGOTIATION_INFO_SCSV, default: true}
+      - {name: TLS_DH_anon_WITH_AES_256_GCM_SHA384}
+      - {name: TLS_DH_anon_WITH_AES_128_GCM_SHA256}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDHE_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_MD5}
+      - {name: TLS_ECDH_anon_WITH_RC4_128_SHA}
+      - {name: SSL_DH_anon_WITH_RC4_128_MD5}
+      - {name: SSL_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_DSS_WITH_DES_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_DES_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_RC4_40_MD5}
+      - {name: SSL_DH_anon_EXPORT_WITH_RC4_40_MD5}
+      - {name: TLS_RSA_WITH_NULL_SHA256}
+      - {name: TLS_ECDHE_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_anon_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_MD5}
+    groups:
+      - {name: P-256, jsse: secp256r1, id: 23, tls13: true, tls12: true, key: "EC 256"}
+      - {name: P-384, jsse: secp384r1, id: 24, tls13: true, tls12: true, key: "EC 384"}
+      - {name: P-521, jsse: secp521r1, id: 25, tls13: true, tls12: true, key: "EC 521"}
+      - {name: X25519, jsse: x25519, id: 29, tls13: true, tls12: true}
+      - {name: X448, jsse: x448, id: 30, tls13: true, tls12: true}
+      - {name: ffdhe2048, jsse: ffdhe2048, id: 256, tls13: true, tls12: false, key: "DH 2048"}
+      - {name: ffdhe3072, jsse: ffdhe3072, id: 257, tls13: true, tls12: false, key: "DH 3072"}
+      - {name: ffdhe4096, jsse: ffdhe4096, id: 258, tls13: true, tls12: false, key: "DH 4096"}
+      - {name: ffdhe6144, jsse: ffdhe6144, id: 259, tls13: true, tls12: false, key: "DH 6144"}
+      - {name: ffdhe8192, jsse: ffdhe8192, id: 260, tls13: true, tls12: false, key: "DH 8192"}
+  - runtime: openjdk
+    upstream: "21.0.3+9"
+    builds:
+      - package: openjdk-21-jre-headless
+        version: "21.0.3+9-1ubuntu1"
+        source:
+          image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+          os: "Ubuntu 24.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+          note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 21.0.3+9-Ubuntu-1ubuntu1"
+    java_version: "21.0.3"
+    wildcard: false
+    disable_groups_by_name: true
+    dhe_default_bits: 2048
+    protocols:
+      - {name: TLSv1.3, default: true}
+      - {name: TLSv1.2, default: true}
+      - {name: TLSv1.1, default: true}
+      - {name: TLSv1, default: true}
+      - {name: SSLv3}
+      - {name: SSLv2Hello}
+    suites:
+      - {name: TLS_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_EMPTY_RENEGOTIATION_INFO_SCSV, default: true}
+      - {name: TLS_DH_anon_WITH_AES_256_GCM_SHA384}
+      - {name: TLS_DH_anon_WITH_AES_128_GCM_SHA256}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_RSA_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDHE_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_MD5}
+      - {name: TLS_ECDH_anon_WITH_RC4_128_SHA}
+      - {name: SSL_DH_anon_WITH_RC4_128_MD5}
+      - {name: SSL_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_DSS_WITH_DES_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_DES_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_RC4_40_MD5}
+      - {name: SSL_DH_anon_EXPORT_WITH_RC4_40_MD5}
+      - {name: TLS_RSA_WITH_NULL_SHA256}
+      - {name: TLS_ECDHE_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_anon_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_MD5}
+    groups:
+      - {name: X25519, jsse: x25519, id: 29, tls13: true, tls12: true}
+      - {name: P-256, jsse: secp256r1, id: 23, tls13: true, tls12: true, key: "EC 256"}
+      - {name: P-384, jsse: secp384r1, id: 24, tls13: true, tls12: true, key: "EC 384"}
+      - {name: P-521, jsse: secp521r1, id: 25, tls13: true, tls12: true, key: "EC 521"}
+      - {name: X448, jsse: x448, id: 30, tls13: true, tls12: true}
+      - {name: ffdhe2048, jsse: ffdhe2048, id: 256, tls13: true, tls12: false, key: "DH 2048"}
+      - {name: ffdhe3072, jsse: ffdhe3072, id: 257, tls13: true, tls12: false, key: "DH 3072"}
+      - {name: ffdhe4096, jsse: ffdhe4096, id: 258, tls13: true, tls12: false, key: "DH 4096"}
+      - {name: ffdhe6144, jsse: ffdhe6144, id: 259, tls13: true, tls12: false, key: "DH 6144"}
+      - {name: ffdhe8192, jsse: ffdhe8192, id: 260, tls13: true, tls12: false, key: "DH 8192"}
+  - runtime: openjdk
+    upstream: "8u402"
+    builds:
+      - package: openjdk-8-jre-headless
+        version: "8u402-ga-8build1"
+        source:
+          image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+          os: "Ubuntu 24.04.5 LTS"
+          method: reported-by-software
+          verified-by-handshake: true
+          items:
+            dhe_default_bits: { method: enumerated-by-handshake, verified-by-handshake: true }
+            disable_groups_by_name: { method: enumerated-by-handshake, verified-by-handshake: true }
+            groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+            unusable_groups: { method: enumerated-by-handshake, verified-by-handshake: true }
+          note: "package installed from the distribution repository in the image; suites and protocols reported by the JDK itself with all restrictions cleared (SSLServerSocket.getEnabledCipherSuites / getSupportedSSLParameters); groups enumerated by handshakes against a Java TLS server in the container (raw ClientHello, one group at a time); java.runtime.version 1.8.0_402-8u402-ga-8build1-b06"
+    java_version: "1.8.0_402"
+    wildcard: false
+    disable_groups_by_name: false
+    dhe_default_bits: 1024
+    unusable_groups: [x25519]
+    protocols:
+      - {name: TLSv1.3, default: true}
+      - {name: TLSv1.2, default: true}
+      - {name: TLSv1.1, default: true}
+      - {name: TLSv1, default: true}
+      - {name: SSLv3, default: true}
+      - {name: SSLv2Hello, default: true}
+    suites:
+      - {name: TLS_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_DHE_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_DHE_DSS_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_256_GCM_SHA384, default: true}
+      - {name: TLS_RSA_WITH_AES_128_GCM_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA256, default: true}
+      - {name: TLS_RSA_WITH_AES_256_CBC_SHA, default: true}
+      - {name: TLS_RSA_WITH_AES_128_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: SSL_RSA_WITH_3DES_EDE_CBC_SHA, default: true}
+      - {name: TLS_EMPTY_RENEGOTIATION_INFO_SCSV, default: true}
+      - {name: TLS_DH_anon_WITH_AES_256_GCM_SHA384}
+      - {name: TLS_DH_anon_WITH_AES_128_GCM_SHA256}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_256_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA256}
+      - {name: TLS_ECDH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_DH_anon_WITH_AES_128_CBC_SHA}
+      - {name: TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_ECDHE_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_RC4_128_SHA}
+      - {name: TLS_ECDH_RSA_WITH_RC4_128_SHA}
+      - {name: SSL_RSA_WITH_RC4_128_MD5}
+      - {name: TLS_ECDH_anon_WITH_RC4_128_SHA}
+      - {name: SSL_DH_anon_WITH_RC4_128_MD5}
+      - {name: SSL_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_RSA_WITH_DES_CBC_SHA}
+      - {name: SSL_DHE_DSS_WITH_DES_CBC_SHA}
+      - {name: SSL_DH_anon_WITH_DES_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA}
+      - {name: SSL_RSA_EXPORT_WITH_RC4_40_MD5}
+      - {name: SSL_DH_anon_EXPORT_WITH_RC4_40_MD5}
+      - {name: TLS_RSA_WITH_NULL_SHA256}
+      - {name: TLS_ECDHE_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDHE_RSA_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_ECDSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_RSA_WITH_NULL_SHA}
+      - {name: TLS_ECDH_anon_WITH_NULL_SHA}
+      - {name: SSL_RSA_WITH_NULL_MD5}
+      - {name: TLS_KRB5_WITH_3DES_EDE_CBC_SHA}
+      - {name: TLS_KRB5_WITH_3DES_EDE_CBC_MD5}
+      - {name: TLS_KRB5_WITH_RC4_128_SHA}
+      - {name: TLS_KRB5_WITH_RC4_128_MD5}
+      - {name: TLS_KRB5_WITH_DES_CBC_SHA}
+      - {name: TLS_KRB5_WITH_DES_CBC_MD5}
+      - {name: TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA}
+      - {name: TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5}
+      - {name: TLS_KRB5_EXPORT_WITH_RC4_40_SHA}
+      - {name: TLS_KRB5_EXPORT_WITH_RC4_40_MD5}
+    groups:
+      - {name: P-256, jsse: secp256r1, id: 23, tls13: true, tls12: true, key: "EC 256"}
+      - {name: P-384, jsse: secp384r1, id: 24, tls13: true, tls12: true, key: "EC 384"}
+      - {name: P-521, jsse: secp521r1, id: 25, tls13: true, tls12: true, key: "EC 521"}
       - {name: ffdhe2048, jsse: ffdhe2048, id: 256, tls13: true, tls12: false, key: "DH 2048"}
       - {name: ffdhe3072, jsse: ffdhe3072, id: 257, tls13: true, tls12: false, key: "DH 3072"}
       - {name: ffdhe4096, jsse: ffdhe4096, id: 258, tls13: true, tls12: false, key: "DH 4096"}

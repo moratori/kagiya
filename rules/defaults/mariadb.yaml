@@ -389,7 +389,46 @@ defaults:
       tls.dhe-without-params: "builtin"
   - app: mariadb
     package: mariadb-server
+    version: "1:10.6.22-0ubuntu0.22.04.1"
+    source:
+      image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+      os: "Ubuntu 22.04.5 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "@system"
+      tls.without-certificate: "disabled"
+      tls.dhe-without-params: "builtin"
+  - app: mariadb
+    package: mariadb-server
     version: "1:10.11.14-0ubuntu0.24.04.1"
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "@system"
+      tls.without-certificate: "disabled"
+      tls.dhe-without-params: "builtin"
+  - app: mariadb
+    package: mariadb-server
+    version: "1:10.11.13-0ubuntu0.24.04.1"
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "@system"
+      tls.without-certificate: "disabled"
+      tls.dhe-without-params: "builtin"
+  - app: mariadb
+    package: mariadb-server
+    version: "1:10.11.7-2ubuntu2"
     source:
       image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
       os: "Ubuntu 24.04.5 LTS"
