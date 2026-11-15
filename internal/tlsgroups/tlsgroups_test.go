@@ -149,3 +149,41 @@ func TestResolveExamples(t *testing.T) {
 		t.Errorf("1.1.1 at level 2: %v %v", u, ok)
 	}
 }
+
+// OpenSSL 3.2 の書き方（optional）: 「:」区切りで、接頭辞は「?」（知らない名前なら無視）だけが使える。
+// 名前は大文字小文字を区別する。同じグループを2回書いてもよい（2回目は無視される）。「/」「*」「-」「DEFAULT」は使えない。
+// 期待値は、検証ラボで AlmaLinux 9.6（openssl-libs 3.2.2-6.el9_5.1）の openssl s_server に指定を与えて測った結果。
+func TestResolveOptionalSyntax(t *testing.T) {
+	lv := 5
+	tb := &ruleset.GroupTable{
+		Library: "openssl", Upstream: "3.2.2", Syntax: ruleset.GroupSyntaxOptional, MeasuredLevels: 5,
+		Groups: []ruleset.Group{
+			{Name: "X25519", Aliases: "x25519", TLS13: true, TLS12: true, Level: &lv, Default: true},
+			{Name: "P-256", Aliases: "prime256v1 secp256r1", TLS13: true, TLS12: true, Level: &lv, Default: true},
+			{Name: "P-384", Aliases: "secp384r1", TLS13: true, TLS12: true, Level: &lv, Default: true},
+			{Name: "X448", Aliases: "x448", TLS13: true, TLS12: true, Level: &lv},
+		},
+	}
+	for _, c := range []struct{ spec, groups, ignored string }{
+		{"", "X25519 P-256 P-384", ""},
+		{"?NOSUCHGROUP:X25519", "X25519", "NOSUCHGROUP"},
+		{"?X25519MLKEM768:X25519:P-256", "X25519 P-256", "X25519MLKEM768"},
+		{"?X25519:?P-256", "X25519 P-256", ""},
+		{"X25519:X25519", "X25519", ""},
+		{"P-256:prime256v1", "P-256", ""},
+		// 「?」の後ろは、そのまま名前として扱われる。「*P-256」という名前は知らないので、無視される
+		{"X25519:?*P-256", "X25519", "*P-256"},
+		// 「/」は区切りではない。「?*X25519MLKEM768/?*X25519」と「?secp256r1/?X448」は、どちらも知らない名前として無視される
+		{"?*X25519MLKEM768/?*X25519:?secp256r1/?X448:?secp384r1", "P-384", "*X25519MLKEM768/?*X25519 secp256r1/?X448"},
+	} {
+		r, err := Resolve(tb, c.spec)
+		if err != nil || strings.Join(r.Groups, " ") != c.groups || strings.Join(r.Ignored, " ") != c.ignored {
+			t.Errorf("[%s]: groups %v, ignored %v, err %v; want groups [%s], ignored [%s]", c.spec, r.Groups, r.Ignored, err, c.groups, c.ignored)
+		}
+	}
+	for _, bad := range []string{"X25519:NOSUCHGROUP", "DEFAULT", "X25519/P-256", "*X25519:P-256", "-X25519:P-256:X25519", "p-256", "?NOSUCHGROUP", "X25519:", ":X25519"} {
+		if r, err := Resolve(tb, bad); !errors.Is(err, ErrInvalid) {
+			t.Errorf("[%s] must be rejected: %v %v", bad, r.Groups, err)
+		}
+	}
+}
