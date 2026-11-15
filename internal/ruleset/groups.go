@@ -91,9 +91,9 @@ func (rs *RuleSet) addGroupTable(t *GroupTable, ids map[string]bool) error {
 // GroupTableFor は、暗号ライブラリのパッケージ版に対応する、鍵交換のグループの対応表と、その実測元を返す。
 // 引き方と補間の条件は、暗号スイートの対応表（CipherTableFor）と同じ。
 func (rs *RuleSet) GroupTableFor(library, pkg, version string) (t *GroupTable, build CipherBuild, exact, ok bool) {
-	i, build, exact, ok := findBuild(library, pkg, version, len(rs.GroupTables), func(i int) (string, string, []CipherBuild) {
+	i, build, exact, ok := findBuild(library, pkg, version, len(rs.GroupTables), func(i int) (string, []CipherBuild) {
 		tb := rs.GroupTables[i]
-		return tb.Library, tb.Upstream, tb.Builds
+		return tb.Library, tb.Builds
 	})
 	if !ok {
 		return nil, CipherBuild{}, false, false

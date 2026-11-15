@@ -55,10 +55,6 @@ var (
 	suiteAttrPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_./-]{0,31}(\([0-9]{1,4}\))?$`)
 	suiteIDPattern   = regexp.MustCompile(`^0x[0-9A-F]{2}(,0x[0-9A-F]{2}){1,2}$`)
 	upstreamPattern  = regexp.MustCompile(`^[0-9][0-9A-Za-z.]{0,31}$`)
-	// ディストリの系列。RHEL 系は、ふつうのパッケージ（.el9）のほかに、モジュールで配られるパッケージの形がある
-	// （RHEL が作ったものは「module+el9」、AlmaLinux が作ったものは「module_el9」）。区切りの文字ごと取り出すので、
-	// この 3 つは別の系列として扱われる（配布元の違うモジュールの表を、互いに当てはめない）。
-	distroTagPattern = regexp.MustCompile(`[.+_]el[0-9]+|ubuntu|deb[0-9]+`)
 )
 
 func (rs *RuleSet) addCipherTable(t *CipherTable, ids map[string]bool) error {
@@ -136,25 +132,6 @@ func (rs *RuleSet) addCipherTable(t *CipherTable, ids map[string]bool) error {
 	return nil
 }
 
-// upstreamOf は、パッケージ版から上流の版を取り出す（エポックと、リリース以降を落とす）。
-func upstreamOf(version string) string {
-	if i := strings.IndexByte(version, ':'); i >= 0 {
-		version = version[i+1:]
-	}
-	if i := strings.IndexByte(version, '-'); i >= 0 {
-		version = version[:i]
-	}
-	return version
-}
-
-// distroTag は、パッケージ版からディストリの系列（.el9、+el9、_el9、ubuntu、deb13 など）を取り出す。分からなければ空。
-func distroTag(version string) string {
-	if i := strings.IndexByte(version, '-'); i >= 0 {
-		return distroTagPattern.FindString(version[i:])
-	}
-	return ""
-}
-
 // CipherTableFor は、暗号ライブラリのパッケージ版に対応する対応表と、その実測元を返す。
 //
 //   - 実測した版そのものがあれば、それを返す（exact = true）。
@@ -162,49 +139,14 @@ func distroTag(version string) string {
 //     リリース番号だけが違う版（エラータ）を想定している。呼び出し側は、補間であることを結果に残し、確度を下げること。
 //   - それ以外は返さない（上流の版やディストリが違う表では代用しない）。
 func (rs *RuleSet) CipherTableFor(library, pkg, version string) (t *CipherTable, build CipherBuild, exact, ok bool) {
-	i, build, exact, ok := findBuild(library, pkg, version, len(rs.CipherTables), func(i int) (string, string, []CipherBuild) {
+	i, build, exact, ok := findBuild(library, pkg, version, len(rs.CipherTables), func(i int) (string, []CipherBuild) {
 		tb := rs.CipherTables[i]
-		return tb.Library, tb.Upstream, tb.Builds
+		return tb.Library, tb.Builds
 	})
 	if !ok {
 		return nil, CipherBuild{}, false, false
 	}
 	return rs.CipherTables[i], build, exact, true
-}
-
-// findBuild は、パッケージ版ごとの実測の表（暗号スイート、鍵交換のグループ）から、導入されている版に対応するものを探す。
-// 実測した版そのものがあれば exact = true。なければ、パッケージ名・上流の版・ディストリの系列が同じ実測版で補間する。
-func findBuild(library, pkg, version string, n int, at func(i int) (library, upstream string, builds []CipherBuild)) (index int, build CipherBuild, exact, ok bool) {
-	if version == "" {
-		return 0, CipherBuild{}, false, false
-	}
-	for i := 0; i < n; i++ {
-		lib, _, builds := at(i)
-		if lib != library {
-			continue
-		}
-		for _, b := range builds {
-			if b.Package == pkg && b.Version == version {
-				return i, b, true, true
-			}
-		}
-	}
-	up, tag := upstreamOf(version), distroTag(version)
-	if tag == "" {
-		return 0, CipherBuild{}, false, false
-	}
-	for i := 0; i < n; i++ {
-		lib, upstream, builds := at(i)
-		if lib != library || upstream != up {
-			continue
-		}
-		for _, b := range builds {
-			if b.Package == pkg && distroTag(b.Version) == tag {
-				return i, b, false, true
-			}
-		}
-	}
-	return 0, CipherBuild{}, false, false
 }
 
 // checkBuilds は、表を実測したパッケージ版の一覧を検証する（出典が必須。同じ版を2つの表に載せない）。

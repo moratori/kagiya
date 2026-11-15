@@ -78,12 +78,8 @@ func (rs *RuleSet) AppDefaultsFor(app, pkg, version string) (values map[string][
 	if v, s, found := rs.AppDefaults(app, pkg, version); found {
 		return v, version, s, true, true
 	}
-	up, tag := upstreamOf(version), distroTag(version)
-	if tag == "" {
-		return nil, "", Source{}, false, false
-	}
 	for _, d := range rs.Defaults {
-		if d.App == app && d.Package == pkg && upstreamOf(d.Version) == up && distroTag(d.Version) == tag {
+		if d.App == app && d.Package == pkg && canInterpolate(version, d.Version) {
 			v, s, _ := rs.AppDefaults(app, pkg, d.Version)
 			return v, d.Version, s, false, true
 		}

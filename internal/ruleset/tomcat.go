@@ -223,9 +223,9 @@ func (t *TomcatTable) Word(w string) ([]int, bool) {
 // TomcatTableFor は、Tomcat のパッケージ版に対応する対応表と、その実測元を返す。
 // 引き方と補間の条件は、暗号スイートの対応表（CipherTableFor）と同じ。
 func (rs *RuleSet) TomcatTableFor(server, pkg, version string) (t *TomcatTable, build CipherBuild, exact, ok bool) {
-	i, build, exact, ok := findBuild(server, pkg, version, len(rs.TomcatTables), func(i int) (string, string, []CipherBuild) {
+	i, build, exact, ok := findBuild(server, pkg, version, len(rs.TomcatTables), func(i int) (string, []CipherBuild) {
 		tb := rs.TomcatTables[i]
-		return tb.Server, tb.Upstream, tb.Builds
+		return tb.Server, tb.Builds
 	})
 	if !ok {
 		return nil, CipherBuild{}, false, false
