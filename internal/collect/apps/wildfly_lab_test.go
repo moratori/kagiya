@@ -20,6 +20,7 @@ import (
 //
 // 比べるのは、プロトコル、TLS 1.2 以下の暗号スイート（測定で使った証明書の種類で使えるもの）、TLS 1.3 の暗号スイート。
 // kagiya が「不明」とした場面（測っていない書き方として、値を求めないもの）は、食い違いには数えず、別に数える。
+// サーバーが起動しなかった場面（数え上げの記録がない）では、kagiya が値を出していないことを確かめる。
 func TestWildFlyAgainstLab(t *testing.T) {
 	root := os.Getenv("KAGIYA_WILDFLY_LAB")
 	if root == "" {
@@ -43,7 +44,7 @@ func TestWildFlyAgainstLab(t *testing.T) {
 	}
 	dirs, _ := filepath.Glob(filepath.Join(root, "ubuntu2404-wf*"))
 	sort.Strings(dirs)
-	match, declined, mismatch, versions := 0, 0, 0, 0
+	match, declined, mismatch, versions, notStarted := 0, 0, 0, 0, 0
 	for _, dir := range dirs {
 		version := strings.SplitN(filepath.Base(dir), "-wf", 2)[1]
 		scenes, _ := filepath.Glob(filepath.Join(dir, "*.standalone.xml"))
@@ -56,9 +57,11 @@ func TestWildFlyAgainstLab(t *testing.T) {
 			measured, err := os.ReadFile(filepath.Join(dir, scene+".8443.one.tsv"))
 			start, err2 := os.ReadFile(filepath.Join(dir, scene+".start.txt"))
 			xml, err3 := os.ReadFile(xmlPath)
-			if err != nil || err2 != nil || err3 != nil {
+			if err2 != nil || err3 != nil {
 				continue
 			}
+			// 数え上げの記録がないのは、その設定でサーバーが起動しなかった（待ち受けが開かなかった）場面
+			started := err == nil
 			pkg := pkgJava17Ubu
 			if strings.Contains(string(start), "java-11-openjdk") {
 				pkg = pkgJava11Ubu
@@ -104,6 +107,11 @@ func TestWildFlyAgainstLab(t *testing.T) {
 				}
 			}
 			switch {
+			case !started && e12.Status == "unresolved" && e13.Status == "unresolved" && ep.Status == "unresolved":
+				notStarted++ // 起動しない設定では、kagiya も値を出さない
+			case !started:
+				mismatch++
+				t.Errorf("%s %s: the server did not start with this configuration, but values are resolved: protocols=%v", version, scene, ep.Values)
 			case e12.Status == "unresolved" && strings.Contains(e12.Reason, "measured"):
 				declined++
 				t.Logf("%s %s: not resolved by design: %s", version, scene, e12.Reason)
@@ -124,5 +132,5 @@ func TestWildFlyAgainstLab(t *testing.T) {
 	if match == 0 {
 		t.Error("nothing was compared")
 	}
-	t.Logf("%d versions: %d scenes match, %d not resolved by design, %d differ", versions, match, declined, mismatch)
+	t.Logf("%d versions: %d scenes match, %d not resolved by design, %d did not start (and are not resolved), %d differ", versions, match, declined, notStarted, mismatch)
 }

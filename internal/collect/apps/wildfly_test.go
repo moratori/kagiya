@@ -357,22 +357,121 @@ func TestWildFlyLegacyRealm(t *testing.T) {
 	if p := wfEff(t, inv, "tls.protocols"); strings.Join(p.Values, ",") != "TLSv1.2" {
 		t.Errorf("protocols = %+v", p)
 	}
-	// 測っていない書き方は、求めない
-	for name, c := range map[string][3]string{
-		"another value of protocol":        {`protocol="TLSv1.2"`, "", ""},
-		"several protocols on a listener":  {"", "", `enabled-protocols="TLSv1.2,TLSv1.3"`},
-		"OpenSSL names on a listener":      {"", "", `enabled-cipher-suites="ECDHE-RSA-AES256-GCM-SHA384"`},
-		"both the engine and the listener": {"", `<engine enabled-protocols="TLSv1.2"/>`, `enabled-protocols="TLSv1.3"`},
-		"unknown names in the engine":      {"", `<engine enabled-cipher-suites="ECDHE-RSA-AES256-GCM-SHA384"/>`, ""},
-	} {
-		inv = host(c[0], c[1], c[2])
-		if e := wfEff(t, inv, "tls.ciphers"); e.Status != "unresolved" || !strings.Contains(e.Reason, "measured") {
-			t.Errorf("%s: %+v", name, e)
-		}
-	}
 	// 25 以降には、この形式がない
 	_, inv = collect(t, "", wfHost(t, "25.0.0.Final", wfLegacy("", "", ""), nil, pkgJava11Ubu))
 	wfUnresolved(t, inv, "security-realm")
+}
+
+// 古い形式の、測り足した書き方（検証ラボの wildfly-legacy。19.0.0〜24.0.1 の 14 版で、同じ結果だった）。
+// 場面の名前は、lab/phase2/wildfly.sh のもの。
+func TestWildFlyLegacyRealmMore(t *testing.T) {
+	const (
+		a  = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+		b  = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+		d  = "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384"
+		t3 = "TLS_AES_128_GCM_SHA256"
+	)
+	host := func(ssl, engine, listener string) *model.Inventory {
+		_, inv := collect(t, "", wfHost(t, "24.0.1.Final", wfLegacy(ssl, engine, listener), nil, pkgJava11Ubu))
+		return inv
+	}
+	// got は、プロトコル、TLS 1.2 以下のスイート（RSA の証明書で使えるもの）、TLS 1.3 のスイートを、並べ替えて返す
+	got := func(inv *model.Inventory) (protocols, tls12, tls13 string) {
+		p, e, e13 := wfEff(t, inv, "tls.protocols"), wfEff(t, inv, "tls.ciphers"), wfEff(t, inv, "tls.ciphersuites-tls13")
+		if p.Status != "resolved" || e.Status != "resolved" || e13.Status != "resolved" {
+			return "unresolved: " + e.Reason, "", ""
+		}
+		return sortedJoin(p.Values), sortedJoin(wfKind(e.Values, "RSA")), sortedJoin(e13.Values)
+	}
+	const all13 = "TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256"
+	defaultInv := host("", "", "")
+	_, default12, _ := got(defaultInv) // 既定（JDK の既定の 14 個。TestWildFlyLegacyRealm で確かめている）
+	for name, c := range map[string]struct {
+		ssl, engine, listener   string
+		protocols, tls12, tls13 string
+	}{
+		// (1) ssl の protocol は、TLS の実装の名前。測った 5 つの値では、受け入れるものを変えなかった
+		"l-protocol-tls":     {`protocol="TLS"`, "", "", "TLSv1.2", default12, ""},
+		"l-protocol-12":      {`protocol="TLSv1.2"`, "", "", "TLSv1.2", default12, ""},
+		"l-protocol-11":      {`protocol="TLSv1.1"`, "", "", "TLSv1.2", default12, ""},
+		"l-protocol-10":      {`protocol="TLSv1"`, "", "", "TLSv1.2", default12, ""},
+		"l-protocol-12-ep13": {`protocol="TLSv1.2"`, `<engine enabled-protocols="TLSv1.2 TLSv1.3"/>`, "", "TLSv1.2,TLSv1.3", default12, all13},
+		"l-protocol-13-ep13": {`protocol="TLSv1.3"`, `<engine enabled-protocols="TLSv1.2 TLSv1.3"/>`, "", "TLSv1.2,TLSv1.3", default12, all13},
+		// (2) 待ち受けの側のプロトコル: カンマで区切り、前後の空白を落とす。JDK が知らない名前は落ちる
+		"l-h-protocols-two":   {"", "", `enabled-protocols="TLSv1.2,TLSv1.3"`, "TLSv1.2,TLSv1.3", default12, all13},
+		"l-h-protocols-space": {"", "", `enabled-protocols="TLSv1.2, TLSv1.3"`, "TLSv1.2,TLSv1.3", default12, all13},
+		"l-h-protocols-old":   {"", "", `enabled-protocols="TLSv1.1,TLSv1.2"`, "TLSv1.2", default12, ""}, // TLS 1.1 は、JDK が無効にしている
+		"l-h-protocols-bad":   {"", "", `enabled-protocols="TLSv9"`, "", "", ""},                         // 起動するが、何も受け入れない
+		"l-h-protocols-blank": {"", "", `enabled-protocols="TLSv1.2 TLSv1.3"`, "", "", ""},               // 空白は区切りではない（1 つの知らない名前になる）
+		// (3) 待ち受けの側の暗号: Elytron の式として解釈される（cipher-suite-filter と同じ決まり）。TLS 1.3 のスイートは選ばれない
+		"l-h-ciphers-two":        {"", "", `enabled-cipher-suites="` + a + "," + b + `"`, "TLSv1.2", a + "," + b, ""},
+		"l-h-ciphers-space":      {"", "", `enabled-cipher-suites="` + a + ", " + b + `"`, "TLSv1.2", a + "," + b, ""},
+		"l-h-ciphers-colon":      {"", "", `enabled-cipher-suites="` + a + ":" + b + `"`, "TLSv1.2", a + "," + b, ""},
+		"l-h-ciphers-ossl":       {"", "", `enabled-cipher-suites="ECDHE-RSA-AES256-GCM-SHA384"`, "TLSv1.2", b, ""},
+		"l-h-ciphers-ossl-two":   {"", "", `enabled-cipher-suites="ECDHE-RSA-AES256-GCM-SHA384,ECDHE-RSA-AES128-GCM-SHA256"`, "TLSv1.2", a + "," + b, ""},
+		"l-h-ciphers-ossl-colon": {"", "", `enabled-cipher-suites="ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256"`, "TLSv1.2", a + "," + b, ""},
+		"l-h-ciphers-ossl-expr":  {"", "", `enabled-cipher-suites="ECDHE+AESGCM"`, "TLSv1.2", a + "," + b, ""},
+		"l-h-ciphers-ossl-high":  {"", "", `enabled-cipher-suites="HIGH:!aNULL:!MD5"`, "TLSv1.2", default12, ""},
+		"l-h-ciphers-empty":      {"", "", `enabled-cipher-suites="RC4-MD5"`, "", "", ""}, // JDK が対応しているものが残らない: 起動するが、何も受け入れない
+		"l-h-ciphers-p-two":      {"", "", `enabled-cipher-suites="` + a + `" enabled-protocols="TLSv1.2,TLSv1.3"`, "TLSv1.2", a, ""},
+		// security-realm の側の暗号: JDK が知らない名前は落ちる（残るものがあれば、それだけになる）
+		"l-ciphers-bad": {"", `<engine enabled-cipher-suites="NO_SUCH_SUITE ` + a + `"/>`, "", "TLSv1.2", a, ""},
+		"l-ciphers-13":  {"", `<engine enabled-cipher-suites="` + t3 + " " + a + `" enabled-protocols="TLSv1.2 TLSv1.3"/>`, "", "TLSv1.2,TLSv1.3", a, t3},
+		// security-realm の側のプロトコル: 同じ
+		"l-protocols-bad-mix": {"", `<engine enabled-protocols="TLSv9 TLSv1.2"/>`, "", "TLSv1.2", default12, ""},
+		// (4) 両方に書くと、待ち受けの側の指定が、security-realm の側の指定を置き換える（共通部分ではない）
+		"l-both-protocols":      {"", `<engine enabled-protocols="TLSv1.2 TLSv1.3"/>`, `enabled-protocols="TLSv1.3"`, "TLSv1.3", "", all13},
+		"l-both-protocols-rev":  {"", `<engine enabled-protocols="TLSv1.2"/>`, `enabled-protocols="TLSv1.3"`, "TLSv1.3", "", all13},
+		"l-both-protocols-wide": {"", `<engine enabled-protocols="TLSv1.2"/>`, `enabled-protocols="TLSv1.2,TLSv1.3"`, "TLSv1.2,TLSv1.3", default12, all13},
+		"l-both-ciphers":        {"", `<engine enabled-cipher-suites="` + a + " " + d + `"/>`, `enabled-cipher-suites="` + a + `"`, "TLSv1.2", a, ""},
+		"l-both-ciphers-rev":    {"", `<engine enabled-cipher-suites="` + a + `"/>`, `enabled-cipher-suites="` + b + `"`, "TLSv1.2", b, ""},
+		// 別の項目を、片方ずつに書く
+		"l-mixed-ep-lc":   {"", `<engine enabled-protocols="TLSv1.2 TLSv1.3"/>`, `enabled-cipher-suites="` + a + `"`, "TLSv1.2", a, ""},
+		"l-mixed-ec-lp":   {"", `<engine enabled-cipher-suites="` + a + " " + d + `"/>`, `enabled-protocols="TLSv1.2"`, "TLSv1.2", d + "," + a, ""},
+		"l-mixed-ec-lp13": {"", `<engine enabled-cipher-suites="` + a + " " + t3 + `"/>`, `enabled-protocols="TLSv1.3"`, "TLSv1.3", "", t3},
+	} {
+		if p, e, e13 := got(host(c.ssl, c.engine, c.listener)); p != c.protocols || e != c.tls12 || e13 != c.tls13 {
+			t.Errorf("%s:\n  got  protocols=%s tls12=%s tls13=%s\n  want protocols=%s tls12=%s tls13=%s", name, p, e, e13, c.protocols, c.tls12, c.tls13)
+		}
+	}
+	// 何も受け入れない設定は、その旨を付けて、空の一覧を出す
+	if p := wfEff(t, host("", "", `enabled-protocols="TLSv9"`), "tls.protocols"); p.Status != "resolved" || len(p.Values) != 0 || len(p.Qualifiers) == 0 {
+		t.Errorf("nothing accepted: %+v", p)
+	}
+	// 値を求めない書き方
+	for name, c := range map[string]struct{ ssl, engine, listener, want string }{
+		// サーバーが起動しない（実測）
+		"l-protocol-bad":     {`protocol="TLSv9"`, "", "", "protocol"},
+		"l-h-ciphers-13":     {"", "", `enabled-cipher-suites="` + t3 + `"`, "enabled-cipher-suites"},
+		"l-h-ciphers-13-p13": {"", "", `enabled-cipher-suites="` + t3 + `" enabled-protocols="TLSv1.3"`, "enabled-cipher-suites"},
+		"l-h-ciphers-bad":    {"", "", `enabled-cipher-suites="NO_SUCH_SUITE"`, "enabled-cipher-suites"},
+		// security-realm の側の名前が、どれも JDK の知らない名前: 実在するキーストアでは起動しない（k-ciphers-ossl、k-protocols-bad）。
+		// 証明書を最初の接続のときに自動で作る設定では、制限が外れた（l-ciphers-ossl、l-protocols-bad）。どちらかを決められないので、求めない
+		"l-ciphers-ossl":  {"", `<engine enabled-cipher-suites="ECDHE-RSA-AES256-GCM-SHA384"/>`, "", "none of"},
+		"l-protocols-bad": {"", `<engine enabled-protocols="TLSv9"/>`, "", "none of"},
+		// 待ち受けの側で置き換えていても、security-realm の側で起動に失敗する
+		"realm names unknown, listener set": {"", `<engine enabled-cipher-suites="NO_SUCH_SUITE"/>`, `enabled-cipher-suites="` + a + `"`, "none of"},
+		// 測っていない値
+		"protocol SSLv3": {`protocol="SSLv3"`, "", "", "protocol"},
+	} {
+		inv := host(c.ssl, c.engine, c.listener)
+		for _, param := range []string{"tls.protocols", "tls.ciphers", "tls.ciphersuites-tls13"} {
+			if e := wfEff(t, inv, param); e.Status != "unresolved" || !strings.Contains(e.Reason, c.want) || !strings.Contains(e.Reason, "measured") {
+				t.Errorf("%s: %s: status=%s reason=%q, want unresolved with %q", name, param, e.Status, e.Reason, c.want)
+			}
+		}
+	}
+	// 設定の記載は、security-realm の側と待ち受けの側の両方を記録する
+	inv := host("", `<engine enabled-protocols="TLSv1.2"/>`, `enabled-protocols="TLSv1.2,TLSv1.3"`)
+	var recorded []string
+	for _, s := range inv.Settings {
+		if s.Parameter == "tls.protocols" {
+			recorded = append(recorded, strings.Join(s.Values, " "))
+		}
+	}
+	if sortedJoin(recorded) != "TLSv1.2,TLSv1.2 TLSv1.3" {
+		t.Errorf("recorded settings = %q", recorded)
+	}
 }
 
 func TestWildFlyUnresolved(t *testing.T) {
