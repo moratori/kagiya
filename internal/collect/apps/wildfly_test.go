@@ -19,16 +19,17 @@ import (
 // キーストアの中は読まないので、kagiya の結果は証明書の種類で絞り込まれていない。測定結果とは、RSA の証明書で使えるスイートだけを取り出して比べる。
 
 const (
-	wfHome     = "/opt/wildfly"
-	wfConf     = wfHome + "/standalone/configuration/standalone.xml"
-	wfProduct  = wfHome + "/modules/system/layers/base/org/jboss/as/product/main"
-	wfScope    = "https-listener default-server/https"
-	wfJava17   = "/usr/lib/jvm/java-17-openjdk-arm64"
-	wfJava11   = "/usr/lib/jvm/java-11-openjdk-arm64"
-	wfRSA12    = "71168486bfa11015" // 既定、RSA の証明書（14）
-	wfEC12     = "96f46569772374f7" // 既定、EC の証明書（7）
-	wfECDHE12  = "0e092f295e359427" // ECDHE だけ、RSA の証明書（7）
-	wfTLS13All = "0298a462f55e65f8" // JDK の TLS 1.3 のスイート（3）
+	wfHome      = "/opt/wildfly"
+	wfConf      = wfHome + "/standalone/configuration/standalone.xml"
+	wfProduct   = wfHome + "/modules/system/layers/base/org/jboss/as/product/main"
+	wfScope     = "https-listener default-server/https"
+	wfMgmtScope = "management http-interface"
+	wfJava17    = "/usr/lib/jvm/java-17-openjdk-arm64"
+	wfJava11    = "/usr/lib/jvm/java-11-openjdk-arm64"
+	wfRSA12     = "71168486bfa11015" // 既定、RSA の証明書（14）
+	wfEC12      = "96f46569772374f7" // 既定、EC の証明書（7）
+	wfECDHE12   = "0e092f295e359427" // ECDHE だけ、RSA の証明書（7）
+	wfTLS13All  = "0298a462f55e65f8" // JDK の TLS 1.3 のスイート（3）
 	// 配布物に入っている standalone.conf の、コメントでない行（19.0.0.Final。JAVA_HOME の行はコメントになっている）
 	wfStandaloneConf = "#JAVA_HOME=\"/opt/java/jdk\"\nif [ \"x$JBOSS_MODULES_SYSTEM_PKGS\" = \"x\" ]; then\n   JBOSS_MODULES_SYSTEM_PKGS=\"org.jboss.byteman\"\nfi\n" +
 		"if [ \"x$JAVA_OPTS\" = \"x\" ]; then\n   JAVA_OPTS=\"-Xms64m -Xmx512m -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -Djava.net.preferIPv4Stack=true\"\n" +

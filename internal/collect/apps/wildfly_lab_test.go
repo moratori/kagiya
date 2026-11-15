@@ -26,6 +26,24 @@ func TestWildFlyAgainstLab(t *testing.T) {
 	if root == "" {
 		t.Skip("KAGIYA_WILDFLY_LAB is not set")
 	}
+	wfAgainstLab(t, root, "8443", wfScope)
+}
+
+// 管理用の待ち受け（lab/out/tlsapp/wildfly-mgmt/。TLS のポートは 9993）の測定結果との突き合わせ:
+//
+//	KAGIYA_WILDFLY_MGMT_LAB=$PWD/lab/out/tlsapp/wildfly-mgmt go test ./internal/collect/apps -run TestWildFlyManagementAgainstLab -v
+//
+// サーバーは起動したが、TLS のポートが開かなかった場面（TLS 用のソケットを指定していない設定）では、kagiya が、管理用の待ち受けについて
+// 何も出していないこと（値も「不明」も）を確かめる。
+func TestWildFlyManagementAgainstLab(t *testing.T) {
+	root := os.Getenv("KAGIYA_WILDFLY_MGMT_LAB")
+	if root == "" {
+		t.Skip("KAGIYA_WILDFLY_MGMT_LAB is not set")
+	}
+	wfAgainstLab(t, root, "9993", wfMgmtScope)
+}
+
+func wfAgainstLab(t *testing.T, root, port, scope string) {
 	rs, err := ruleset.Builtin()
 	if err != nil {
 		t.Fatal(err)
@@ -44,7 +62,7 @@ func TestWildFlyAgainstLab(t *testing.T) {
 	}
 	dirs, _ := filepath.Glob(filepath.Join(root, "ubuntu2404-wf*"))
 	sort.Strings(dirs)
-	match, declined, mismatch, versions, notStarted := 0, 0, 0, 0, 0
+	match, declined, mismatch, versions, notStarted, noTLS := 0, 0, 0, 0, 0, 0
 	for _, dir := range dirs {
 		version := strings.SplitN(filepath.Base(dir), "-wf", 2)[1]
 		scenes, _ := filepath.Glob(filepath.Join(dir, "*.standalone.xml"))
@@ -54,7 +72,7 @@ func TestWildFlyAgainstLab(t *testing.T) {
 		versions++
 		for _, xmlPath := range scenes {
 			scene := strings.TrimSuffix(filepath.Base(xmlPath), ".standalone.xml")
-			measured, err := os.ReadFile(filepath.Join(dir, scene+".8443.one.tsv"))
+			measured, err := os.ReadFile(filepath.Join(dir, scene+"."+port+".one.tsv"))
 			start, err2 := os.ReadFile(filepath.Join(dir, scene+".start.txt"))
 			xml, err3 := os.ReadFile(xmlPath)
 			if err2 != nil || err3 != nil {
@@ -88,15 +106,17 @@ func TestWildFlyAgainstLab(t *testing.T) {
 				}
 			}
 			kind := "RSA"
-			if scene == "e-eccert" {
+			if strings.HasSuffix(scene, "e-eccert") {
 				kind = "EC"
 			}
 			_, inv := collect(t, "", wfHost(t, version, string(xml), nil, pkg))
 			var e12, e13, ep model.EffectiveValue
+			inScope := 0
 			for _, e := range inv.EffectiveValues {
-				if e.Scope != wfScope {
+				if e.Scope != scope {
 					continue
 				}
+				inScope++
 				switch e.Parameter {
 				case "tls.ciphers":
 					e12 = e
@@ -106,7 +126,15 @@ func TestWildFlyAgainstLab(t *testing.T) {
 					ep = e
 				}
 			}
+			// サーバーは問題なく起動し、管理用の HTTP のポート（9990）は開いたが、測るポートだけが開かなかった場面は、TLS で待ち受けない設定
+			ports, _ := os.ReadFile(filepath.Join(dir, scene+".ports.txt"))
+			tlsOff := !started && strings.Contains(string(start), "WFLYSRV0025") && strings.Contains(string(ports), "9990")
 			switch {
+			case tlsOff && inScope == 0:
+				noTLS++
+			case tlsOff:
+				mismatch++
+				t.Errorf("%s %s: the server started without listening on %s, but something is reported for %q: protocols=%v %s", version, scene, port, scope, ep.Values, ep.Reason)
 			case !started && e12.Status == "unresolved" && e13.Status == "unresolved" && ep.Status == "unresolved":
 				notStarted++ // 起動しない設定では、kagiya も値を出さない
 			case !started:
@@ -132,5 +160,6 @@ func TestWildFlyAgainstLab(t *testing.T) {
 	if match == 0 {
 		t.Error("nothing was compared")
 	}
-	t.Logf("%d versions: %d scenes match, %d not resolved by design, %d did not start (and are not resolved), %d differ", versions, match, declined, notStarted, mismatch)
+	t.Logf("%d versions: %d scenes match, %d not resolved by design, %d did not start (and are not resolved), %d do not listen with TLS (and nothing is reported), %d differ",
+		versions, match, declined, notStarted, noTLS, mismatch)
 }
