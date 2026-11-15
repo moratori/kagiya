@@ -30,6 +30,621 @@ defaults:
       tls.dhe-without-params: "builtin"
   - app: postgresql
     package: postgresql-server
+    version: "12.18-1.module_el8.9.0+3740+0e74851f.alma.1"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "12.20-1.module_el8.10.0+3889+48cb11fb"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.14-1.module_el8.9.0+3815+0bfda440.alma.1"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.16-1.module_el8.10.0+3887+93e5d125"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.18-1.module_el8.10.0+3928+8233d274"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.20-1.module_el8.10.0+3967+334cd65a"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.22-1.module_el8.10.0+4042+cb252986"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.10-1.module_el8.10.0+3929+38258aa5"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.12-1.module_el8.10.0+3968+5ca3d05a"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.14-1.module_el8.10.0+4041+afd30bb4"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.15-1.module_el8.10.0+4098+1f4e965c"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.17-1.module_el8.10.0+4127+dc6e3c5c"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.18-1.module_el8.10.0+4195+4569d728"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.6-1.module_el8.9.0+3814+a6be3bd4.alma.1"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.8-1.module_el8.10.0+3888+1aead837"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.1-1.module_el8.10.0+3798+606ebb9f"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.10-1.module_el8.10.0+4038+0fbad93c"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.11-1.module_el8.10.0+4099+381a55d6"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.13-1.module_el8.10.0+4125+ceaf7d1b"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.14-1.module_el8.10.0+4199+bf03c564"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.4-1.module_el8.10.0+3884+a79fbae6"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.6-1.module_el8.10.0+3930+ecf33554"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.8-1.module_el8.10.0+3969+2c3c9353"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "10.17-2.module_el8.5.0+2551+8dca950a"
+    source:
+      image: "almalinux@sha256:455902ea5ea726b38d4914ea745d225d5635486adc12706760ce1ef7cf86db20"
+      os: "AlmaLinux 8.5 (Arctic Sphynx)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "12.7-2.module_el8.5.0+2552+86306fc7"
+    source:
+      image: "almalinux@sha256:455902ea5ea726b38d4914ea745d225d5635486adc12706760ce1ef7cf86db20"
+      os: "AlmaLinux 8.5 (Arctic Sphynx)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.3-2.module_el8.5.0+2546+e924f9ed"
+    source:
+      image: "almalinux@sha256:455902ea5ea726b38d4914ea745d225d5635486adc12706760ce1ef7cf86db20"
+      os: "AlmaLinux 8.5 (Arctic Sphynx)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "10.19-1.module_el8.6.0+2744+ce3fc19a"
+    source:
+      image: "almalinux@sha256:56ec0a505cbd57bfbc518e5e3cc8b1997b4ab1d7550027b09d3137b6c5d7f68e"
+      os: "AlmaLinux 8.6 (Sky Tiger)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "12.11-2.module_el8.6.0+2905+eb237fb8"
+    source:
+      image: "almalinux@sha256:56ec0a505cbd57bfbc518e5e3cc8b1997b4ab1d7550027b09d3137b6c5d7f68e"
+      os: "AlmaLinux 8.6 (Sky Tiger)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "12.9-3.module_el8.6.0+2758+4f4474df"
+    source:
+      image: "almalinux@sha256:56ec0a505cbd57bfbc518e5e3cc8b1997b4ab1d7550027b09d3137b6c5d7f68e"
+      os: "AlmaLinux 8.6 (Sky Tiger)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.5-2.module_el8.6.0+2760+1746ec94"
+    source:
+      image: "almalinux@sha256:56ec0a505cbd57bfbc518e5e3cc8b1997b4ab1d7550027b09d3137b6c5d7f68e"
+      os: "AlmaLinux 8.6 (Sky Tiger)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "10.21-2.module_el8.6.0+2901+a6abf8d9"
+    source:
+      image: "almalinux@sha256:06af1e7ae846b170c1819f4556f6e2b35d19f1c1c77919602adc95463a964561"
+      os: "AlmaLinux 8.7 (Stone Smilodon)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.7-2.module_el8.6.0+2906+ee60d910"
+    source:
+      image: "almalinux@sha256:06af1e7ae846b170c1819f4556f6e2b35d19f1c1c77919602adc95463a964561"
+      os: "AlmaLinux 8.7 (Stone Smilodon)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "12.12-1.module_el8.6.0+3336+e779e518"
+    source:
+      image: "almalinux@sha256:af06ad211fd7a53745bcd0d955dc3fa4d47a42caaf985f761327bdb759248a6a"
+      os: "AlmaLinux 8.8 (Sapphire Caracal)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.10-1.module_el8.7.0+3498+cb1ef3c6"
+    source:
+      image: "almalinux@sha256:af06ad211fd7a53745bcd0d955dc3fa4d47a42caaf985f761327bdb759248a6a"
+      os: "AlmaLinux 8.8 (Sapphire Caracal)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.2-1.module_el8.8.0+3487+43ec1b9f"
+    source:
+      image: "almalinux@sha256:af06ad211fd7a53745bcd0d955dc3fa4d47a42caaf985f761327bdb759248a6a"
+      os: "AlmaLinux 8.8 (Sapphire Caracal)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "12.15-1.module_el8.8.0+3669+6916586d.alma.1"
+    source:
+      image: "almalinux@sha256:a54c7f0491a4a81cee7380da537c36685efa66dc2d5de418bd3fbaa1e11c8d57"
+      os: "AlmaLinux 8.9 (Midnight Oncilla)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "12.17-1.module_el8.9.0+3704+f1f917ce"
+    source:
+      image: "almalinux@sha256:a54c7f0491a4a81cee7380da537c36685efa66dc2d5de418bd3fbaa1e11c8d57"
+      os: "AlmaLinux 8.9 (Midnight Oncilla)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.11-2.module_el8.9.0+3654+1d7e4b9e.alma.1"
+    source:
+      image: "almalinux@sha256:a54c7f0491a4a81cee7380da537c36685efa66dc2d5de418bd3fbaa1e11c8d57"
+      os: "AlmaLinux 8.9 (Midnight Oncilla)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.13-1.module_el8.9.0+3692+8714f643"
+    source:
+      image: "almalinux@sha256:a54c7f0491a4a81cee7380da537c36685efa66dc2d5de418bd3fbaa1e11c8d57"
+      os: "AlmaLinux 8.9 (Midnight Oncilla)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.3-1.module_el8.8.0+3610+f1fe5820"
+    source:
+      image: "almalinux@sha256:a54c7f0491a4a81cee7380da537c36685efa66dc2d5de418bd3fbaa1e11c8d57"
+      os: "AlmaLinux 8.9 (Midnight Oncilla)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.5-1.module_el8.9.0+3706+885c732e"
+    source:
+      image: "almalinux@sha256:a54c7f0491a4a81cee7380da537c36685efa66dc2d5de418bd3fbaa1e11c8d57"
+      os: "AlmaLinux 8.9 (Midnight Oncilla)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
     version: "12.22-12.module_el8.10.0+4291+51362610"
     source:
       image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
@@ -105,6 +720,475 @@ defaults:
       tls.dhe-without-params: "builtin"
   - app: postgresql
     package: postgresql-server
+    version: "13.5-1.el9"
+    source:
+      image: "almalinux@sha256:a95a7766fd056b35f72f7b7f7301bcd46e40a6eecd9017e9c41cb4bf22ecb28b"
+      os: "AlmaLinux 9.0 (Emerald Puma)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.7-1.el9_0"
+    source:
+      image: "almalinux@sha256:49923f8fbbf1de90100b511c485bd3fc88b2f8f0ab6be67b8a30bf6eb48fb67b"
+      os: "AlmaLinux 9.1 (Lime Lynx)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.10-1.el9_1"
+    source:
+      image: "almalinux@sha256:09fdb3db0975ac4bf4610abd8f159622ab8f460950b56212472625cc47fccd5a"
+      os: "AlmaLinux 9.2 (Turquoise Kodkod)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.2-1.module_el9.2.0+22+09653793"
+    source:
+      image: "almalinux@sha256:09fdb3db0975ac4bf4610abd8f159622ab8f460950b56212472625cc47fccd5a"
+      os: "AlmaLinux 9.2 (Turquoise Kodkod)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.11-1.el9_2"
+    source:
+      image: "almalinux@sha256:3f0cc7f99b0739908a8d6e4adec37ef47908991dc838dac43d52effe90fec747"
+      os: "AlmaLinux 9.3 (Shamrock Pampas Cat)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.13-1.el9_3"
+    source:
+      image: "almalinux@sha256:3f0cc7f99b0739908a8d6e4adec37ef47908991dc838dac43d52effe90fec747"
+      os: "AlmaLinux 9.3 (Shamrock Pampas Cat)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.3-1.module_el9.2.0+32+f3c125b5"
+    source:
+      image: "almalinux@sha256:3f0cc7f99b0739908a8d6e4adec37ef47908991dc838dac43d52effe90fec747"
+      os: "AlmaLinux 9.3 (Shamrock Pampas Cat)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.5-1.module_el9.3.0+52+21733919"
+    source:
+      image: "almalinux@sha256:3f0cc7f99b0739908a8d6e4adec37ef47908991dc838dac43d52effe90fec747"
+      os: "AlmaLinux 9.3 (Shamrock Pampas Cat)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.14-1.el9_3"
+    source:
+      image: "almalinux@sha256:1c718a4cd7bab3bdb069ddbbd1eb593a390e6932d51d0048a2f6556303bafba7"
+      os: "AlmaLinux 9.4 (Seafoam Ocelot)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.6-1.module_el9.3.0+55+d62f4779"
+    source:
+      image: "almalinux@sha256:1c718a4cd7bab3bdb069ddbbd1eb593a390e6932d51d0048a2f6556303bafba7"
+      os: "AlmaLinux 9.4 (Seafoam Ocelot)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.1-1.module_el9.4.0+66+eb9878bc"
+    source:
+      image: "almalinux@sha256:1c718a4cd7bab3bdb069ddbbd1eb593a390e6932d51d0048a2f6556303bafba7"
+      os: "AlmaLinux 9.4 (Seafoam Ocelot)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.16-1.el9_4"
+    source:
+      image: "almalinux@sha256:e9bc8f598ddfe585b2bcf6402e1f4dae7eb689c8c9361877fcdd1efc86c18799"
+      os: "AlmaLinux 9.5 (Teal Serval)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.18-1.el9_5"
+    source:
+      image: "almalinux@sha256:e9bc8f598ddfe585b2bcf6402e1f4dae7eb689c8c9361877fcdd1efc86c18799"
+      os: "AlmaLinux 9.5 (Teal Serval)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.10-1.module_el9.5.0+126+03d48c9f"
+    source:
+      image: "almalinux@sha256:e9bc8f598ddfe585b2bcf6402e1f4dae7eb689c8c9361877fcdd1efc86c18799"
+      os: "AlmaLinux 9.5 (Teal Serval)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.8-2.module_el9.5.0+119+18833d03"
+    source:
+      image: "almalinux@sha256:e9bc8f598ddfe585b2bcf6402e1f4dae7eb689c8c9361877fcdd1efc86c18799"
+      os: "AlmaLinux 9.5 (Teal Serval)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.4-2.module_el9.5.0+120+4533eb20"
+    source:
+      image: "almalinux@sha256:e9bc8f598ddfe585b2bcf6402e1f4dae7eb689c8c9361877fcdd1efc86c18799"
+      os: "AlmaLinux 9.5 (Teal Serval)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.6-1.module_el9.5.0+128+1095dce2"
+    source:
+      image: "almalinux@sha256:e9bc8f598ddfe585b2bcf6402e1f4dae7eb689c8c9361877fcdd1efc86c18799"
+      os: "AlmaLinux 9.5 (Teal Serval)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.20-1.el9_5"
+    source:
+      image: "almalinux@sha256:995c8b08af9f7b7bce0f3f1d1559378261c5b29c4b8c6f77b4860833a0e7cbc7"
+      os: "AlmaLinux 9.6 (Sage Margay)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.12-1.module_el9.6.0+147+a7d2c15f"
+    source:
+      image: "almalinux@sha256:995c8b08af9f7b7bce0f3f1d1559378261c5b29c4b8c6f77b4860833a0e7cbc7"
+      os: "AlmaLinux 9.6 (Sage Margay)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.8-1.module_el9.6.0+146+c54fdeca"
+    source:
+      image: "almalinux@sha256:995c8b08af9f7b7bce0f3f1d1559378261c5b29c4b8c6f77b4860833a0e7cbc7"
+      os: "AlmaLinux 9.6 (Sage Margay)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "13.22-1.el9_6"
+    source:
+      image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
+      os: "AlmaLinux 9.7 (Moss Jungle Cat)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.14-1.module_el9.6.0+176+c508cfa2"
+    source:
+      image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
+      os: "AlmaLinux 9.7 (Moss Jungle Cat)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.15-2.module_el9.7.0+203+960b74c0"
+    source:
+      image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
+      os: "AlmaLinux 9.7 (Moss Jungle Cat)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.10-1.module_el9.7.0+192+53e4bcf5"
+    source:
+      image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
+      os: "AlmaLinux 9.7 (Moss Jungle Cat)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.11-1.module_el9.7.0+202+21427d8a"
+    source:
+      image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
+      os: "AlmaLinux 9.7 (Moss Jungle Cat)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.17-1.module_el9.7.0+214+91f631df"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "15.18-1.module_el9.8.0+267+7c71b4a4"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.13-1.module_el9.7.0+213+65e1da69"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.14-1.module_el9.8.0+266+1e661e97"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "18.3-2.module_el9.8.0+269+234e80a6"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+        tls.measured-settings: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "X25519:prime256v1"
+      tls.dhe-without-params: "builtin"
+      tls.measured-settings: "ssl_groups,ssl_tls13_ciphers"
+  - app: postgresql
+    package: postgresql-server
+    version: "18.4-2.module_el9.8.0+280+5ad12178"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+        tls.measured-settings: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "X25519:prime256v1"
+      tls.dhe-without-params: "builtin"
+      tls.measured-settings: "ssl_groups,ssl_tls13_ciphers"
+  - app: postgresql
+    package: postgresql-server
     version: "15.19-1.module_el9.8.0+318+764e137c"
     source:
       image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
@@ -153,6 +1237,81 @@ defaults:
   - app: postgresql
     package: postgresql-server
     version: "16.15-1.el10_2"
+    source:
+      image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
+      os: "AlmaLinux 10.2 (Lavender Lion)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.8-1.el10_0"
+    source:
+      image: "almalinux@sha256:32f37b0ffeba33dba04d08437f2ae86429cb5d8caa5f86c447c19ddc4b7e30d9"
+      os: "AlmaLinux 10.0 (Purple Lion)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.10-1.el10_1"
+    source:
+      image: "almalinux@sha256:5e1f19a1fc018dcb17f042411bff68c64cb06131ff1a71356d0be011f87c7baa"
+      os: "AlmaLinux 10.1 (Heliotrope Lion)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.11-1.el10_1"
+    source:
+      image: "almalinux@sha256:5e1f19a1fc018dcb17f042411bff68c64cb06131ff1a71356d0be011f87c7baa"
+      os: "AlmaLinux 10.1 (Heliotrope Lion)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.13-1.el10_2"
+    source:
+      image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
+      os: "AlmaLinux 10.2 (Lavender Lion)"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from pg_settings (boot_val) of the running server; accepted suites and groups enumerated by handshakes (openssl s_client -starttls postgres)"
+    values:
+      tls.ciphers: "HIGH:MEDIUM:+3DES:!aNULL"
+      tls.groups: "prime256v1"
+      tls.dhe-without-params: "builtin"
+  - app: postgresql
+    package: postgresql-server
+    version: "16.14-1.el10_2"
     source:
       image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
       os: "AlmaLinux 10.2 (Lavender Lion)"
