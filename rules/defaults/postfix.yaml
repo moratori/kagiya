@@ -145,6 +145,32 @@ defaults:
       tls.dhe-without-params: "builtin"
   - app: postfix
     package: postfix
+    version: "3.1.0-3"
+    source:
+      image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
+      os: "Ubuntu 16.04.7 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.cipherlist.export: { method: reported-by-software, verified-by-handshake: false }
+        tls.cipherlist.low: { method: reported-by-software, verified-by-handshake: false }
+        tls.cipherlist.null: { method: reported-by-software, verified-by-handshake: false }
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+        tls.eecdh-grade-default: { method: reported-by-software, verified-by-handshake: false }
+      note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
+    values:
+      tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipher-grade: "medium"
+      tls.mandatory-cipher-grade: "medium"
+      tls.cipherlist.high: "aNULL:-aNULL:HIGH:@STRENGTH"
+      tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:+RC4:@STRENGTH"
+      tls.cipherlist.low: "aNULL:-aNULL:HIGH:MEDIUM:LOW:+RC4:@STRENGTH"
+      tls.cipherlist.export: "aNULL:-aNULL:HIGH:MEDIUM:LOW:EXPORT:+RC4:@STRENGTH"
+      tls.cipherlist.null: "eNULL:!aNULL"
+      tls.eecdh-grade-default: "strong"
+      tls.dhe-without-params: "builtin"
+  - app: postfix
+    package: postfix
     version: "3.4.13-0ubuntu1.4"
     source:
       image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
@@ -245,6 +271,34 @@ defaults:
   - app: postfix
     package: postfix
     version: "3.8.6-1ubuntu0.1"
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      method: reported-by-software
+      verified-by-handshake: true
+      items:
+        tls.cipherlist.null: { method: reported-by-software, verified-by-handshake: false }
+        tls.dhe-without-params: { method: enumerated-by-handshake, verified-by-handshake: true }
+        tls.eecdh-grade: { method: enumerated-by-handshake, verified-by-handshake: true }
+        tls.security-level: { method: enumerated-by-handshake, verified-by-handshake: true }
+      note: "defaults from postconf -d; server started in the container; accepted suites and groups enumerated by handshakes (openssl s_client -starttls smtp)"
+    values:
+      tls.security-level: "0"
+      tls.ciphers: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
+      tls.cipher-grade: "medium"
+      tls.mandatory-cipher-grade: "medium"
+      tls.cipherlist.high: "aNULL:-aNULL:HIGH:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:@STRENGTH"
+      tls.cipherlist.medium: "aNULL:-aNULL:HIGH:MEDIUM:!SEED:!IDEA:!3DES:!RC2:!RC4:!RC5:!kDH:!kECDH:!aDSS:!MD5:+RC4:@STRENGTH"
+      tls.cipherlist.null: "eNULL:!kDH:!kECDH:!aDSS:!MD5:!aNULL"
+      tls.groups: "X25519:X448:prime256v1:secp521r1:secp384r1:ffdhe2048:ffdhe3072"
+      tls.eecdh-curves: "X25519:X448:prime256v1:secp521r1:secp384r1"
+      tls.ffdhe-groups: "ffdhe2048:ffdhe3072"
+      tls.eecdh-grade-default: "auto"
+      tls.eecdh-grade: "ignored"
+      tls.dhe-without-params: "builtin"
+  - app: postfix
+    package: postfix
+    version: "3.8.6-1build2"
     source:
       image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
       os: "Ubuntu 24.04.5 LTS"

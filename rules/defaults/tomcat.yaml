@@ -29,7 +29,37 @@ defaults:
       tls.multiple-certificates: "all"
   - app: tomcat
     package: tomcat9
+    version: "9.0.31-1"
+    source:
+      image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
+      os: "Ubuntu 20.04.6 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: reported-by-software, verified-by-handshake: true }
+      note: "server started in the container with libssl1.1 1.1.1f-1ubuntu2.24, libtcnative-1 1.2.23-1; accepted suites enumerated by handshakes (one suite offered at a time)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!kRSA"
+      tls.dhe-without-params: "builtin"
+      tls.multiple-certificates: "all"
+  - app: tomcat
+    package: tomcat9
     version: "9.0.58-1ubuntu0.2"
+    source:
+      image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
+      os: "Ubuntu 22.04.5 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: reported-by-software, verified-by-handshake: true }
+      note: "server started in the container with libssl3 3.0.2-0ubuntu1.30, libtcnative-1 1.2.31-1build1; accepted suites enumerated by handshakes (one suite offered at a time)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!kRSA"
+      tls.dhe-without-params: "builtin"
+      tls.multiple-certificates: "order-dependent"
+  - app: tomcat
+    package: tomcat9
+    version: "9.0.58-1"
     source:
       image: "ubuntu@sha256:74b12b11ffa550fba1929ad4d8d16533c34f6612728469671afba1b03b66881c"
       os: "Ubuntu 22.04.5 LTS"

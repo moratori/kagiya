@@ -81,6 +81,18 @@ defaults:
       tls.dhe-without-params: "builtin"
   - app: stunnel
     package: stunnel4
+    version: "3:5.30-1"
+    source:
+      image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
+      os: "Ubuntu 16.04.7 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client); default strings taken from the binary"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "builtin"
+  - app: stunnel
+    package: stunnel4
     version: "3:5.56-1ubuntu0.2"
     source:
       image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
@@ -97,6 +109,22 @@ defaults:
       tls.ciphersuites-tls13: "TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256"
       tls.dhe-without-params: "builtin"
       tls.groups: "X25519:P-256:X448:P-521:P-384"
+  - app: stunnel
+    package: stunnel4
+    version: "3:5.56-1"
+    source:
+      image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"
+      os: "Ubuntu 20.04.6 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+        tls.ciphersuites-tls13: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client); default strings taken from the binary"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!SSLv2:!DH:!kDHEPSK"
+      tls.ciphersuites-tls13: "TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256"
+      tls.dhe-without-params: "builtin"
   - app: stunnel
     package: stunnel4
     version: "3:5.63-1build1"

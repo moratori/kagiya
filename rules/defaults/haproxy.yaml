@@ -67,6 +67,19 @@ defaults:
       tls.certificate-selection: "first"
   - app: haproxy
     package: haproxy
+    version: "1.6.3-1"
+    source:
+      image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
+      os: "Ubuntu 16.04.7 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client with a server name)"
+    values:
+      tls.ciphers: "@system"
+      tls.dhe-without-params: "builtin"
+      tls.certificate-selection: "first"
+  - app: haproxy
+    package: haproxy
     version: "2.0.33-0ubuntu0.1"
     source:
       image: "ubuntu@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214"

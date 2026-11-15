@@ -81,6 +81,20 @@ defaults:
       tls.ciphers: "HIGH:!aNULL:!MD5"
       tls.dhe-without-params: "disabled"
   - app: nginx
+    package: nginx
+    version: "1.24.0-3.module+el8.10.0+25265+69171071.6"
+    source:
+      image: "redhat/ubi8@sha256:44f19e308462e9152cb26d641fc0ce5bf6cbdab3cd101367aed67573eb2cf20e"
+      os: "Red Hat Enterprise Linux 8.10 (Ootpa)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "disabled"
+  - app: nginx
     package: nginx-core
     version: "1.20.1-32.el9_9.1"
     source:
@@ -153,6 +167,20 @@ defaults:
   - app: nginx
     package: nginx-core
     version: "1.10.3-0ubuntu0.16.04.5"
+    source:
+      image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
+      os: "Ubuntu 16.04.7 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "builtin"
+  - app: nginx
+    package: nginx-core
+    version: "1.9.15-0ubuntu1"
     source:
       image: "ubuntu@sha256:1f1a2d56de1d604801a9671f301190704c25d604a416f59e03c04f5c6ffee0d6"
       os: "Ubuntu 16.04.7 LTS"
