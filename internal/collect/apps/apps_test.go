@@ -18,7 +18,21 @@ import (
 	"kagiya/internal/safefs"
 )
 
+// テストデータの名前ごとの、ホストの OS（測っていない版を補うときに、ルールを測った OS のリリースと比べる）。
+var testHosts = map[string]ruleset.Host{
+	"ubuntu1604": {ID: "ubuntu", VersionID: "16.04"},
+	"ubuntu2404": {ID: "ubuntu", VersionID: "24.04"},
+	"rhel8":      {ID: "rhel", VersionID: "8.10"},
+	"rhel9":      {ID: "rhel", VersionID: "9.9"},
+}
+
 func collect(t *testing.T, name string, prepare func(prefix string, b *inventory.Builder)) (string, *model.Inventory) {
+	t.Helper()
+	return collectOn(t, name, testHosts[name], prepare)
+}
+
+// collectOn は、ホストの OS を指定して集める。
+func collectOn(t *testing.T, name string, host ruleset.Host, prepare func(prefix string, b *inventory.Builder)) (string, *model.Inventory) {
 	t.Helper()
 	prefix, _ := filepath.EvalSymlinks(t.TempDir())
 	if name != "" {
@@ -40,7 +54,7 @@ func collect(t *testing.T, name string, prepare func(prefix string, b *inventory
 	if prepare != nil {
 		prepare(prefix, b)
 	}
-	(&Collector{Prefix: prefix, Opener: &safefs.Opener{OnSkip: b.Skip}, Builder: b, Rules: rs}).Collect()
+	(&Collector{Prefix: prefix, Opener: &safefs.Opener{OnSkip: b.Skip}, Builder: b, Rules: rs.WithHost(host)}).Collect()
 	return prefix, b.Inventory()
 }
 

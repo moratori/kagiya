@@ -1,6 +1,7 @@
 package ruleset
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -476,7 +477,7 @@ func TestBuiltinCipherTables(t *testing.T) {
 	if _, b3, exact, ok := rs.CipherTableFor("openssl", "openssl-libs", "1:3.5.9-7.el10_4"); !ok || exact || b3.Version != "3.5.9-1.el10_3" {
 		t.Errorf("interpolated lookup (el10): ok=%v exact=%v build=%+v", ok, exact, b3)
 	}
-	if _, b4, exact, ok := rs.CipherTableFor("openssl", "libssl3t64", "3.0.13-0ubuntu3.99"); !ok || exact || b4.Version != "3.0.13-0ubuntu3.16" {
+	if _, b4, exact, ok := rs.WithHost(Host{ID: "ubuntu", VersionID: "24.04"}).CipherTableFor("openssl", "libssl3t64", "3.0.13-0ubuntu3.99"); !ok || exact || b4.Version != "3.0.13-0ubuntu3.16" {
 		t.Errorf("interpolated lookup (ubuntu): ok=%v exact=%v build=%+v", ok, exact, b4)
 	}
 	// 代用しない: 上流版が違う、ディストリ系列が違う、パッケージ名が違う、ライブラリが違う
@@ -597,17 +598,20 @@ func TestAppDefaultsInterpolation(t *testing.T) {
 	if !ok || !exact || measured != "1:9.6p1-3ubuntu13.20" || len(v["ssh.kex-algorithms"]) == 0 || !strings.Contains(src.Image, "@sha256:") {
 		t.Errorf("exact: ok=%v exact=%v measured=%s", ok, exact, measured)
 	}
-	for _, c := range []struct{ app, pkg, version, want string }{
-		{"openssh", "openssh-server", "1:9.6p1-3ubuntu13.21", "1:9.6p1-3ubuntu13.20"},
-		{"openssh", "openssh-server", "9.9p1-17.el9_9", "9.9p1-16.el9_9"}, // 同じ上流版でも、RHEL 10 の表ではなく RHEL 9 の表
-		{"openssh", "openssh-server", "9.9p1-40.el10_4", "9.9p1-33.el10_3"},
-		{"openssh", "openssh-server", "1:10.0p1-7+deb13u5", "1:10.0p1-7+deb13u4"},
-		{"nginx", "nginx-core", "1.20.1-33.el9_9.1", "1.20.1-32.el9_9.1"},
+	for _, c := range []struct {
+		host                    Host // Ubuntu の版だけ、ホストの OS のリリースが要る（TestInterpolationUbuntuRelease）
+		app, pkg, version, want string
+	}{
+		{Host{ID: "ubuntu", VersionID: "24.04"}, "openssh", "openssh-server", "1:9.6p1-3ubuntu13.21", "1:9.6p1-3ubuntu13.20"},
+		{Host{}, "openssh", "openssh-server", "9.9p1-17.el9_9", "9.9p1-16.el9_9"}, // 同じ上流版でも、RHEL 10 の表ではなく RHEL 9 の表
+		{Host{}, "openssh", "openssh-server", "9.9p1-40.el10_4", "9.9p1-33.el10_3"},
+		{Host{}, "openssh", "openssh-server", "1:10.0p1-7+deb13u5", "1:10.0p1-7+deb13u4"},
+		{Host{}, "nginx", "nginx-core", "1.20.1-33.el9_9.1", "1.20.1-32.el9_9.1"},
 		// モジュールで配られるパッケージ（リリースが「module_el8…」「module+el9…」の形）も、同じ系列の、作り直しの番号だけが違う版で補う
-		{"postgresql", "postgresql-server", "15.8-9.module_el8.10.0+9999+0a1b2c3d", "15.8-1.module_el8.10.0+3888+1aead837"},
-		{"nginx", "nginx-core", "1.22.1-9.module+el9.6.0+99999+0a1b2c3d.1", "1.22.1-8.module+el9.5.0+22953+b175c265.1"},
+		{Host{}, "postgresql", "postgresql-server", "15.8-9.module_el8.10.0+9999+0a1b2c3d", "15.8-1.module_el8.10.0+3888+1aead837"},
+		{Host{}, "nginx", "nginx-core", "1.22.1-9.module+el9.6.0+99999+0a1b2c3d.1", "1.22.1-8.module+el9.5.0+22953+b175c265.1"},
 	} {
-		v, measured, _, exact, ok := rs.AppDefaultsFor(c.app, c.pkg, c.version)
+		v, measured, _, exact, ok := rs.WithHost(c.host).AppDefaultsFor(c.app, c.pkg, c.version)
 		if !ok || exact || measured != c.want || len(v) == 0 {
 			t.Errorf("%s %s: ok=%v exact=%v measured=%s, want %s", c.pkg, c.version, ok, exact, measured, c.want)
 		}
@@ -1558,5 +1562,114 @@ func TestBuiltinIsLoadedOnce(t *testing.T) {
 	}
 	if a != b {
 		t.Error("Builtin must return the same rule set every time")
+	}
+}
+
+// Ubuntu の版の補間: 版の文字列から読み取れる系列（ubuntu）には、リリース（20.04、22.04 など）が入っていない。
+// ルールを測った OS のリリースが、ホストの OS のリリースと同じ場合に限って補う（RHEL 系の .el8 / .el9、Debian の deb13 と同じ粒度）。
+func TestInterpolationUbuntuRelease(t *testing.T) {
+	rs, err := Builtin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	on := func(release string) *RuleSet { return rs.WithHost(Host{ID: "ubuntu", VersionID: release}) }
+
+	// アプリの既定値: nginx-core 1.18.0 は、Ubuntu 20.04（1.18.0-0ubuntu1.7）と 22.04（1.18.0-6ubuntu14.22）の両方で測ってある
+	for _, c := range []struct{ release, version, want string }{
+		{"22.04", "1.18.0-6ubuntu14", "1.18.0-6ubuntu14.22"}, // 22.04 のリリース時の版。20.04 で測ったルールでは補わない
+		{"20.04", "1.18.0-0ubuntu1.9", "1.18.0-0ubuntu1.7"},
+	} {
+		_, measured, src, exact, ok := on(c.release).AppDefaultsFor("nginx", "nginx-core", c.version)
+		if !ok || exact || measured != c.want || !strings.HasPrefix(src.OS, "Ubuntu "+c.release) {
+			t.Errorf("nginx-core %s on Ubuntu %s: ok=%v exact=%v measured=%s os=%q, want %s", c.version, c.release, ok, exact, measured, src.OS, c.want)
+		}
+	}
+	// 補わない: そのリリースで測ったルールがない、ホストの OS が分からない、ホストが Ubuntu ではない
+	for _, h := range []Host{{ID: "ubuntu", VersionID: "24.04"}, {}, {ID: "ubuntu"}, {ID: "debian", VersionID: "22.04"}, {ID: "linuxmint", VersionID: "22.04"}} {
+		if _, measured, _, _, ok := rs.WithHost(h).AppDefaultsFor("nginx", "nginx-core", "1.18.0-6ubuntu14"); ok {
+			t.Errorf("nginx-core 1.18.0-6ubuntu14 on %+v must not be filled (filled from %s)", h, measured)
+		}
+	}
+	// 測った版そのものは、ホストの OS に関係なく引ける
+	if _, _, _, exact, ok := rs.AppDefaultsFor("nginx", "nginx-core", "1.18.0-6ubuntu14.22"); !ok || !exact {
+		t.Errorf("exact lookup without a host: ok=%v exact=%v", ok, exact)
+	}
+	// 元のルールは変わらない（WithHost は写しを返す）
+	on("22.04")
+	if _, _, _, _, ok := rs.AppDefaultsFor("nginx", "nginx-core", "1.18.0-6ubuntu14"); ok {
+		t.Error("WithHost must not change the original rule set")
+	}
+
+	// 表（暗号スイート、グループ、JDK、Tomcat）も同じ決まり
+	if _, b, exact, ok := on("24.04").CipherTableFor("openssl", "libssl3t64", "3.0.13-0ubuntu3.99"); !ok || exact || b.Version != "3.0.13-0ubuntu3.16" {
+		t.Errorf("cipher table on 24.04: ok=%v exact=%v build=%s", ok, exact, b.Version)
+	}
+	if _, b, exact, ok := on("24.04").GroupTableFor("openssl", "libssl3t64", "3.0.13-0ubuntu3.99"); !ok || exact || b.Version != "3.0.13-0ubuntu3.16" {
+		t.Errorf("group table on 24.04: ok=%v exact=%v build=%s", ok, exact, b.Version)
+	}
+	// JDK: openjdk-11 の 11.0.33 は、22.04 と 24.04 の両方で測ってある。ホストのリリースで測った版を選ぶ
+	for _, c := range []struct{ release, version, want string }{
+		{"22.04", "11.0.33+9-1ubuntu1~22.04.2", "11.0.33+9-1ubuntu1~22.04.1"},
+		{"24.04", "11.0.33+9-1ubuntu1~24.04.2", "11.0.33+9-1ubuntu1~24.04.1"},
+	} {
+		if _, b, exact, ok := on(c.release).JDKTableFor("openjdk", "openjdk-11-jre-headless", c.version); !ok || exact || b.Version != c.want {
+			t.Errorf("JDK table on %s: ok=%v exact=%v build=%s, want %s", c.release, ok, exact, b.Version, c.want)
+		}
+	}
+	if _, b, exact, ok := on("20.04").TomcatTableFor("tomcat", "tomcat9", "9.0.31-1ubuntu0.10"); !ok || exact || b.Version != "9.0.31-1ubuntu0.9" {
+		t.Errorf("Tomcat table on 20.04: ok=%v exact=%v build=%s", ok, exact, b.Version)
+	}
+	for _, h := range []Host{{ID: "ubuntu", VersionID: "22.04"}, {}} {
+		r := rs.WithHost(h)
+		if _, _, _, ok := r.CipherTableFor("openssl", "libssl3t64", "3.0.13-0ubuntu3.99"); ok {
+			t.Errorf("cipher table on %+v must not be filled", h)
+		}
+		if _, _, _, ok := r.GroupTableFor("openssl", "libssl3t64", "3.0.13-0ubuntu3.99"); ok {
+			t.Errorf("group table on %+v must not be filled", h)
+		}
+		if _, _, _, ok := r.TomcatTableFor("tomcat", "tomcat9", "9.0.31-1ubuntu0.10"); ok {
+			t.Errorf("Tomcat table on %+v must not be filled", h)
+		}
+	}
+	// JDK の 11.0.33 は、20.04 では測っていない
+	for _, h := range []Host{{ID: "ubuntu", VersionID: "20.04"}, {}} {
+		if _, _, _, ok := rs.WithHost(h).JDKTableFor("openjdk", "openjdk-11-jre-headless", "11.0.33+9-1ubuntu1~20.04.2"); ok {
+			t.Errorf("JDK table on %+v must not be filled", h)
+		}
+	}
+	// Ubuntu 以外の系列は、ホストの OS が分からなくても、これまでどおり補う
+	if _, measured, _, exact, ok := rs.AppDefaultsFor("openssh", "openssh-server", "9.9p1-17.el9_9"); !ok || exact || measured != "9.9p1-16.el9_9" {
+		t.Errorf("el9 without a host: ok=%v exact=%v measured=%s", ok, exact, measured)
+	}
+
+	// 系列が ubuntu のルールは、出典の OS から、リリースを読み取れること（読み取れないルールは、補間に使われない）
+	release := regexp.MustCompile(`^Ubuntu [0-9]+\.[0-9]+`)
+	check := func(kind, pkg, version, os string) {
+		if distroTag(version) == "ubuntu" && !release.MatchString(os) {
+			t.Errorf("%s %s %s: the release of Ubuntu cannot be read from the source OS %q", kind, pkg, version, os)
+		}
+	}
+	for _, d := range rs.Defaults {
+		check("defaults", d.Package, d.Version, d.Source.OS)
+	}
+	for _, tb := range rs.CipherTables {
+		for _, b := range tb.Builds {
+			check("cipher table", b.Package, b.Version, b.Source.OS)
+		}
+	}
+	for _, tb := range rs.GroupTables {
+		for _, b := range tb.Builds {
+			check("group table", b.Package, b.Version, b.Source.OS)
+		}
+	}
+	for _, tb := range rs.JDKTables {
+		for _, b := range tb.Builds {
+			check("JDK table", b.Package, b.Version, b.Source.OS)
+		}
+	}
+	for _, tb := range rs.TomcatTables {
+		for _, b := range tb.Builds {
+			check("Tomcat table", b.Package, b.Version, b.Source.OS)
+		}
 	}
 }

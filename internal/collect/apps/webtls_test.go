@@ -22,6 +22,7 @@ import (
 
 	"kagiya/internal/inventory"
 	"kagiya/internal/model"
+	"kagiya/internal/ruleset"
 )
 
 // 以下のテストの期待値（スイートの数と集合のハッシュ）は、検証ラボで実際に nginx / Apache httpd を起動し、
@@ -390,6 +391,22 @@ func TestEffectiveInterpolatedDefaults(t *testing.T) {
 	// 一覧が明記されている項目は、既定値を使わないので確度は下がらない
 	if c := effectiveValue(t, inv, "ssh.ciphers"); c.Status != "resolved" || strings.Join(c.Values, ",") != "aes256-ctr" || c.Confidence != "high" || len(c.Notes) != 0 {
 		t.Errorf("ciphers = %+v", c)
+	}
+}
+
+// Ubuntu の版は、ルールを測った OS のリリースが、ホストの OS のリリースと同じ場合に限って補う。
+// 別のリリースのホストや、OS が分からないホストでは、補わずに「不明」にする（別のリリースの値を当てはめない）。
+func TestEffectiveInterpolatedDefaultsUbuntuRelease(t *testing.T) {
+	for _, host := range []ruleset.Host{{ID: "ubuntu", VersionID: "22.04"}, {}} {
+		_, inv := collectOn(t, "ubuntu2404", host, withPackage("1:9.6p1-3ubuntu13.99", nil))
+		if e := effectiveValue(t, inv, "ssh.kex-algorithms"); e.Status != "unresolved" || len(e.Values) != 0 {
+			t.Errorf("host %+v: kex = %s %v, want unresolved", host, e.Status, e.Values)
+		}
+	}
+	// 測った版そのものは、ホストの OS に関係なく求まる
+	_, inv := collectOn(t, "ubuntu2404", ruleset.Host{}, withPackage(ubuntu2404Version, nil))
+	if e := effectiveValue(t, inv, "ssh.kex-algorithms"); e.Status != "resolved" || e.Confidence != "high" {
+		t.Errorf("exact version without a host: kex = %s %s", e.Status, e.Confidence)
 	}
 }
 

@@ -1,6 +1,10 @@
 package cli
 
-import "testing"
+import (
+	"testing"
+
+	"kagiya/internal/ruleset"
+)
 
 // /etc/os-release から、ディストリの名前と版を読む（レポートのスキャン概要に出す）。
 func TestParseOSRelease(t *testing.T) {
@@ -31,5 +35,16 @@ HOME_URL="https://www.redhat.com/"
 	}
 	if d := parseOSRelease([]byte("ID=x\nPRETTY_NAME=\"a\x01b\"\nVERSION_ID=\"<script>\"\n")); d == nil || d.Name != "" || d.VersionID != "" || d.ID != "x" {
 		t.Errorf("unsafe values = %+v", d)
+	}
+}
+
+// ルールの補間に渡すホストの OS: os-release の ID と VERSION_ID をそのまま渡す。読めなければ空（Ubuntu の版は補わない）。
+func TestRuleHost(t *testing.T) {
+	d := parseOSRelease([]byte("PRETTY_NAME='Ubuntu 22.04.5 LTS'\nID=ubuntu\nVERSION_ID=\"22.04\"\n"))
+	if h := ruleHost(d); h != (ruleset.Host{ID: "ubuntu", VersionID: "22.04"}) {
+		t.Errorf("host = %+v", h)
+	}
+	if h := ruleHost(nil); h != (ruleset.Host{}) {
+		t.Errorf("host without os-release = %+v", h)
 	}
 }
