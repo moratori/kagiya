@@ -144,3 +144,49 @@ func TestPostgreSQLDisabledAndLimits(t *testing.T) {
 		t.Errorf("unknown version: %+v", e)
 	}
 }
+
+// PostgreSQL 18（AlmaLinux 9 のモジュール、18.6）。期待値は、検証ラボで実際に起動して数え上げた結果。
+//   - 既定のグループは、X25519 と P-256 の 2 つ（17 までは P-256 の 1 つ）
+//   - ssl_groups は、グループの並び。耐量子のハイブリッド（X25519MLKEM768）も指定できる
+//   - ssl_ecdh_curve は、同じ項目の古い名前として、18 でも効く
+//   - ssl_tls13_ciphers は、TLS 1.3 のスイートの並び
+func TestPostgreSQL18(t *testing.T) {
+	host := func(conf string) func(p string, b *inventory.Builder) {
+		prepare := rhel9Web(t, "3.5.8", "2.el9_8", map[string]string{pgRHELConf: pgBase + conf})
+		return func(p string, b *inventory.Builder) {
+			b.AddPackage(model.Package{Manager: "rpm", Name: "postgresql-server", Version: "18.6", Release: "1.module_el9.8.0+310+22372bcc", Role: "database"})
+			prepare(p, b)
+		}
+	}
+	groups := func(conf string) model.EffectiveValue {
+		_, inv := collect(t, "rhel9", host(conf))
+		return pgEff(t, inv, "tls.groups")
+	}
+	if g := groups(""); g.Status != "resolved" || strings.Join(g.Values, " ") != "X25519 P-256" || g.Confidence != "high" || g.Steps[0].Layer != "app-default" {
+		t.Errorf("default groups = %+v", g)
+	}
+	if g := groups("ssl_groups = 'X25519MLKEM768:secp384r1'\n"); g.Status != "resolved" || strings.Join(g.Values, " ") != "X25519MLKEM768 P-384" || g.Confidence != "high" || g.Steps[0].Layer != "app-config" {
+		t.Errorf("ssl_groups = %+v", g)
+	}
+	if g := groups("ssl_ecdh_curve = 'secp384r1'\n"); g.Status != "resolved" || strings.Join(g.Values, " ") != "P-384" {
+		t.Errorf("ssl_ecdh_curve on 18 = %+v", g)
+	}
+	// 2 つの名前の両方が書かれた場合は、測っていないので、求めない
+	if g := groups("ssl_ecdh_curve = 'secp384r1'\nssl_groups = 'X25519'\n"); g.Status != "unresolved" || !strings.Contains(g.Reason, "ssl_ecdh_curve") {
+		t.Errorf("both names = %+v", g)
+	}
+	_, inv := collect(t, "rhel9", host("ssl_tls13_ciphers = 'TLS_AES_256_GCM_SHA384'\n"))
+	e := pgEff(t, inv, "tls.ciphersuites-tls13")
+	if e.Status != "resolved" || strings.Join(e.Values, " ") != "TLS_AES_256_GCM_SHA384" || e.Confidence != "high" || e.Steps[0].Layer != "app-config" || e.Steps[0].Setting == "" {
+		t.Errorf("ssl_tls13_ciphers = %+v", e)
+	}
+	// TLS 1.2 以下のスイートは、既定のまま（実測: 40 個）
+	if c := pgEff(t, inv, "tls.ciphers"); c.Status != "resolved" || len(c.Values) != 40 {
+		t.Errorf("ciphers with ssl_tls13_ciphers = %d %s", len(c.Values), c.Status)
+	}
+	// 解釈できない値は、求めない
+	_, inv = collect(t, "rhel9", host("ssl_tls13_ciphers = 'TLS_AES_256_GCM_SHA384 $x'\n"))
+	if e := pgEff(t, inv, "tls.ciphersuites-tls13"); e.Status != "unresolved" {
+		t.Errorf("uninterpretable ssl_tls13_ciphers = %+v", e)
+	}
+}
