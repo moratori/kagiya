@@ -52,16 +52,6 @@ func wfMgmtCount(inv *model.Inventory) (effective, settings int) {
 	return effective, settings
 }
 
-func wfMgmtUnresolved(t *testing.T, name string, inv *model.Inventory, scope, want string) {
-	t.Helper()
-	for _, p := range []string{"tls.protocols", "tls.ciphers", "tls.ciphersuites-tls13", "tls.groups"} {
-		e := eff(t, inv, "svc:wildfly:"+wfHome, p, scope)
-		if e.Status != "unresolved" || !strings.Contains(e.Reason, want) || len(e.Values) != 0 {
-			t.Errorf("%s: %s: status=%s reason=%q values=%d, want unresolved with %q", name, p, e.Status, e.Reason, len(e.Values), want)
-		}
-	}
-}
-
 // TLS で待ち受けない設定では、管理用の待ち受けについて、何も出さない（値も「不明」も）。アプリ用の待ち受けの結果は、変わらない。
 func TestWildFlyManagementWithoutTLS(t *testing.T) {
 	base := wfElytron("", `ssl-context="labSSC"`)
@@ -191,7 +181,7 @@ func TestWildFlyManagementUnresolved(t *testing.T) {
             <native-interface ssl-context="labSSC"><socket-binding native="management-native"/></native-interface>`), "management native-interface", "not been measured"},
 	} {
 		_, inv := collect(t, "", wfHost(t, c.version, c.xml, nil))
-		wfMgmtUnresolved(t, name, inv, c.scope, c.want)
+		wfUnresolvedIn(t, name, inv, c.scope, c.want)
 	}
 }
 
@@ -330,6 +320,6 @@ func TestWildFlyManagementLegacyRealm(t *testing.T) {
 		// 25 以降には、この形式がない
 		"a realm on a version without realms": {"25.0.0.Final", wfMgmtLegacy("", "", realm, wfBothSockets), "security-realm"},
 	} {
-		wfMgmtUnresolved(t, name, host(c.version, c.xml), wfMgmtScope, c.want)
+		wfUnresolvedIn(t, name, host(c.version, c.xml), wfMgmtScope, c.want)
 	}
 }

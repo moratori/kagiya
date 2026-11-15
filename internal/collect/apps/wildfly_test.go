@@ -182,10 +182,16 @@ func wfCheck(t *testing.T, e model.EffectiveValue, confidence string, kind strin
 
 func wfUnresolved(t *testing.T, inv *model.Inventory, want string) {
 	t.Helper()
+	wfUnresolvedIn(t, "https-listener", inv, wfScope, want)
+}
+
+// wfUnresolvedIn は、その範囲（待ち受け）の 4 つの項目が、どれも、理由に want を含む「不明」であることを確かめる。
+func wfUnresolvedIn(t *testing.T, name string, inv *model.Inventory, scope, want string) {
+	t.Helper()
 	for _, p := range []string{"tls.protocols", "tls.ciphers", "tls.ciphersuites-tls13", "tls.groups"} {
-		e := wfEff(t, inv, p)
+		e := eff(t, inv, "svc:wildfly:"+wfHome, p, scope)
 		if e.Status != "unresolved" || !strings.Contains(e.Reason, want) || len(e.Values) != 0 {
-			t.Errorf("%s: status=%s reason=%q values=%d, want unresolved with %q", p, e.Status, e.Reason, len(e.Values), want)
+			t.Errorf("%s: %s: status=%s reason=%q values=%d, want unresolved with %q", name, p, e.Status, e.Reason, len(e.Values), want)
 		}
 	}
 }

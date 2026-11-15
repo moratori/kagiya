@@ -133,21 +133,27 @@ func (c *Collector) wildflyManagement(in *wildflyInstall, m standalonexml.Manage
 		realmSSL = realmSSL || (r.Name == m.Attr["security-realm"].Value && r.HasSSL)
 	}
 	https, hasHTTPS := m.Binding["https"]
+	// 値を求めない場合の理由（空なら、TLS で待ち受けない設定で、何も記録しない）
+	reason := ""
 	switch {
 	case m.Kind != "http-interface":
 		if hasContext || realmSSL {
-			c.unresolved(in.svc, in.app.Direction, scope, "the "+m.Kind+" of the management interfaces has TLS settings; TLS on that interface (the native management protocol) has not been measured", wildflyParams...)
+			reason = "the " + m.Kind + " of the management interfaces has TLS settings; TLS on that interface (the native management protocol) has not been measured"
 		}
 	case m.Socket:
 		if hasContext || realmSSL {
-			c.unresolved(in.svc, in.app.Direction, scope, "the management http-interface is written with the socket element (the interface and the ports are written directly), which has not been measured", wildflyParams...)
+			reason = "the management http-interface is written with the socket element (the interface and the ports are written directly), which has not been measured"
 		}
 	case !hasHTTPS:
 		// TLS 用のソケットがなければ、TLS の設定があっても、TLS では待ち受けない（実測）
 	case wildflyExpression(https.Value):
-		c.unresolved(in.svc, in.app.Direction, scope, "the socket for TLS of the management http-interface is written as an expression (${...}); its value is decided when the server starts", wildflyParams...)
+		reason = "the socket for TLS of the management http-interface is written as an expression (${...}); its value is decided when the server starts"
 	default:
 		c.wildflyEndpoint(in, wildflySource{what: "management http-interface", attr: m.Attr, management: true}, scope)
+		return
+	}
+	if reason != "" {
+		c.unresolved(in.svc, in.app.Direction, scope, reason, wildflyParams...)
 	}
 }
 
