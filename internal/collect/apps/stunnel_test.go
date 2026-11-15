@@ -139,3 +139,23 @@ func TestStunnelDebianFamily(t *testing.T) {
 		t.Errorf("no certificate: %+v", e)
 	}
 }
+
+// 証明書の指定（cert）が、読んだ設定のどこにもないサービス。
+// stunnel は、待ち受ける側のサービスに証明書の指定がないと、起動しない（検証ラボの 8 版、5.30〜5.74 で「TLS server needs a certificate」で止まった。
+// 認証なしのスイートを含む暗号の指定を書いても、同じだった）。そのサービスが動いているなら、証明書は、kagiya が読んでいない場所（include 先など）で
+// 指定されている。kagiya は、証明書の種類が分からない場合と同じ一覧を出し、この前提を説明に書く。
+func TestStunnelServiceWithoutCertificateLine(t *testing.T) {
+	_, inv := collect(t, "rhel9", stunnelRHEL9(t, map[string]string{stunnelConf: stunnelHead +
+		"[nocert]\naccept = 127.0.0.1:8443\nconnect = 127.0.0.1:9\n[rsa]\naccept = 127.0.0.1:8444\n" + stunnelRSA}))
+	e := eff(t, inv, "svc:stunnel", "tls.ciphers", "stunnel.conf [nocert]")
+	if e.Status != "resolved" || e.Confidence != "high" || !hasQualifier(e, model.QualifierAnyCertificateKind) {
+		t.Errorf("no certificate line: %+v", e)
+	}
+	if !strings.Contains(strings.Join(e.Notes, " "), "stunnel does not start a service that accepts connections without a certificate") {
+		t.Errorf("the assumption must be noted: %v", e.Notes)
+	}
+	// 証明書の指定があるサービスには、この説明を付けない
+	if r := eff(t, inv, "svc:stunnel", "tls.ciphers", "stunnel.conf [rsa]"); strings.Contains(strings.Join(r.Notes, " "), "without a certificate") {
+		t.Errorf("notes of a service with a certificate: %v", r.Notes)
+	}
+}
