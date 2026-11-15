@@ -264,6 +264,76 @@ defaults:
       tls.dhe-without-params: "disabled"
   - app: nginx
     package: nginx
+    version: "1.14.1-9.module_el8.10.0+4171+d7eec01b.alma.1"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "disabled"
+  - app: nginx
+    package: nginx
+    version: "1.16.1-2.module_el8.10.0+4176+b976f5a4.1.alma.1"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "disabled"
+  - app: nginx
+    package: nginx
+    version: "1.18.0-3.module_el8.10.0+4177+5265e081.1.alma.1"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "disabled"
+  - app: nginx
+    package: nginx
+    version: "1.22.1-1.module_el8.10.0+4179+4d9c78ab.1.alma.2"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "disabled"
+  - app: nginx
+    package: nginx
+    version: "1.24.0-3.module_el8.10.0+4360+5035a360.6.alma.2"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "disabled"
+  - app: nginx
+    package: nginx
     version: "1.20.1-10.el9.alma"
     source:
       image: "almalinux@sha256:a95a7766fd056b35f72f7b7f7301bcd46e40a6eecd9017e9c41cb4bf22ecb28b"
@@ -296,6 +366,48 @@ defaults:
     source:
       image: "almalinux@sha256:1c718a4cd7bab3bdb069ddbbd1eb593a390e6932d51d0048a2f6556303bafba7"
       os: "AlmaLinux 9.4 (Seafoam Ocelot)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "disabled"
+  - app: nginx
+    package: nginx-core
+    version: "1.22.1-8.module_el9.7.0+241+58ccfb8b.1.alma.2"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "disabled"
+  - app: nginx
+    package: nginx-core
+    version: "1.24.0-7.module_el9.8.0+307+7a7a3a71.5.alma.1"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!MD5"
+      tls.dhe-without-params: "disabled"
+  - app: nginx
+    package: nginx-core
+    version: "1.26.3-9.module_el9.8.0+309+b8a3c30d.4"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
       method: enumerated-by-handshake
       verified-by-handshake: true
       items:

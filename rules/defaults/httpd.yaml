@@ -137,6 +137,18 @@ defaults:
       tls.dhe-without-params: "builtin"
   - app: httpd
     package: httpd
+    version: "2.4.37-65.module_el8.10.0+4332+2bef2e0d.13"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      note: "server started in the container; accepted suites enumerated by handshakes (openssl s_client)"
+    values:
+      tls.ciphers: "DEFAULT"
+      tls.dhe-without-params: "builtin"
+  - app: httpd
+    package: httpd
     version: "2.4.51-7.el9_0"
     source:
       image: "almalinux@sha256:a95a7766fd056b35f72f7b7f7301bcd46e40a6eecd9017e9c41cb4bf22ecb28b"

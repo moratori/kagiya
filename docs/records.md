@@ -1658,6 +1658,60 @@ OpenJDK の 2 版は、「その書き方では TLS を使えない」ことを�
 - 補った場合の確度は、これまでの補間と同じ（「中」以下）。補間の決まりそのものは変えていない。
 - テストを先に書き、失敗を確かめてから直した（`TestAppDefaultsInterpolation`）。
 
+### AlmaLinux 8・9 の、別の系列（モジュール）で配られる nginx（2026-11-15）
+
+上の補間の直しで、AlmaLinux が作ったモジュールのパッケージ（`…module_el8…`）は、RHEL が作ったもの（`…module+el8…`）とは別の系列になった。
+nginx の別の系列は、UBI で測った表（RHEL が作ったもの）しかなく、AlmaLinux が作ったものにはルールがなかった。
+開発者は、AlmaLinux 8.10（`almalinux@sha256:2d0f2eb2…`）と AlmaLinux 9.8（`almalinux@sha256:245f8aab…`）のイメージで、系列ごとにモジュールを有効にしてから導入し、
+これまでの nginx と同じ方法（起動しての数え上げ）で測った。
+
+| スナップショット | 版（AlmaLinux 8 は `nginx`、AlmaLinux 9 は `nginx-core`） | 結果 |
+|---|---|---|
+| `alma8+nginx1.14` | 1.14.1-9.module_el8.10.0+4171+d7eec01b.alma.1 | 既定の暗号文字列は `HIGH:!aNULL:!MD5`。`ssl_dhparam` がなければ DHE は使えない |
+| `alma8+nginx1.16` | 1.16.1-2.module_el8.10.0+4176+b976f5a4.1.alma.1 | 同上 |
+| `alma8+nginx1.18` | 1.18.0-3.module_el8.10.0+4177+5265e081.1.alma.1 | 同上 |
+| `alma8+nginx1.22` | 1.22.1-1.module_el8.10.0+4179+4d9c78ab.1.alma.2 | 同上 |
+| `alma8+nginx1.24` | 1.24.0-3.module_el8.10.0+4360+5035a360.6.alma.2 | 同上 |
+| `alma9+nginx1.22` | 1.22.1-8.module_el9.7.0+241+58ccfb8b.1.alma.2 | 同上 |
+| `alma9+nginx1.24` | 1.24.0-7.module_el9.8.0+307+7a7a3a71.5.alma.1 | 同上 |
+| `alma9+nginx1.26` | 1.26.3-9.module_el9.8.0+309+b8a3c30d.4 | 同上 |
+
+- 8 版のすべての場面で、予測と数え上げが一致した（一致しない場面が 1 つでもあれば、ルールを作るプログラムは止まる）。
+  kagiya の結果との突き合わせも、8 件の記録・64 場面のすべてで一致した（確度はすべて「高」）。
+- `rules/defaults/nginx.yaml` は、21 版から 29 版になった。同じ測定で一緒に導入された Apache httpd のうち、ルールがなかった 1 版
+  （AlmaLinux 8.10 の `httpd 2.4.37-65.module_el8.10.0+4332+2bef2e0d.13`）も足し、`rules/defaults/httpd.yaml` は 14 版から 15 版になった。
+- AlmaLinux 9.8 の Apache httpd（`httpd-core 2.4.62-13.el9_8.9`）は、UBI 9 で測った版と、版の文字列が同じである。kagiya は UBI 9 のルールをそのまま使い、
+  AlmaLinux 9.8 での数え上げとも一致した。ルールは足していない。
+- OpenSSL は、AlmaLinux 8.10 が `1.1.1k-18.el8_6`、AlmaLinux 9.8 が `3.5.8-2.el9_8`。本体のテスト用の正解データ（`servers.tsv`）に、`3.5.8-2.el9_8` の 8 場面を足した。
+
+### ルールがない版の、数え直し（2026-11-15）
+
+開発者は、目録との突き合わせ（`lab/phase1b/versions-summary.py`）の数え方に、誤りを見つけて直した。
+
+- これまでの数え方は、Ubuntu と Debian のパッケージで、系列を確かめずに「開発元の版が同じルールがあれば、補える」としていた。
+  そのため、ほかのディストリのルールや、同じ Ubuntu の更新後の版のルールがあるだけで、「補える」と数えていた。
+- 本体は、版の文字列から系列を読み取れない版を、補わない（`internal/ruleset` の `findBuild`、`AppDefaultsFor`）。Ubuntu のパッケージのうち、Debian の版をそのまま
+  取り込んだもの（版の文字列に `ubuntu` が入らない。例: `openssh-server 1:8.9p1-3`）は、系列を読み取れないので、その版そのもののルールがなければ「不明」になる。
+- 開発者は、数え方を本体と同じ決まり（その版そのもののルールがあるか、系列と開発元の版が同じルールがあるか）に合わせた。
+
+数え直した結果、ルールの対象のソフトで、ルールがなく、補えない版は、次のとおりである。
+
+| 区分 | 版 |
+|---|---|
+| 測ったが、ルールにしなかった（理由は、上の各節） | PostgreSQL 9.6.22（AlmaLinux 8 のモジュール）、MySQL 8.0.21（AlmaLinux 8.4）、MySQL 8.0.28（AlmaLinux 9.0）、OpenJDK 11.0.7 と 8u252（Ubuntu 20.04 のリリース時）、MariaDB 10.6.7（Ubuntu 22.04 のリリース時） |
+| 測れていない（`docs/limitations.md` に記載ずみ） | Ubuntu 16.04 の MariaDB 10.0.24・10.0.38（OpenSSL なしのビルド）、Ubuntu 20.04 の MariaDB 10.3.22・10.3.39（鍵を読めず起動しない） |
+| 前から残っていた。まだ測っていない（測れるかどうかは、確かめていない） | Ubuntu 16.04 のリリース時の nginx（`1.9.15-0ubuntu1`）と OpenJDK 8（`8u77-b03-3ubuntu3`） |
+| **今回の数え直しで見つかった。まだ測っていない** | UBI 8 のモジュールの nginx 1.24.0（`1.24.0-3.module+el8.10.0+25265+69171071.6`）、Debian 13 のリリース時の Tomcat（`tomcat10 10.1.55-1~deb13u1`）、下の表の Ubuntu のリリース時の 10 版 |
+
+| OS | リリース時の版（版の文字列に系列がなく、補えない） | 同じ開発元の版のルール（更新後の版） |
+|---|---|---|
+| Ubuntu 16.04 | `haproxy 1.6.3-1`、`openssh-server 1:7.2p2-4`、`postfix 3.1.0-3`、`stunnel4 3:5.30-1` | `1.6.3-1ubuntu0.3`、`1:7.2p2-4ubuntu2.10`、`3.1.0-3ubuntu0.4`、`3:5.30-1ubuntu0.1` |
+| Ubuntu 20.04 | `openssh-server 1:8.2p1-4`、`stunnel4 3:5.56-1`、`tomcat9 9.0.31-1` | `1:8.2p1-4ubuntu0.13`、`3:5.56-1ubuntu0.2`、`9.0.31-1ubuntu0.9` |
+| Ubuntu 22.04 | `openssh-server 1:8.9p1-3`、`tomcat9 9.0.58-1` | `1:8.9p1-3ubuntu0.18`、`9.0.58-1ubuntu0.2` |
+| Ubuntu 24.04 | `postfix 3.8.6-1build2` | `3.8.6-1ubuntu0.1` |
+
+前の節までに書いた「残りは約 35」は、直す前の数え方によるもので、今回見つかった 12 版を含んでいなかった。
+
 ### リファクタリング（2026-11-15）
 
 このリポジトリの所有者の依頼により、開発者は、次の 4 件のリファクタリングを行った。どれも、前後で全テストが通ることを確かめた。
