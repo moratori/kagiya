@@ -603,6 +603,9 @@ func TestAppDefaultsInterpolation(t *testing.T) {
 		{"openssh", "openssh-server", "9.9p1-40.el10_4", "9.9p1-33.el10_3"},
 		{"openssh", "openssh-server", "1:10.0p1-7+deb13u5", "1:10.0p1-7+deb13u4"},
 		{"nginx", "nginx-core", "1.20.1-33.el9_9.1", "1.20.1-32.el9_9.1"},
+		// モジュールで配られるパッケージ（リリースが「module_el8…」「module+el9…」の形）も、同じ系列の、作り直しの番号だけが違う版で補う
+		{"postgresql", "postgresql-server", "15.8-9.module_el8.10.0+9999+0a1b2c3d", "15.8-1.module_el8.10.0+3888+1aead837"},
+		{"nginx", "nginx-core", "1.22.1-9.module+el9.6.0+99999+0a1b2c3d.1", "1.22.1-8.module+el9.5.0+22953+b175c265.1"},
 	} {
 		v, measured, _, exact, ok := rs.AppDefaultsFor(c.app, c.pkg, c.version)
 		if !ok || exact || measured != c.want || len(v) == 0 {
@@ -619,6 +622,10 @@ func TestAppDefaultsInterpolation(t *testing.T) {
 		{"openssh", "openssh", "9.9p1-17.el9_9"},
 		{"nginx", "openssh-server", "9.9p1-17.el9_9"},
 		{"openssh", "openssh-server", ""},
+		// モジュール: 系列が違う（12.20 は el8 のモジュールでしか測っていない）
+		{"postgresql", "postgresql-server", "12.20-1.module_el9.4.0+1+0a1b2c3d"},
+		// モジュール: 作った配布元が違う（AlmaLinux の「module_el8」で測った表を、RHEL の「module+el8」の版に当てはめない）
+		{"postgresql", "postgresql-server", "12.20-1.module+el8.10.0+1+0a1b2c3d"},
 	} {
 		if _, _, _, _, ok := rs.AppDefaultsFor(c[0], c[1], c[2]); ok {
 			t.Errorf("%v must not match", c)
