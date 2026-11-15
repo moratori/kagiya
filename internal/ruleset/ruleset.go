@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"kagiya/rules"
 
@@ -92,8 +93,18 @@ var (
 	}
 )
 
-// Builtin は内包ルールを読み込む。
-func Builtin() (*RuleSet, error) { return Load(rules.FS) }
+// Builtin は内包ルールを返す。内包ルールは実行ファイルに埋め込まれていて変わらないので、読み込みは最初の 1 回だけ行い、以後は同じものを返す。
+// 返したルールは、読むだけにすること（書き換えると、ほかの呼び出し元にも影響する）。
+func Builtin() (*RuleSet, error) {
+	builtinOnce.Do(func() { builtinRules, builtinErr = Load(rules.FS) })
+	return builtinRules, builtinErr
+}
+
+var (
+	builtinOnce  sync.Once
+	builtinRules *RuleSet
+	builtinErr   error
+)
 
 // BuiltinFiles は内包ルールのファイル一覧を返す（`rules export` 用）。
 func BuiltinFiles() ([]File, error) { return readAll(rules.FS) }
