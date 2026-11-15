@@ -25,7 +25,12 @@ const (
 )
 
 func dbAlma9(t *testing.T, pkg, version, release, lab string) func(p string, b *inventory.Builder) {
-	prepare := rhel9Web(t, "3.5.8", "2.el9_8", map[string]string{myCnf: myMain, myLab: lab})
+	return dbAlma9On(t, "3.5.8", "2.el9_8", pkg, version, release, lab)
+}
+
+// dbAlma9On は、OpenSSL の版を指定して、AlmaLinux 9 にデータベースのサーバーを導入した状態を作る（古いマイナー版のホスト用）。
+func dbAlma9On(t *testing.T, opensslVersion, opensslRelease, pkg, version, release, lab string) func(p string, b *inventory.Builder) {
+	prepare := rhel9Web(t, opensslVersion, opensslRelease, map[string]string{myCnf: myMain, myLab: lab})
 	return withGroups(rhel9PolicyGroups, func(p string, b *inventory.Builder) {
 		b.AddPackage(model.Package{Manager: "rpm", Name: pkg, Epoch: 3, Version: version, Release: release, Role: "database"})
 		prepare(p, b)
@@ -146,3 +151,24 @@ func TestMySQLEffective(t *testing.T) {
 		}
 	}
 }
+
+// 古い MySQL（8.0.32 まで）は、鍵交換のグループを自分で決めず、OpenSSL のシステム既定（RHEL 系では暗号ポリシー）に従う
+// （新しい版は、P-256・P-384・P-521 だけに絞る）。ルールでは、tls.groups の値「@system」で表す。
+// 期待値は、検証ラボの AlmaLinux 9.3 の mysql-server 8.0.32-1.el9_2（OpenSSL 3.0.7-25.el9_3）を起動して数え上げた結果。
+func TestMySQLOldVersionFollowsSystemGroups(t *testing.T) {
+	_, inv := collect(t, "rhel9", dbAlma9On(t, "3.0.7", "25.el9_3", "mysql-server", "8.0.32", "1.el9_2", myRSA))
+	checkSuites(t, eff(t, inv, "svc:mysql", "tls.ciphers", ""), 20, "3c3c5b556371eddf", "high")
+	g := groupsOf(t, inv, "svc:mysql", "")
+	if strings.Join(g.Values, " ") != alma9Groups {
+		t.Errorf("groups = %v, want the groups of the system policy (%s)", g.Values, alma9Groups)
+	}
+	// アプリの既定としてではなく、システムの設定から決まったことが、手順に残る
+	if g.Steps[0].Layer != "os-policy" {
+		t.Errorf("steps = %+v", g.Steps)
+	}
+	// この版そのものを起動して確かめたルールなので、確度は「高」
+	if g.Confidence != "high" {
+		t.Errorf("confidence = %s", g.Confidence)
+	}
+}
+

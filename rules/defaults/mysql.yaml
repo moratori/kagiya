@@ -3,7 +3,9 @@
 #   tls.ciphers             : ssl_cipher の記載がないときの暗号文字列。MySQL が内蔵する既定の並びで、サーバーの変数には現れない。
 #                             実行ファイルに埋め込まれた並びの組み合わせのうち、実測と一致するものを採った。
 #   tls.cipher-suffix       : 設定に書かれた暗号文字列（ssl_cipher）の後ろに、MySQL が足す並び（拒否する暗号）。
-#   tls.groups              : 鍵交換のグループ。MySQL が自分で決める（システムの openssl.cnf やライブラリの既定には従わず、X25519 も耐量子のハイブリッドも含まない）。
+#   tls.groups              : 鍵交換のグループ。新しい版は、MySQL が自分で決める（システムの openssl.cnf やライブラリの既定には従わず、X25519 も耐量子のハイブリッドも含まない）。
+#                             「@system」は、MySQL が何も決めず、OpenSSL のシステム既定（システムの openssl.cnf、なければライブラリの既定）のままになる版を表す。
+#                             どちらの版かは、既定の場面の数え上げで決めた。
 #   tls.without-certificate : 証明書の指定がないときの TLS。auto-rsa = データディレクトリに自分で用意した証明書（RSA）で有効。
 #   tls.dhe-without-params  : DH パラメータの指定がなくても DHE のスイートを使えるか。
 #
@@ -32,6 +34,227 @@ defaults:
       tls.dhe-without-params: "builtin"
   - app: mysql
     package: mysql-server
+    version: "8.0.36-1.module_el8.9.0+3735+82bd6c11"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.0.41-1.module_el8.10.0+3965+b415b607"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.0.43-1.module_el8.10.0+4049+06e4dcce"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.0.44-1.module_el8.10.0+4079+cc1921b9"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.0.45-1.module_el8.10.0+4142+0b28b031"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.4.11-1.module_el8.10.0+4255+e01a855c"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.4.6-1.module_el8.10.0+4060+d4256e26"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.4.7-1.module_el8.10.0+4077+98379720"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.4.8-1.module_el8.10.0+4154+a69a9128"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.4.9-1.module_el8.10.0+4193+cbb8e728"
+    source:
+      image: "almalinux@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b"
+      os: "AlmaLinux 8.10 (Cerulean Leopard)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.0.26-1.module_el8.4.0+2532+b8928c02"
+    source:
+      image: "almalinux@sha256:56ec0a505cbd57bfbc518e5e3cc8b1997b4ab1d7550027b09d3137b6c5d7f68e"
+      os: "AlmaLinux 8.6 (Sky Tiger)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "@system"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.0.30-1.module_el8.6.0+3340+d764b636"
+    source:
+      image: "almalinux@sha256:af06ad211fd7a53745bcd0d955dc3fa4d47a42caaf985f761327bdb759248a6a"
+      os: "AlmaLinux 8.8 (Sapphire Caracal)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "@system"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.0.32-1.module_el8.8.0+3567+56a616e4"
+    source:
+      image: "almalinux@sha256:a54c7f0491a4a81cee7380da537c36685efa66dc2d5de418bd3fbaa1e11c8d57"
+      os: "AlmaLinux 8.9 (Midnight Oncilla)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "@system"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
     version: "8.0.46-1.el9_8"
     source:
       image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
@@ -48,8 +271,314 @@ defaults:
       tls.without-certificate: "auto-rsa"
       tls.dhe-without-params: "builtin"
   - app: mysql
+    package: mysql-server
+    version: "8.0.30-3.el9_0"
+    source:
+      image: "almalinux@sha256:09fdb3db0975ac4bf4610abd8f159622ab8f460950b56212472625cc47fccd5a"
+      os: "AlmaLinux 9.2 (Turquoise Kodkod)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "@system"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.0.32-1.el9_2"
+    source:
+      image: "almalinux@sha256:3f0cc7f99b0739908a8d6e4adec37ef47908991dc838dac43d52effe90fec747"
+      os: "AlmaLinux 9.3 (Shamrock Pampas Cat)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "@system"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.0.36-1.el9_3"
+    source:
+      image: "almalinux@sha256:e9bc8f598ddfe585b2bcf6402e1f4dae7eb689c8c9361877fcdd1efc86c18799"
+      os: "AlmaLinux 9.5 (Teal Serval)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.0.41-2.el9_5"
+    source:
+      image: "almalinux@sha256:995c8b08af9f7b7bce0f3f1d1559378261c5b29c4b8c6f77b4860833a0e7cbc7"
+      os: "AlmaLinux 9.6 (Sage Margay)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.4.4-1.module_el9.6.0+152+8cbce00c"
+    source:
+      image: "almalinux@sha256:995c8b08af9f7b7bce0f3f1d1559378261c5b29c4b8c6f77b4860833a0e7cbc7"
+      os: "AlmaLinux 9.6 (Sage Margay)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.0.43-1.el9_6"
+    source:
+      image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
+      os: "AlmaLinux 9.7 (Moss Jungle Cat)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.0.44-1.el9_7"
+    source:
+      image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
+      os: "AlmaLinux 9.7 (Moss Jungle Cat)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.4.6-1.module_el9.6.0+180+a4e757e5"
+    source:
+      image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
+      os: "AlmaLinux 9.7 (Moss Jungle Cat)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.4.7-1.module_el9.7.0+194+73a02de8"
+    source:
+      image: "almalinux@sha256:2d57aea965da8fbda97736ec5125c1b683ce271438038ea1906b2391e89b77d2"
+      os: "AlmaLinux 9.7 (Moss Jungle Cat)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.0.45-1.el9_7"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-GCM-SHA384:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:!DES-CBC3-SHA:!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:!DH-RSA-DES-CBC3-SHA:!DH-DSS-DES-CBC3-SHA"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.4.11-1.module_el9.8.0+295+1681b9df"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.4.8-1.module_el9.7.0+219+aca48cd3"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql-server
+    version: "8.4.9-1.module_el9.8.0+263+ff5e95cf"
+    source:
+      image: "almalinux@sha256:245f8aab832fe800aa42bdab5fad75ebbd8e0b4c9f24820a83c638b177857ae2"
+      os: "AlmaLinux 9.8 (Olive Jaguar)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
     package: mysql8.4-server
     version: "8.4.11-1.el10_2.alma.1"
+    source:
+      image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
+      os: "AlmaLinux 10.2 (Lavender Lion)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql8.4-server
+    version: "8.4.4-2.el10"
+    source:
+      image: "almalinux@sha256:32f37b0ffeba33dba04d08437f2ae86429cb5d8caa5f86c447c19ddc4b7e30d9"
+      os: "AlmaLinux 10.0 (Purple Lion)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql8.4-server
+    version: "8.4.6-2.el10_0"
+    source:
+      image: "almalinux@sha256:5e1f19a1fc018dcb17f042411bff68c64cb06131ff1a71356d0be011f87c7baa"
+      os: "AlmaLinux 10.1 (Heliotrope Lion)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql8.4-server
+    version: "8.4.7-1.el10_1"
+    source:
+      image: "almalinux@sha256:5e1f19a1fc018dcb17f042411bff68c64cb06131ff1a71356d0be011f87c7baa"
+      os: "AlmaLinux 10.1 (Heliotrope Lion)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql8.4-server
+    version: "8.4.8-1.el10_1"
+    source:
+      image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
+      os: "AlmaLinux 10.2 (Lavender Lion)"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.cipher-suffix: { method: read-from-distributed-files, verified-by-handshake: true }
+      note: "server started in the container; variables from the running server; accepted suites and groups enumerated by handshakes (openssl s_client through a relay that performs the MySQL pre-TLS exchange)"
+    values:
+      tls.ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305:!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.cipher-suffix: "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!3DES:!RC2:!RC4:!PSK:!kDH"
+      tls.groups: "P-256:P-384:P-521"
+      tls.without-certificate: "auto-rsa"
+      tls.dhe-without-params: "builtin"
+  - app: mysql
+    package: mysql8.4-server
+    version: "8.4.9-1.el10_2.alma.1"
     source:
       image: "almalinux@sha256:5a4b41a427c9717be8f4ac2a32aa22efbae5f9124fbcb79a6765394f312acfe8"
       os: "AlmaLinux 10.2 (Lavender Lion)"
