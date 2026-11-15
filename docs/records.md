@@ -1413,3 +1413,30 @@ RHEL 8 と 9 では、nginx の既定とは別の系列の版が、モジュー�
 
 7 版のすべての場面で、予測と数え上げが一致した。kagiya の結果との突き合わせも、7 件の記録・56 場面のすべてで一致した。
 `rules/defaults/nginx.yaml` は、10 版から 17 版になった。
+
+### AlmaLinux 8・9 の、別の系列（モジュール）で配られる PostgreSQL（2026-11-15）
+
+開発者は、AlmaLinux 8 と 9 のイメージ（これまでと同じダイジェスト）で、PostgreSQL のモジュールの系列を有効にしてから導入し、これまでの PostgreSQL と同じ方法で測った。
+
+| スナップショット | 版（`postgresql-server`） |
+|---|---|
+| `alma8+pg12` | 12.22-12.module_el8.10.0+4291+51362610 |
+| `alma8+pg13` | 13.23-3.module_el8.10.0+4198+7a62a2ce |
+| `alma8+pg15` | 15.19-1.module_el8.10.0+4287+eeacefcc |
+| `alma8+pg16` | 16.15-1.module_el8.10.0+4286+3c445f53 |
+| `alma9+pg15` | 15.19-1.module_el9.8.0+318+764e137c |
+| `alma9+pg16` | 16.15-1.module_el9.8.0+311+c39b793b |
+
+6 版のすべての場面（1 版あたり 8 場面）で、予測と数え上げが一致した。kagiya の結果との突き合わせも、48 場面のすべてで一致した。
+`rules/defaults/postgresql.yaml` は、7 版から 13 版になった。PostgreSQL 18（AlmaLinux 9.8 のモジュール）は、`ssl_groups` の扱いを測っていないので、足していない。
+
+### MySQL 8.4（AlmaLinux 10）の測り直し（2026-11-15）
+
+MySQL 8.4 は、暗号の指定（`ssl_cipher`）に、弱い暗号を指しうる書き方（`ECDHE+AESGCM` のような語での指定や、CBC のスイート）があると、起動しない。
+このため、これまでの「暗号の指定を書いた場面」と「DHE の場面」は、AlmaLinux 10 の MySQL 8.4.11 では測れていなかった。
+開発者は、8.4 が受け付けるスイートを名前で並べた場面を 2 つ足して（`ciphers-named`、`dhe-named`）、同じ版（mysql8.4-server 8.4.11-1.el10_2.alma.1）を測り直した。
+
+- 2 つの場面とも、予測（設定の暗号の指定に、実行ファイルの中の除外の文字列を足して展開したもの）と、数え上げが一致した。
+  これで、この版の除外の文字列（`tls.cipher-suffix`）は、ほかの 5 版と同じ基準で、裏付けありになった（`verified-by-handshake: true`）。
+- DH パラメータの指定がないときに、DHE のスイートを使えた（`tls.dhe-without-params: builtin`）。この項目は、この版では初めて測れた。
+- kagiya の結果との突き合わせは、起動できた 7 場面のすべてで一致した。
