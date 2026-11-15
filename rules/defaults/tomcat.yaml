@@ -57,3 +57,18 @@ defaults:
       tls.ciphers: "HIGH:!aNULL:!eNULL:!DES:!RC4:!MD5:!kRSA"
       tls.dhe-without-params: "builtin"
       tls.multiple-certificates: "order-dependent"
+  - app: tomcat
+    package: tomcat10
+    version: "10.1.16-1"
+    source:
+      image: "ubuntu@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"
+      os: "Ubuntu 24.04.5 LTS"
+      method: enumerated-by-handshake
+      verified-by-handshake: true
+      items:
+        tls.ciphers: { method: reported-by-software, verified-by-handshake: true }
+      note: "server started in the container with libssl3t64 3.0.13-0ubuntu3.16, libtcnative-1 1.2.35-1build2; accepted suites enumerated by handshakes (one suite offered at a time)"
+    values:
+      tls.ciphers: "HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!kRSA"
+      tls.dhe-without-params: "builtin"
+      tls.multiple-certificates: "order-dependent"
